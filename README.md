@@ -10,6 +10,7 @@ checked before manuscript use.
 ## Models
 
 - `Mimo V2.5 Pro` (run_directory): `runs/cmb_test_run_mimo`
+- `GPT5.5` (run_directory): `runs/anomaly_agent_gpt_run`
 
 ## Local preview
 

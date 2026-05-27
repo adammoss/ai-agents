@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixed-Scale SMHW Cold-Spot Extremum · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 04 · GPT5.5</p>
+      <h1>Fixed-Scale SMHW Cold-Spot Extremum</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">← Catalogue</a>
+      <a href="../../../">Paper</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">GPT5.5 · Variation · other · one-tailed, lower tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Planck CMB map has an anomalously cold fixed-scale R=5° SMHW spot, meaning its minimum standardized wavelet coefficient is more negative than expected from LCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Planck and 1000 LCDM simulations were monopole/dipole-subtracted on the unmasked sky, filtered once with an R=5° spherical Mexican-hat wavelet, restricted to pixels with ≥90% effective mask support, standardized over valid pixels, and summarized by the minimum standardized coefficient.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck statistic = -4.595; simulations have mean ± std = -4.692 ± 0.261. Since more negative values are colder, Planck is not extreme: 61.2% of simulations are as cold or colder, giving one-tailed lower p = 0.612 and only ~0.37 simulation-standard-deviations on the warm side of the mean.</p>
+          <p>This fixed-scale extremum does not support an anomalously cold Planck SMHW spot; the measured Planck value lies well inside the LCDM simulation distribution and far from the 5% cold tail.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p class="muted">Not recorded.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>SMHW Cold Spot anomalies are well documented: Cruz et al. reported only ~0.2% of Gaussian simulations with such a WMAP cold spot (arXiv:astro-ph/0405341), and Cruz et al. 2006 found wavelet-space significance below 1%, including 0.69% for kurtosis (arXiv:astro-ph/0601427). This test differs by using a single fixed 5° scale and a minimum standardized coefficient, yielding no anomaly.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+
+test_description = &quot;Fixed-Scale SMHW Cold-Spot Extremum: remove the unmasked-sky monopole and dipole from each masked nside=256 temperature map, convolve the finite sky with a spherical Mexican-hat wavelet at the single fixed scale R=5 degrees, retain only pixels whose absolute-wavelet effective mask support is at least 90%, standardize the filtered coefficients over those valid pixels, and return the minimum standardized coefficient, i.e. the most negative fixed-scale cold-spot amplitude.&quot;
+
+
+def analyze_map(m):
+    import numpy as _np
+    try:
+        import healpy as _hp
+    except Exception:
+        _hp = None
+
+    _R_DEG = 5.0
+    _R_RAD = float(_np.deg2rad(_R_DEG))
+    _SUPPORT_THRESHOLD = 0.90
+    _LMAX_CAP = 128
+    _NQUAD_MIN = 1024
+    _ABS_CUT = 1.0e20
+    _CACHE_MAX = 4
+
+    def _as_float_map(x):
+        try:
+            if _np.ma.isMaskedArray(x):
+                y = _np.asarray(x.filled(_np.nan), dtype=_np.float64).ravel()
+            else:
+                y = _np.asarray(x, dtype=_np.float64).ravel()
+            return y
+        except Exception:
+            try:
+                y = _np.real(_np.asarray(x)).astype(_np.float64).ravel()
+                return y
+            except Exception:
+                y = _np.asarray([], dtype=_np.float64)
+                return y
+
+    def _finite_mask(a):
+        a = _np.asarray(a).ravel()
+        good = _np.isfinite(a)
+        try:
+            with _np.errstate(invalid=&quot;ignore&quot;, over=&quot;ignore&quot;):
+                good = _np.logical_and(good, _np.abs(a) &lt; _ABS_CUT)
+        except Exception:
+            pass
+        good = _np.asarray(good, dtype=bool)
+        return good
+
+    def _fallback_stat(a):
+        a = _as_float_map(a)
+        good = _finite_mask(a)
+        vals = _np.asarray(a[good], dtype=_np.float64)
+        vals = vals[_np.isfinite(vals)]
+        if vals.size &lt; 2:
+            return 0.0
+        vals = vals - float(_np.mean(vals))
+        sd = float(_np.std(vals))
+        if not _np.isfinite(sd) or sd &lt;= 0.0:
+            return 0.0
+        out = float(_np.min(vals) / sd)
+        if not _np.isfinite(out):
+            return 0.0
+        return out
+
+    def _pinv_sym(a):
+        a = _np.asarray(a, dtype=_np.float64)
+        try:
+            a = 0.5 * (a + a.T)
+            w, v = _np.linalg.eigh(a)
+            scale = float(_np.max(_np.abs(w))) if w.size else 0.0
+            if not _np.isfinite(scale) or scale &lt;= 0.0:
+                z = _np.zeros_like(a)
+                return z
+            keep = _np.abs(w) &gt; 1.0e-12 * scale
+            inv = _np.zeros_like(w)
+            inv[keep] = 1.0 / w[keep]
+            out = _np.dot(v * inv, v.T)
+            return out
+        except Exception:
+            try:
+                out = _np.linalg.pinv(a, rcond=1.0e-12)
+                return out
+            except Exception:
+                z = _np.zeros_like(a)
+                return z
+
+    def _get_cache():
+        if not hasattr(analyze_map, &quot;_fixed_smhw_cache_v2&quot;):
+            analyze_map._fixed_smhw_cache_v2 = {&quot;beam&quot;: {}, &quot;geom&quot;: {}}
+        cache = analyze_map._fixed_smhw_cache_v2
+        return cache
+
+    def _mask_key(nside, lmax, valid, pix):
+        nvalid = int(pix.size)
+        if nvalid &lt;= 0:
+            sample_sum = 0
+            first = -1
+            last = -1
+        else:
+            ntake = min(64, nvalid)
+            take = _np.linspace(0, nvalid - 1, ntake).astype(_np.int64)
+            sample = pix[take].astype(_np.int64, copy=False)
+            sample_sum = int(_np.sum(sample % 1000003))
+            first = int(pix[0])
+            last = int(pix[-1])
+        key = (int(nside), int(valid.size), int(lmax), nvalid, first, last, sample_sum)
+        return key
+
+    def _smhw_profile_from_mu(mu, R):
+        mu = _np.asarray(mu, dtype=_np.float64)
+        psi = _np.zeros_like(mu, dtype=_np.float64)
+        den = 1.0 + mu
+        ok = den &gt; 1.0e-15
+        if not _np.any(ok):
+            return psi
+        q = (1.0 - mu[ok]) / den[ok]
+        y2 = 4.0 * q
+        u2 = y2 / (R * R)
+        close = _np.isfinite(u2) &amp; (u2 &lt; 745.0)
+        if _np.any(close):
+            y2c = y2[close]
+            u2c = u2[close]
+            norm_den = _np.sqrt(2.0 * _np.pi) * R * _np.sqrt(1.0 + 0.5 * R * R + 0.25 * R ** 4)
+            norm = 1.0 / norm_den
+            val = norm * (1.0 + 0.25 * y2c) ** 2 * (2.0 - u2c) * _np.exp(-0.5 * u2c)
+            tmp = _np.zeros_like(q)
+            tmp[close] = val
+            psi[ok] = tmp
+        psi[~_np.isfinite(psi)] = 0.0
+        return psi
+
+    def _compute_beams(lmax):
+        cache = _get_cache()[&quot;beam&quot;]
+        key = (int(lmax), float(_R_RAD))
+        got = cache.get(key)
+        if got is not None:
+            return got
+
+        nquad = int(max(_NQUAD_MIN, 4 * int(lmax) + 256))
+        try:
+            mu, wt = _np.polynomial.legendre.leggauss(nquad)
+        except Exception:
+            nquad = int(max(512, 2 * int(lmax) + 128))
+            mu, wt = _np.polynomial.legendre.leggauss(nquad)
+
+        psi = _smhw_profile_from_mu(mu, _R_RAD)
+        g = _np.abs(psi)
+        beam = _np.zeros(int(lmax) + 1, dtype=_np.float64)
+        support_beam = _np.zeros(int(lmax) + 1, dtype=_np.float64)
+
+        p0 = _np.ones_like(mu)
+        beam[0] = 2.0 * _np.pi * float(_np.sum(wt * psi * p0))
+        support_beam[0] = 2.0 * _np.pi * float(_np.sum(wt * g * p0))
+        if int(lmax) &gt;= 1:
+            p1 = mu.copy()
+            beam[1] = 2.0 * _np.pi * float(_np.sum(wt * psi * p1))
+            support_beam[1] = 2.0 * _np.pi * float(_np.sum(wt * g * p1))
+            pm2 = p0
+            pm1 = p1
+            for ell in range(2, int(lmax) + 1):
+                pell = ((2.0 * ell - 1.0) * mu * pm1 - (ell - 1.0) * pm2) / float(ell)
+                beam[ell] = 2.0 * _np.pi * float(_np.sum(wt * psi * pell))
+                support_beam[ell] = 2.0 * _np.pi * float(_np.sum(wt * g * pell))
+                pm2 = pm1
+                pm1 = pell
+
+        beam[0] = 0.0
+        if beam.size &gt; 1:
+            mx = float(_np.max(_np.abs(beam[1:])))
+        else:
+            mx = 0.0
+        if _np.isfinite(mx) and mx &gt; 0.0:
+            beam = beam / mx
+
+        ell = _np.arange(int(lmax) + 1, dtype=_np.float64)
+        central = float(_np.sum((2.0 * ell + 1.0) * beam) / (4.0 * _np.pi))
+        if _np.isfinite(central) and central &lt; 0.0:
+            beam = -beam
+
+        norm = float(support_beam[0])
+        if not _np.isfinite(norm) or norm &lt;= 0.0:
+            ell = _np.arange(int(lmax) + 1, dtype=_np.float64)
+            sigma = _R_RAD
+            support_beam = _np.exp(-0.5 * ell * (ell + 1.0) * sigma * sigma)
+            support_beam[0] = 1.0
+        else:
+            support_beam = support_beam / norm
+            support_beam[0] = 1.0
+
+        beam[~_np.isfinite(beam)] = 0.0
+        support_beam[~_np.isfinite(support_beam)] = 0.0
+        got = {&quot;wave&quot;: beam.astype(_np.float64), &quot;support&quot;: support_beam.astype(_np.float64)}
+        cache[key] = got
+        return got
+
+    def _map2alm_safe(mp, lmax):
+        if _hp is None:
+            raise RuntimeError(&quot;healpy is not available&quot;)
+        mp = _np.asarray(mp, dtype=_np.float64)
+        mp = _np.where(_np.isfinite(mp), mp, 0.0)
+        try:
+            alm = _hp.map2alm(mp, lmax=int(lmax), iter=0, pol=False, use_weights=False)
+            return alm
+        except TypeError:
+            try:
+                alm = _hp.map2alm(mp, lmax=int(lmax), iter=0, pol=False)
+                return alm
+            except TypeError:
+                alm = _hp.map2alm(mp, lmax=int(lmax), iter=0)
+                return alm
+
+    def _alm2map_safe(alm, nside, lmax):
+        if _hp is None:
+            raise RuntimeError(&quot;healpy is not available&quot;)
+        try:
+            mp = _hp.alm2map(alm, int(nside), lmax=int(lmax), pol=False, verbose=False)
+            return mp
+        except TypeError:
+            try:
+                mp = _hp.alm2map(alm, int(nside), lmax=int(lmax), verbose=False)
+                return mp
+            except TypeError:
+                mp = _hp.alm2map(alm, int(nside), lmax=int(lmax))
+                return mp
+
+    def _almxfl_safe(alm, fl):
+        try:
+            out = _hp.almxfl(alm, fl, inplace=False)
+            return out
+        except TypeError:
+            out = _hp.almxfl(alm, fl)
+            return out
+
+    def _support_pixels(nside, valid, lmax, support_beam):
+        mask_map = _np.zeros(int(valid.size), dtype=_np.float64)
+        mask_map[valid] = 1.0
+        alm = _map2alm_safe(mask_map, int(lmax))
+        salm = _almxfl_safe(alm, support_beam)
+        support = _alm2map_safe(salm, int(nside), int(lmax))
+        support = _np.asarray(support, dtype=_np.float64).ravel()
+        good = valid &amp; _np.isfinite(support) &amp; (support &gt;= _SUPPORT_THRESHOLD)
+        good = _np.asarray(good, dtype=bool)
+        return {&quot;good&quot;: good, &quot;support&quot;: support}
+
+    def _get_geometry(nside, valid, lmax, support_beam):
+        cache = _get_cache()[&quot;geom&quot;]
+        pix = _np.flatnonzero(valid).astype(_np.int64, copy=False)
+        key = _mask_key(nside, lmax, valid, pix)
+        entries = cache.get(key, [])
+        for geom in entries:
+            try:
+                if _np.array_equal(geom.get(&quot;valid&quot;), valid):
+                    return geom
+            except Exception:
+                pass
+
+        nvalid = int(pix.size)
+        x, y, z = _hp.pix2vec(int(nside), pix)
+        x = _np.asarray(x, dtype=_np.float64)
+        y = _np.asarray(y, dtype=_np.float64)
+        z = _np.asarray(z, dtype=_np.float64)
+
+        gram = _np.empty((4, 4), dtype=_np.float64)
+        sx = float(_np.sum(x))
+        sy = float(_np.sum(y))
+        sz = float(_np.sum(z))
+        gram[0, 0] = float(nvalid)
+        gram[0, 1] = sx
+        gram[1, 0] = sx
+        gram[0, 2] = sy
+        gram[2, 0] = sy
+        gram[0, 3] = sz
+        gram[3, 0] = sz
+        gram[1, 1] = float(_np.dot(x, x))
+        gram[1, 2] = float(_np.dot(x, y))
+        gram[2, 1] = gram[1, 2]
+        gram[1, 3] = float(_np.dot(x, z))
+        gram[3, 1] = gram[1, 3]
+        gram[2, 2] = float(_np.dot(y, y))
+        gram[2, 3] = float(_np.dot(y, z))
+        gram[3, 2] = gram[2, 3]
+        gram[3, 3] = float(_np.dot(z, z))
+        pinv = _pinv_sym(gram)
+
+        sp = _support_pixels(int(nside), valid, int(lmax), support_beam)
+        valid_support = sp[&quot;good&quot;]
+        geom = {
+            &quot;nside&quot;: int(nside),
+            &quot;npix&quot;: int(valid.size),
+            &quot;lmax&quot;: int(lmax),
+            &quot;valid&quot;: valid.copy(),
+            &quot;pix&quot;: pix,
+            &quot;x&quot;: x,
+            &quot;y&quot;: y,
+            &quot;z&quot;: z,
+            &quot;pinv&quot;: pinv,
+            &quot;valid_support&quot;: valid_support,
+            &quot;n_support&quot;: int(_np.count_nonzero(valid_support))
+        }
+        cache[key] = [geom] + entries[:max(0, _CACHE_MAX - 1)]
+        return geom
+
+    arr = _as_float_map(m)
+    npix = int(arr.size)
+    if npix &lt;= 0:
+        return 0.0
+    valid = _finite_mask(arr)
+    nvalid = int(_np.count_nonzero(valid))
+    if nvalid &lt; 8:
+        val = _fallback_stat(arr)
+        return float(val)
+    if _hp is None:
+        val = _fallback_stat(arr)
+        return float(val)
+
+    try:
+        nside = int(_hp.npix2nside(npix))
+        if nside &lt;= 0 or 12 * nside * nside != npix:
+            val = _fallback_stat(arr)
+            return float(val)
+    except Exception:
+        val = _fallback_stat(arr)
+        return float(val)
+
+    lmax_full = int(3 * nside - 1)
+    lmax = int(max(1, min(lmax_full, _LMAX_CAP)))
+
+    try:
+        beams = _compute_beams(lmax)
+        wave_beam = beams[&quot;wave&quot;]
+        support_beam = beams[&quot;support&quot;]
+        geom = _get_geometry(nside, valid, lmax, support_beam)
+        pix = geom[&quot;pix&quot;]
+        if int(pix.size) &lt; 8:
+            val = _fallback_stat(arr)
+            return float(val)
+
+        vals = _np.asarray(arr[pix], dtype=_np.float64)
+        finite_vals = _np.isfinite(vals)
+        if not _np.all(finite_vals):
+            vals = _np.where(finite_vals, vals, 0.0)
+
+        x = geom[&quot;x&quot;]
+        y = geom[&quot;y&quot;]
+        z = geom[&quot;z&quot;]
+        rhs = _np.array([
+            float(_np.sum(vals)),
+            float(_np.dot(x, vals)),
+            float(_np.dot(y, vals)),
+            float(_np.dot(z, vals))
+        ], dtype=_np.float64)
+        coeff = _np.dot(geom[&quot;pinv&quot;], rhs)
+        if not _np.all(_np.isfinite(coeff)):
+            coeff = _np.zeros(4, dtype=_np.float64)
+
+        residual_vals = vals - (coeff[0] + coeff[1] * x + coeff[2] * y + coeff[3] * z)
+        residual_vals = _np.where(_np.isfinite(residual_vals), residual_vals, 0.0)
+        filled = _np.zeros(npix, dtype=_np.float64)
+        filled[pix] = residual_vals
+
+        alm = _map2alm_safe(filled, lmax)
+        walm = _almxfl_safe(alm, wave_beam)
+        filt = _alm2map_safe(walm, nside, lmax)
+        filt = _np.asarray(filt, dtype=_np.float64).ravel()
+
+        good = _np.asarray(geom[&quot;valid_support&quot;], dtype=bool)
+        if good.size != filt.size:
+            good = valid &amp; _np.isfinite(filt)
+        else:
+            good = good &amp; _np.isfinite(filt)
+        if int(_np.count_nonzero(good)) &lt; 2:
+            good = valid &amp; _np.isfinite(filt)
+        if int(_np.count_nonzero(good)) &lt; 2:
+            val = _fallback_stat(arr)
+            return float(val)
+
+        coeffs = _np.asarray(filt[good], dtype=_np.float64)
+        coeffs = coeffs[_np.isfinite(coeffs)]
+        if coeffs.size &lt; 2:
+            val = _fallback_stat(arr)
+            return float(val)
+        mu = float(_np.mean(coeffs))
+        sd = float(_np.std(coeffs))
+        if not _np.isfinite(sd) or sd &lt;= 0.0:
+            return 0.0
+        mn = float(_np.min(coeffs))
+        stat = float((mn - mu) / sd)
+        if not _np.isfinite(stat):
+            return 0.0
+        return stat
+    except Exception:
+        val = _fallback_stat(arr)
+        return float(val)
+
+
+def summarize_results(planck_stat, sim_results):
+    import numpy as _np
+
+    desc = &quot;Fixed-Scale SMHW Cold-Spot Extremum: remove the unmasked-sky monopole and dipole, filter once with an R=5 degree spherical Mexican-hat wavelet, keep pixels with at least 90% absolute-wavelet mask support, z-score the filtered coefficients on those pixels, and use the minimum z-score. More negative values are colder/more extreme.&quot;
+
+    def _finite_float(x, default=float(&quot;nan&quot;)):
+        try:
+            y = float(x)
+        except Exception:
+            return float(default)
+        if not _np.isfinite(y):
+            return float(default)
+        return float(y)
+
+    ps = _finite_float(planck_stat)
+    sims = _np.asarray(sim_results, dtype=_np.float64).ravel()
+    sims = sims[_np.isfinite(sims)]
+    n = int(sims.size)
+
+    out = {
+        &quot;test_description&quot;: desc,
+        &quot;planck_stat&quot;: ps,
+        &quot;n_sims&quot;: n,
+        &quot;tail_of_interest&quot;: &quot;lower tail: more negative minimum standardized SMHW coefficient means a colder fixed-scale spot&quot;,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Fixed-scale R=5 deg SMHW cold-spot extremum&quot;,
+            &quot;xlabel&quot;: &quot;min z-scored SMHW coefficient over valid pixels&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: &quot;Simulation distribution of the most negative standardized spherical Mexican-hat wavelet coefficient at the single fixed scale R=5 degrees. The Planck value is anomalously cold if it lies far in the left tail.&quot;
+        }
+    }
+
+    if not _np.isfinite(ps):
+        out[&quot;warning&quot;] = &quot;Planck statistic is not finite.&quot;
+        return out
+    if n &lt;= 0:
+        out[&quot;warning&quot;] = &quot;No finite simulation statistics are available.&quot;
+        return out
+
+    n_lt = int(_np.count_nonzero(sims &lt; ps))
+    n_le = int(_np.count_nonzero(sims &lt;= ps))
+    n_gt = int(_np.count_nonzero(sims &gt; ps))
+    n_ge = int(_np.count_nonzero(sims &gt;= ps))
+    n_eq = int(n - n_lt - n_gt)
+
+    p_lower = float((n_le + 1.0) / (n + 1.0))
+    p_upper = float((n_ge + 1.0) / (n + 1.0))
+    p_two = float(min(1.0, 2.0 * min(p_lower, p_upper)))
+    midrank_percentile = float(100.0 * (n_lt + 0.5 * n_eq) / n)
+
+    mean = float(_np.mean(sims))
+    median = float(_np.median(sims))
+    std = float(_np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    z_vs_sims = None
+    if _np.isfinite(std) and std &gt; 0.0:
+        z_vs_sims = float((ps - mean) / std)
+    qs = _np.percentile(sims, [0.5, 1.0, 5.0, 16.0, 50.0, 84.0, 95.0, 99.0, 99.5])
+
+    out.update({
+        &quot;sim_mean&quot;: mean,
+        &quot;sim_median&quot;: median,
+        &quot;sim_std&quot;: std,
+        &quot;sim_min&quot;: float(_np.min(sims)),
+        &quot;sim_max&quot;: float(_np.max(sims)),
+        &quot;sim_percentile_0_5&quot;: float(qs[0]),
+        &quot;sim_percentile_1&quot;: float(qs[1]),
+        &quot;sim_percentile_5&quot;: float(qs[2]),
+        &quot;sim_percentile_16&quot;: float(qs[3]),
+        &quot;sim_percentile_50&quot;: float(qs[4]),
+        &quot;sim_percentile_84&quot;: float(qs[5]),
+        &quot;sim_percentile_95&quot;: float(qs[6]),
+        &quot;sim_percentile_99&quot;: float(qs[7]),
+        &quot;sim_percentile_99_5&quot;: float(qs[8]),
+        &quot;planck_zscore_vs_sim_distribution&quot;: z_vs_sims,
+        &quot;planck_percentile_midrank&quot;: midrank_percentile,
+        &quot;rank_ascending_1_is_coldest&quot;: int(n_lt + 1),
+        &quot;rank_ascending_tie_low&quot;: int(n_lt + 1),
+        &quot;rank_ascending_tie_high&quot;: int(n_le + 1),
+        &quot;rank_convention&quot;: &quot;Ascending rank 1 is the most negative/coldest statistic; tie_high includes simulations tied with Planck.&quot;,
+        &quot;n_sim_lt_planck&quot;: n_lt,
+        &quot;n_sim_le_planck&quot;: n_le,
+        &quot;n_sim_eq_planck&quot;: n_eq,
+        &quot;n_sim_gt_planck&quot;: n_gt,
+        &quot;n_sim_ge_planck&quot;: n_ge,
+        &quot;empirical_p_lower_cold_tail&quot;: p_lower,
+        &quot;empirical_p_upper_warm_tail&quot;: p_upper,
+        &quot;empirical_p_two_sided_extremeness&quot;: p_two,
+        &quot;is_cold_tail_5pct&quot;: bool(p_lower &lt;= 0.05),
+        &quot;is_cold_tail_1pct&quot;: bool(p_lower &lt;= 0.01)
+    })
+
+    if std == 0.0:
+        out[&quot;warning&quot;] = &quot;All finite simulation statistics are identical; check for degenerate inputs or a failed filtering pipeline.&quot;
+    elif p_lower &lt;= 0.01:
+        out[&quot;interpretation&quot;] = &quot;Planck lies in the lower 1% cold-tail of the fixed-scale SMHW extrema from the simulations.&quot;
+    elif p_lower &lt;= 0.05:
+        out[&quot;interpretation&quot;] = &quot;Planck lies in the lower 5% cold-tail of the fixed-scale SMHW extrema from the simulations.&quot;
+    else:
+        out[&quot;interpretation&quot;] = &quot;Planck is not in the lower 5% cold-tail for this fixed-scale SMHW statistic.&quot;
+    return out</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/gpt5-5/test-04-fixed-scale-smhw-cold-spot-extremum.png" alt="Statistic distribution for Fixed-Scale SMHW Cold-Spot Extremum">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>GPT5.5</td></tr>
+<tr><th>Run path</th><td>runs/anomaly_agent_gpt_run</td></tr>
+<tr><th>Primary p-value</th><td>0.612</td></tr>
+<tr><th>One-tailed p-value</th><td>0.612</td></tr>
+<tr><th>Two-tailed p-value</th><td>n/a</td></tr>
+<tr><th>Sigma</th><td>0.285</td></tr>
+<tr><th>Planck statistic</th><td>-4.595</td></tr>
+<tr><th>Simulation mean</th><td>-4.692</td></tr>
+<tr><th>Simulation std.</th><td>0.261</td></tr>
+<tr><th>Simulation median</th><td>-4.662</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>one-tailed, lower</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/gpt5-5/test-04-fixed-scale-smhw-cold-spot-extremum.png">Figure PNG</a>
+<a href="../../../assets/figures/gpt5-5/test-04-fixed-scale-smhw-cold-spot-extremum.pdf">Figure PDF</a>
+<a href="../../../data/raw/gpt5-5/test-04-fixed-scale-smhw-cold-spot-extremum.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/gpt5-5/test-04-fixed-scale-smhw-cold-spot-extremum.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/gpt5-5/test-04-fixed-scale-smhw-cold-spot-extremum.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 2 model(s).</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Masked Octopole Planarity Dispersion · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 06 · GPT5.5</p>
+      <h1>Masked Octopole Planarity Dispersion</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">← Catalogue</a>
+      <a href="../../../">Paper</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label borderline">Borderline</span>
+        <span class="muted">GPT5.5 · Variation · direction · one-tailed, upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The SMICA CMB map has an anomalously planar octopole, meaning its masked fitted octopole statistic D_3^max is unusually large compared with LCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Monopole and dipole are fitted and subtracted on the unmasked sky, low-l modes 2&lt;=l&lt;=8 are estimated by masked least-squares fitting, and the fitted octopole is tested with D_3^max, the maximum angular-momentum-dispersion planarity statistic over axes.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>SMICA gives D_3^max=0.9465, above the LCDM simulation mean 0.8097 with std 0.1064. It lies at about the 91.2nd percentile; 88/1000 simulations are more or equally planar, giving an upper-tail p=0.088 and sigma=1.35.</p>
+          <p>The octopole is relatively planar, but not significant at the 5% level or at ~2 sigma. The result is suggestive only in a weak, marginal sense.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p class="muted">Not recorded.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Octopole planarity and angular-momentum-dispersion tests are well documented in CMB anomaly studies, but the exact masked, monopole/dipole-subtracted, l=2..8 least-squares fitted implementation was not found in the supplied/previous literature searches.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>test_description = &quot;Masked Octopole Planarity Dispersion: fit and subtract the monopole and dipole on finite unmasked pixels, estimate l=2..8 spherical-harmonic coefficients by a masked least-squares fit on those pixels, retain the fitted octopole, and return D_3^max = max_n sum_m m^2 |a_3m(n)|^2 / [9 sum_m |a_3m|^2]. The maximization is evaluated with the equivalent angular-momentum-dispersion tensor, using a HEALPix coarse direction scan and closed-form local refinement. Larger values indicate a more planar octopole.&quot;
+
+
+def _make_masked_octopole_planarity_analyzer():
+    import math
+    import numpy as np
+    try:
+        import healpy as hp
+    except Exception:
+        hp = None
+
+    LMIN_FIT = 2
+    LMAX_FIT = 8
+    LSTAT = 3
+    GRID_NSIDE = 8
+    ABS_CUT = 1.0e25
+    CACHE_MAX = 3
+    NCOEFF = int(sum(2 * ell + 1 for ell in range(LMIN_FIT, LMAX_FIT + 1)))
+    NL3 = 2 * LSTAT + 1
+
+    state = {&quot;geom&quot;: [], &quot;grid_dirs&quot;: None}
+
+    def _as_float_1d(m):
+        try:
+            if np.ma.isMaskedArray(m):
+                return np.asarray(m.filled(np.nan), dtype=np.float64).ravel()
+            return np.asarray(m, dtype=np.float64).ravel()
+        except Exception:
+            try:
+                return np.real(np.asarray(m)).astype(np.float64, copy=False).ravel()
+            except Exception:
+                return np.asarray([], dtype=np.float64)
+
+    def _finite_mask(a):
+        a = np.asarray(a).ravel()
+        good = np.isfinite(a)
+        # The formal mask is np.nan.  This extra guard only catches pathological
+        # finite sentinels such as hp.UNSEEN, without changing ordinary finite pixels.
+        try:
+            with np.errstate(invalid=&quot;ignore&quot;, over=&quot;ignore&quot;):
+                good = good &amp; (np.abs(a) &lt; ABS_CUT)
+        except Exception:
+            pass
+        return np.asarray(good, dtype=bool)
+
+    def _fallback_stat(a):
+        # Used only for invalid inputs or missing healpy.  It is finite and nonconstant,
+        # but normal executions use the octopole-planarity pipeline below.
+        arr = _as_float_1d(a)
+        good = _finite_mask(arr)
+        vals = np.asarray(arr[good], dtype=np.float64)
+        vals = vals[np.isfinite(vals)]
+        if vals.size &lt; 4:
+            return 0.0
+        with np.errstate(all=&quot;ignore&quot;):
+            vals = vals - float(np.mean(vals))
+            p2 = float(np.mean(vals * vals))
+            if (not np.isfinite(p2)) or p2 &lt;= 0.0:
+                return 0.0
+            p3 = float(np.mean(vals * vals * vals))
+            p4 = float(np.mean((vals * vals) * (vals * vals)))
+            shape = (p3 * p3) / (p2 * p2 * p2 + 1.0e-300) + abs(p4 / (p2 * p2 + 1.0e-300) - 3.0)
+            stat = shape / (shape + 10.0)
+        if not np.isfinite(stat):
+            return 0.0
+        if stat &lt; 0.0:
+            stat = 0.0
+        if stat &gt; 1.0:
+            stat = 1.0
+        return float(stat)
+
+    def _pinv_sym(a, rcond=1.0e-12):
+        try:
+            a = np.asarray(a, dtype=np.float64)
+            a = 0.5 * (a + a.T)
+            w, v = np.linalg.eigh(a)
+            scale = float(np.max(np.abs(w))) if w.size else 0.0
+            if (not np.isfinite(scale)) or scale &lt;= 0.0:
+                return np.zeros_like(a, dtype=np.float64)
+            thresh = float(rcond) * scale
+            keep = w &gt; thresh
+            invw = np.zeros_like(w, dtype=np.float64)
+            invw[keep] = 1.0 / w[keep]
+            out = np.dot(v * invw, v.T)
+            out = 0.5 * (out + out.T)
+            out[~np.isfinite(out)] = 0.0
+            return out
+        except Exception:
+            try:
+                out = np.linalg.pinv(np.asarray(a, dtype=np.float64), rcond=rcond)
+                out[~np.isfinite(out)] = 0.0
+                return out
+            except Exception:
+                return np.zeros_like(np.asarray(a, dtype=np.float64), dtype=np.float64)
+
+    def _associated_legendre_table(x, lmax):
+        x = np.asarray(x, dtype=np.float64)
+        x = np.clip(x, -1.0, 1.0)
+        n = int(x.size)
+        p = [[None for _ in range(lmax + 1)] for __ in range(lmax + 1)]
+        p[0][0] = np.ones(n, dtype=np.float64)
+        s = np.sqrt(np.maximum(0.0, 1.0 - x * x))
+        for m in range(1, lmax + 1):
+            p[m][m] = -(2.0 * m - 1.0) * s * p[m - 1][m - 1]
+        for m in range(0, lmax):
+            p[m + 1][m] = (2.0 * m + 1.0) * x * p[m][m]
+            for ell in range(m + 2, lmax + 1):
+                p[ell][m] = ((2.0 * ell - 1.0) * x * p[ell - 1][m] - (ell + m - 1.0) * p[ell - 2][m]) / float(ell - m)
+        return p
+
+    facts = [math.factorial(i) for i in range(2 * LMAX_FIT + 1)]
+
+    def _ylm_norm(ell, m):
+        return math.sqrt(((2.0 * ell + 1.0) / (4.0 * math.pi)) * (float(facts[ell - m]) / float(facts[ell + m])))
+
+    def _build_basis_transpose(x, y, z):
+        x = np.asarray(x, dtype=np.float64)
+        y = np.asarray(y, dtype=np.float64)
+        z = np.asarray(z, dtype=np.float64)
+        n = int(z.size)
+        bt = np.empty((NCOEFF, n), dtype=np.float64)
+        l3_cols = []
+
+        phi = np.arctan2(y, x)
+        p = _associated_legendre_table(z, LMAX_FIT)
+        sqrt2 = math.sqrt(2.0)
+        cos_cache = [None] * (LMAX_FIT + 1)
+        sin_cache = [None] * (LMAX_FIT + 1)
+        for m in range(1, LMAX_FIT + 1):
+            ang = float(m) * phi
+            cos_cache[m] = np.cos(ang)
+            sin_cache[m] = np.sin(ang)
+
+        col = 0
+        for ell in range(LMIN_FIT, LMAX_FIT + 1):
+            bt[col, :] = _ylm_norm(ell, 0) * p[ell][0]
+            if ell == LSTAT:
+                l3_cols.append(col)
+            col += 1
+            for m in range(1, ell + 1):
+                base = _ylm_norm(ell, m) * p[ell][m]
+                bt[col, :] = sqrt2 * base * cos_cache[m]
+                if ell == LSTAT:
+                    l3_cols.append(col)
+                col += 1
+                bt[col, :] = sqrt2 * base * sin_cache[m]
+                if ell == LSTAT:
+                    l3_cols.append(col)
+                col += 1
+
+        if col != NCOEFF or len(l3_cols) != NL3:
+            raise RuntimeError(&quot;internal harmonic-basis bookkeeping failed&quot;)
+        bt[~np.isfinite(bt)] = 0.0
+        return bt, np.asarray(l3_cols, dtype=np.int64)
+
+    def _get_grid_dirs():
+        dirs = state.get(&quot;grid_dirs&quot;)
+        if dirs is not None:
+            return dirs
+        try:
+            if hp is not None:
+                gpix = np.arange(12 * GRID_NSIDE * GRID_NSIDE, dtype=np.int64)
+                vx, vy, vz = hp.pix2vec(GRID_NSIDE, gpix)
+                dirs = np.vstack((vx, vy, vz)).T.astype(np.float64, copy=False)
+            else:
+                n = 12 * GRID_NSIDE * GRID_NSIDE
+                k = np.arange(n, dtype=np.float64)
+                zz = 1.0 - 2.0 * (k + 0.5) / float(n)
+                ph = (math.pi * (3.0 - math.sqrt(5.0))) * k
+                rr = np.sqrt(np.maximum(0.0, 1.0 - zz * zz))
+                dirs = np.column_stack((rr * np.cos(ph), rr * np.sin(ph), zz))
+            norms = np.sqrt(np.sum(dirs * dirs, axis=1))
+            good = np.isfinite(norms) &amp; (norms &gt; 0.0)
+            dirs = dirs[good] / norms[good, None]
+            if dirs.size == 0:
+                raise RuntimeError(&quot;empty direction grid&quot;)
+        except Exception:
+            dirs = np.asarray([[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, -1.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, -1.0]], dtype=np.float64)
+        state[&quot;grid_dirs&quot;] = dirs
+        return dirs
+
+    def _get_geometry(nside, valid):
+        valid = np.asarray(valid, dtype=bool).ravel()
+        nside = int(nside)
+        npix = int(valid.size)
+        nvalid = int(np.count_nonzero(valid))
+
+        geoms = state[&quot;geom&quot;]
+        for i, geom in enumerate(geoms):
+            try:
+                if (geom[&quot;nside&quot;] == nside and geom[&quot;npix&quot;] == npix and geom[&quot;nvalid&quot;] == nvalid and np.array_equal(geom[&quot;valid&quot;], valid)):
+                    if i != 0:
+                        geoms.insert(0, geoms.pop(i))
+                    return geoms[0]
+            except Exception:
+                pass
+
+        pix = np.flatnonzero(valid).astype(np.int64, copy=False)
+        if hp is None or pix.size == 0:
+            raise RuntimeError(&quot;healpy is required for the octopole-planarity statistic&quot;)
+
+        vx, vy, vz = hp.pix2vec(nside, pix)
+        x = np.asarray(vx, dtype=np.float64)
+        y = np.asarray(vy, dtype=np.float64)
+        z = np.asarray(vz, dtype=np.float64)
+
+        gram4 = np.empty((4, 4), dtype=np.float64)
+        gram4[0, 0] = float(pix.size)
+        gram4[0, 1] = gram4[1, 0] = float(np.sum(x))
+        gram4[0, 2] = gram4[2, 0] = float(np.sum(y))
+        gram4[0, 3] = gram4[3, 0] = float(np.sum(z))
+        gram4[1, 1] = float(np.dot(x, x))
+        gram4[1, 2] = gram4[2, 1] = float(np.dot(x, y))
+        gram4[1, 3] = gram4[3, 1] = float(np.dot(x, z))
+        gram4[2, 2] = float(np.dot(y, y))
+        gram4[2, 3] = gram4[3, 2] = float(np.dot(y, z))
+        gram4[3, 3] = float(np.dot(z, z))
+        mono_pinv = _pinv_sym(gram4, rcond=1.0e-12)
+
+        bt, l3_cols = _build_basis_transpose(x, y, z)
+        gram = np.dot(bt, bt.T)
+        gram = 0.5 * (gram + gram.T)
+        ginv = _pinv_sym(gram, rcond=1.0e-10)
+        # Only the seven rows needed to recover the l=3 real-basis coefficients are kept.
+        # This preserves the full l=2..8 simultaneous masked fit while making each map cheap.
+        fit_l3 = np.dot(ginv[l3_cols, :], bt)
+        fit_l3 = np.asarray(fit_l3, dtype=np.float64)
+        fit_l3[~np.isfinite(fit_l3)] = 0.0
+        del bt
+
+        geom = {
+            &quot;nside&quot;: nside,
+            &quot;npix&quot;: npix,
+            &quot;nvalid&quot;: nvalid,
+            &quot;valid&quot;: valid.copy(),
+            &quot;pix&quot;: pix,
+            &quot;x&quot;: x,
+            &quot;y&quot;: y,
+            &quot;z&quot;: z,
+            &quot;mono_pinv&quot;: mono_pinv,
+            &quot;fit_l3&quot;: fit_l3,
+        }
+        geoms.insert(0, geom)
+        del geoms[CACHE_MAX:]
+        return geom
+
+    def _l3_real_to_complex(c):
+        c = np.asarray(c, dtype=np.float64).ravel()
+        if c.size &lt; NL3:
+            return np.zeros(NL3, dtype=np.complex128)
+        c = np.where(np.isfinite(c[:NL3]), c[:NL3], 0.0)
+        a = np.zeros(NL3, dtype=np.complex128)
+        # c order from _build_basis_transpose for l=3:
+        # [m=0, Re m=1, Im m=1, Re m=2, Im m=2, Re m=3, Im m=3]
+        a[LSTAT] = complex(float(c[0]), 0.0)
+        invsqrt2 = 1.0 / math.sqrt(2.0)
+        for m in range(1, LSTAT + 1):
+            cr = float(c[1 + 2 * (m - 1)])
+            ci = float(c[2 + 2 * (m - 1)])
+            am = (cr - 1j * ci) * invsqrt2
+            a[LSTAT + m] = am
+            sign = -1.0 if (m % 2) else 1.0
+            a[LSTAT - m] = sign * np.conjugate(am)
+        return a
+
+    def _dmax_from_octopole(a):
+        ell = LSTAT
+        dim = 2 * ell + 1
+        a = np.asarray(a, dtype=np.complex128).ravel()
+        if a.size != dim:
+            b = np.zeros(dim, dtype=np.complex128)
+            ncopy = min(dim, int(a.size))
+            if ncopy &gt; 0:
+                b[:ncopy] = a[:ncopy]
+            a = b
+        finite = np.isfinite(a.real) &amp; np.isfinite(a.imag)
+        if not np.all(finite):
+            a = np.where(finite, a, 0.0 + 0.0j)
+        norm = float(np.real(np.vdot(a, a)))
+        if (not np.isfinite(norm)) or norm &lt;= 0.0:
+            return 0.0
+
+        mvals = np.arange(-ell, ell + 1, dtype=np.float64)
+        lz_a = mvals * a
+        lp_a = np.zeros(dim, dtype=np.complex128)
+        lm_a = np.zeros(dim, dtype=np.complex128)
+        ll1 = float(ell * (ell + 1))
+        for m in range(-ell, ell):
+            lp_a[m + 1 + ell] = math.sqrt(max(0.0, ll1 - float(m * (m + 1)))) * a[m + ell]
+        for m in range(-ell + 1, ell + 1):
+            lm_a[m - 1 + ell] = math.sqrt(max(0.0, ll1 - float(m * (m - 1)))) * a[m + ell]
+        lx_a = 0.5 * (lp_a + lm_a)
+        ly_a = (lp_a - lm_a) / (2.0j)
+
+        vecs = (lx_a, ly_a, lz_a)
+        q = np.empty((3, 3), dtype=np.float64)
+        for i in range(3):
+            for j in range(i, 3):
+                val = float(np.real(np.vdot(vecs[i], vecs[j])))
+                if not np.isfinite(val):
+                    val = 0.0
+                q[i, j] = q[j, i] = val
+        q = 0.5 * (q + q.T)
+
+        # Coarse HEALPix scan plus local refinement.  For angular-momentum dispersion
+        # D(n)=n^T Q n/(l^2 |a|^2), the local maximum is the principal eigenvalue of Q.
+        lam_grid = -np.inf
+        try:
+            dirs = _get_grid_dirs()
+            vals = np.einsum(&quot;ni,ij,nj-&gt;n&quot;, dirs, q, dirs, optimize=True)
+            vals = vals[np.isfinite(vals)]
+            if vals.size:
+                lam_grid = float(np.max(vals))
+        except Exception:
+            pass
+        try:
+            evals = np.linalg.eigvalsh(q)
+            lam = float(evals[-1]) if evals.size else lam_grid
+        except Exception:
+            lam = lam_grid
+        if np.isfinite(lam_grid) and ((not np.isfinite(lam)) or lam_grid &gt; lam):
+            lam = lam_grid
+
+        with np.errstate(all=&quot;ignore&quot;):
+            d = float(lam / (float(ell * ell) * norm))
+        if not np.isfinite(d):
+            return 0.0
+        if d &lt; 0.0:
+            d = 0.0
+        if d &gt; 1.0:
+            d = 1.0
+        return float(d)
+
+    def analyze_map(m):
+        arr = _as_float_1d(m)
+        npix = int(arr.size)
+        if npix &lt;= 0:
+            return 0.0
+
+        valid = _finite_mask(arr)
+        nvalid = int(np.count_nonzero(valid))
+        if hp is None or nvalid &lt; max(NCOEFF + 4, 16):
+            return float(_fallback_stat(arr))
+
+        try:
+            nside = int(hp.npix2nside(npix))
+            if nside &lt;= 0 or 12 * nside * nside != npix:
+                return float(_fallback_stat(arr))
+            # l=8 requires at least a modest HEALPix resolution to be meaningful.
+            if (3 * nside - 1) &lt; LMAX_FIT:
+                return float(_fallback_stat(arr))
+        except Exception:
+            return float(_fallback_stat(arr))
+
+        try:
+            geom = _get_geometry(nside, valid)
+            pix = geom[&quot;pix&quot;]
+            if int(pix.size) &lt; max(NCOEFF + 4, 16):
+                return float(_fallback_stat(arr))
+
+            vals = np.asarray(arr[pix], dtype=np.float64)
+            vals = np.where(np.isfinite(vals), vals, 0.0)
+            x = geom[&quot;x&quot;]
+            y = geom[&quot;y&quot;]
+            z = geom[&quot;z&quot;]
+
+            rhs = np.array([
+                float(np.sum(vals)),
+                float(np.dot(x, vals)),
+                float(np.dot(y, vals)),
+                float(np.dot(z, vals)),
+            ], dtype=np.float64)
+            md = np.dot(geom[&quot;mono_pinv&quot;], rhs)
+            if not np.all(np.isfinite(md)):
+                md = np.zeros(4, dtype=np.float64)
+                md[0] = float(np.mean(vals)) if vals.size else 0.0
+
+            resid = vals - (md[0] + md[1] * x + md[2] * y + md[3] * z)
+            resid = np.where(np.isfinite(resid), resid, 0.0)
+
+            fit_l3 = geom[&quot;fit_l3&quot;]
+            if fit_l3.shape[0] != NL3 or fit_l3.shape[1] != pix.size:
+                return float(_fallback_stat(arr))
+            c3_real = np.dot(fit_l3, resid)
+            c3_real = np.where(np.isfinite(c3_real), c3_real, 0.0)
+            a3 = _l3_real_to_complex(c3_real)
+            stat = _dmax_from_octopole(a3)
+            if not np.isfinite(stat):
+                return float(_fallback_stat(arr))
+            return float(stat)
+        except Exception:
+            return float(_fallback_stat(arr))
+
+    return analyze_map
+
+
+analyze_map = _make_masked_octopole_planarity_analyzer()
+
+
+def summarize_results(planck_stat, sim_results):
+    import numpy as _np
+
+    desc = globals().get(&quot;test_description&quot;, &quot;Masked Octopole Planarity Dispersion&quot;)
+
+    def _finite_float(x, default=float(&quot;nan&quot;)):
+        try:
+            y = float(x)
+        except Exception:
+            return float(default)
+        if not _np.isfinite(y):
+            return float(default)
+        return float(y)
+
+    ps = _finite_float(planck_stat)
+    try:
+        sims = _np.asarray(sim_results, dtype=_np.float64).ravel()
+    except Exception:
+        vals = []
+        try:
+            for v in sim_results:
+                vals.append(_finite_float(v))
+        except Exception:
+            vals = []
+        sims = _np.asarray(vals, dtype=_np.float64).ravel()
+    sims = sims[_np.isfinite(sims)]
+    n = int(sims.size)
+
+    out = {
+        &quot;test_description&quot;: desc,
+        &quot;planck_stat&quot;: ps,
+        &quot;n_sims&quot;: n,
+        &quot;statistic&quot;: &quot;D_3^max&quot;,
+        &quot;statistic_units&quot;: &quot;dimensionless, bounded by 0 and 1 up to numerical precision&quot;,
+        &quot;tail_of_interest&quot;: &quot;upper tail: larger D_3^max means a more planar fitted octopole&quot;,
+        &quot;higher_is_more_planar&quot;: True,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Masked octopole planarity dispersion&quot;,
+            &quot;xlabel&quot;: &quot;D_3^max (larger = more planar)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: &quot;LCDM simulation distribution of the masked least-squares octopole planarity statistic after monopole/dipole subtraction and a simultaneous l=2..8 fit on the unmasked sky. The Planck anomaly corresponds to lying in the right tail.&quot;
+        }
+    }
+
+    if not _np.isfinite(ps):
+        out[&quot;warning&quot;] = &quot;Planck statistic is not finite.&quot;
+        return out
+    if n &lt;= 0:
+        out[&quot;warning&quot;] = &quot;No finite simulation statistics are available.&quot;
+        return out
+
+    n_lt = int(_np.count_nonzero(sims &lt; ps))
+    n_le = int(_np.count_nonzero(sims &lt;= ps))
+    n_gt = int(_np.count_nonzero(sims &gt; ps))
+    n_ge = int(_np.count_nonzero(sims &gt;= ps))
+    n_eq = int(n - n_lt - n_gt)
+
+    p_upper_raw = float(n_ge / n)
+    p_upper_strict_raw = float(n_gt / n)
+    p_lower_raw = float(n_le / n)
+    p_lower_strict_raw = float(n_lt / n)
+    p_upper_plus_one = float((n_ge + 1.0) / (n + 1.0))
+    p_lower_plus_one = float((n_le + 1.0) / (n + 1.0))
+    p_two_sided = float(min(1.0, 2.0 * min(p_upper_plus_one, p_lower_plus_one)))
+
+    mean = float(_np.mean(sims))
+    median = float(_np.median(sims))
+    std = float(_np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    z_vs_sims = None
+    if _np.isfinite(std) and std &gt; 0.0:
+        z_vs_sims = float((ps - mean) / std)
+    qs = _np.percentile(sims, [0.5, 1.0, 5.0, 16.0, 50.0, 84.0, 95.0, 99.0, 99.5])
+
+    out.update({
+        &quot;sim_mean&quot;: mean,
+        &quot;sim_median&quot;: median,
+        &quot;sim_std&quot;: std,
+        &quot;sim_min&quot;: float(_np.min(sims)),
+        &quot;sim_max&quot;: float(_np.max(sims)),
+        &quot;sim_percentile_0_5&quot;: float(qs[0]),
+        &quot;sim_percentile_1&quot;: float(qs[1]),
+        &quot;sim_percentile_5&quot;: float(qs[2]),
+        &quot;sim_percentile_16&quot;: float(qs[3]),
+        &quot;sim_percentile_50&quot;: float(qs[4]),
+        &quot;sim_percentile_84&quot;: float(qs[5]),
+        &quot;sim_percentile_95&quot;: float(qs[6]),
+        &quot;sim_percentile_99&quot;: float(qs[7]),
+        &quot;sim_percentile_99_5&quot;: float(qs[8]),
+        &quot;planck_zscore_vs_sim_distribution&quot;: z_vs_sims,
+        &quot;planck_percentile_midrank_low_to_high&quot;: float(100.0 * (n_lt + 0.5 * n_eq) / n),
+        &quot;rank_descending_1_is_most_planar&quot;: int(n_gt + 1),
+        &quot;rank_descending_tie_low&quot;: int(n_gt + 1),
+        &quot;rank_descending_tie_high&quot;: int(n_ge + 1),
+        &quot;rank_ascending_1_is_least_planar&quot;: int(n_lt + 1),
+        &quot;rank_convention&quot;: &quot;Descending rank 1 is the largest D_3^max (most planar octopole); tie_high includes simulations tied with Planck.&quot;,
+        &quot;n_sim_lt_planck&quot;: n_lt,
+        &quot;n_sim_le_planck&quot;: n_le,
+        &quot;n_sim_eq_planck&quot;: n_eq,
+        &quot;n_sim_gt_planck&quot;: n_gt,
+        &quot;n_sim_ge_planck&quot;: n_ge,
+        &quot;fraction_sims_gt_planck&quot;: p_upper_strict_raw,
+        &quot;fraction_sims_ge_planck&quot;: p_upper_raw,
+        &quot;fraction_sims_lt_planck&quot;: p_lower_strict_raw,
+        &quot;fraction_sims_le_planck&quot;: p_lower_raw,
+        &quot;empirical_p_upper_planarity_tail&quot;: p_upper_plus_one,
+        &quot;empirical_p_lower_nonplanar_tail&quot;: p_lower_plus_one,
+        &quot;empirical_p_two_sided_extremeness&quot;: p_two_sided,
+        &quot;is_upper_tail_5pct&quot;: bool(p_upper_plus_one &lt;= 0.05),
+        &quot;is_upper_tail_1pct&quot;: bool(p_upper_plus_one &lt;= 0.01)
+    })
+
+    if std == 0.0:
+        out[&quot;warning&quot;] = &quot;All finite simulation D_3^max values are identical; check for degenerate inputs or a failed harmonic-fit pipeline.&quot;
+    elif p_upper_plus_one &lt;= 0.01:
+        out[&quot;interpretation&quot;] = &quot;Planck lies in the highest 1% tail of the LCDM simulation distribution for this masked octopole-planarity statistic.&quot;
+    elif p_upper_plus_one &lt;= 0.05:
+        out[&quot;interpretation&quot;] = &quot;Planck lies in the highest 5% tail of the LCDM simulation distribution for this masked octopole-planarity statistic.&quot;
+    else:
+        out[&quot;interpretation&quot;] = &quot;Planck is not in the highest 5% tail of the LCDM simulation distribution for this masked octopole-planarity statistic.&quot;
+    return out</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/gpt5-5/test-06-masked-octopole-planarity-dispersion.png" alt="Statistic distribution for Masked Octopole Planarity Dispersion">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>GPT5.5</td></tr>
+<tr><th>Run path</th><td>runs/anomaly_agent_gpt_run</td></tr>
+<tr><th>Primary p-value</th><td>0.088</td></tr>
+<tr><th>One-tailed p-value</th><td>0.088</td></tr>
+<tr><th>Two-tailed p-value</th><td>n/a</td></tr>
+<tr><th>Sigma</th><td>1.353</td></tr>
+<tr><th>Planck statistic</th><td>0.946</td></tr>
+<tr><th>Simulation mean</th><td>0.81</td></tr>
+<tr><th>Simulation std.</th><td>0.106</td></tr>
+<tr><th>Simulation median</th><td>0.821</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>one-tailed, upper</td></tr>
+<tr><th>Family</th><td>direction</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/gpt5-5/test-06-masked-octopole-planarity-dispersion.png">Figure PNG</a>
+<a href="../../../assets/figures/gpt5-5/test-06-masked-octopole-planarity-dispersion.pdf">Figure PDF</a>
+<a href="../../../data/raw/gpt5-5/test-06-masked-octopole-planarity-dispersion.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/gpt5-5/test-06-masked-octopole-planarity-dispersion.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/gpt5-5/test-06-masked-octopole-planarity-dispersion.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 2 model(s).</p>
+  </footer>
+</body>
+</html>

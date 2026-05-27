@@ -250,7 +250,9 @@ def make_source(path: Path, kind: str, used: set[str], label: str | None = None)
 
 
 def source_has_tests(path: Path) -> bool:
-    return path.is_dir() and any(path.glob("Test_*/updated_results.json"))
+    if not path.is_dir():
+        return False
+    return any(path.glob("Test_*/updated_results.json")) or any(path.glob("Test_*/result_summary.json"))
 
 
 def parse_args() -> argparse.Namespace:
@@ -374,6 +376,14 @@ def build_test_entry(
 ) -> dict[str, Any]:
     normalized = bool(updated.get("metrics") and updated.get("title"))
     results = dict(updated.get("results") or result_summary.get("results") or {})
+    if not results and result_summary:
+        results = {k: v for k, v in result_summary.items() if k != "custom_summary"}
+        if "p_value" in results and "p_value_one_tailed" not in results and "p_value_two_tailed" not in results:
+            tail_str = str(results.get("tail") or "").lower()
+            if "two" in tail_str:
+                results["p_value_two_tailed"] = results["p_value"]
+            else:
+                results["p_value_one_tailed"] = results["p_value"]
     summary = (
         updated.get("updated_summary")
         or updated.get("updated_test_summary")
@@ -728,7 +738,7 @@ def write_index(metadata: dict[str, Any]) -> None:
     (SITE_DIR / ".nojekyll").write_text("", encoding="utf-8")
     model_count = len(metadata.get("model_counts") or {})
     model_label = f"{model_count} model" if model_count == 1 else f"{model_count} models"
-    (SITE_DIR / "index.html").write_text(
+    (SITE_DIR / "catalogue.html").write_text(
         f"""<!doctype html>
 <html lang="en">
 <head>
@@ -743,7 +753,8 @@ def write_index(metadata: dict[str, Any]) -> None:
       <p class="eyebrow">Frozen catalogue {html.escape(metadata["version"])} · {html.escape(model_label)}</p>
       <h1>AI Agents for Cosmological Anomaly Detection Test Catalogue</h1>
     </div>
-    <nav class="toplinks" aria-label="Catalogue downloads">
+    <nav class="toplinks" aria-label="Catalogue navigation">
+      <a href="index.html">← Paper</a>
       <a href="data/tests.json">JSON</a>
       <a href="data/tests.csv">CSV</a>
       <a href="data/manifest.json">Manifest</a>
@@ -811,7 +822,10 @@ def write_index(metadata: dict[str, Any]) -> None:
 
 
 def write_styles() -> None:
-    (SITE_DIR / "styles.css").write_text(
+    target = SITE_DIR / "styles.css"
+    if target.exists():
+        return
+    target.write_text(
         """@font-face {
   font-family: system-ui;
   src: local(".SFNSText-Regular");
@@ -1625,7 +1639,8 @@ def write_test_page(test: dict[str, Any], metadata: dict[str, Any]) -> None:
       <h1>{html_text(test["title"])}</h1>
     </div>
     <nav class="toplinks" aria-label="Page navigation">
-      <a href="{root_prefix}">Catalogue</a>
+      <a href="{root_prefix}catalogue.html">← Catalogue</a>
+      <a href="{root_prefix}">Paper</a>
       <a href="{root_prefix}data/tests.json">Registry JSON</a>
     </nav>
   </header>
@@ -1842,7 +1857,7 @@ def main() -> None:
 
     print(f"Built {metadata['n_tests']} tests into {SITE_DIR}")
     print(f"Registry: {SITE_DIR / 'data' / 'tests.json'}")
-    print(f"Index: {SITE_DIR / 'index.html'}")
+    print(f"Catalogue: {SITE_DIR / 'catalogue.html'}")
 
 
 if __name__ == "__main__":
