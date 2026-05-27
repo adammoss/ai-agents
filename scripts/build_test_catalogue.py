@@ -455,7 +455,12 @@ def build_test_entry(
         "test_type": clean_text(updated.get("test_type") or results.get("test_type")),
         "tail": tail,
         "family": clean_text(updated.get("family") or infer_family(result_summary, title, description), "other"),
-        "justification": clean_text(updated.get("justification") or results.get("justification")),
+        "justification": clean_text(
+            updated.get("justification")
+            or updated.get("justificaton")
+            or results.get("justification")
+            or results.get("justificaton")
+        ),
         "results_text": clean_text(updated.get("results_text") or summary.get("Results")),
         "interpretation": clean_text(updated.get("interpretation") or summary.get("Interpretation")),
         "literature": clean_text(updated.get("literature") or summary.get("Comparison to literature")),

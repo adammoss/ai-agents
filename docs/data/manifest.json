@@ -29,7 +29,7 @@
     "planck_masked": "assets/cmb/planckcmbwithmask256.png",
     "planck_unmasked": "assets/cmb/planckcmbnomask256.png"
   },
-  "generated_at_utc": "2026-05-27T13:06:24+00:00",
+  "generated_at_utc": "2026-05-27T13:13:58+00:00",
   "curation_note": "This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.",
   "n_tests": 114,
   "verdict_counts": {
