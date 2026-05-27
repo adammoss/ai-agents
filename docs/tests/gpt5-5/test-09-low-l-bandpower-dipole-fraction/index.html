@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-l Bandpower Dipole Fraction · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 09 · GPT5.5</p>
+      <h1>Low-l Bandpower Dipole Fraction</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">← Catalogue</a>
+      <a href="../../../">Paper</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">GPT5.5 · Variation · power · one-tailed, upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Planck SMICA map has an anomalously large fractional dipole amplitude in the squared low-ell temperature field, indicating stronger low-l bandpower asymmetry than expected under LCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Mean-subtracted masked maps were pseudo-alm filtered to 2&lt;=ell&lt;=64, squared on the unmasked sky, and fit as P(n)=p0+d·n; the statistic is A_P=|d|/p0.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck SMICA gives A_P=0.3368. The 1000 LCDM simulations have mean 0.2182 and std 0.0961; 113 simulations are larger, giving an upper-tail p=0.113 and z≈1.23.</p>
+          <p>SMICA shows a higher-than-average low-ell bandpower dipole fraction, but it is not in the upper 5% tail and is not statistically anomalous under the LCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The statistic A_P=|d|/p0 is a nonnegative dipole-amplitude measure, and the code explicitly treats larger A_P values as more anomalous, ranking SMICA in the upper tail of the simulation distribution.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>This is related to the well-documented hemispherical power asymmetry/dipole-modulation and local-variance dipole literature, including Planck 2018 isotropy results, which confirm large-angle temperature anomalies while finding broad consistency with LCDM elsewhere (Planck Collaboration 2020, A&amp;A 641, A7; arXiv:1906.02552, https://arxiv.org/abs/1906.02552). The present squared low-l bandpower-dipole statistic is not identical to those standard estimators.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>test_description = &quot;Low-l Bandpower Dipole Fraction: remove the unmasked-sky mean, compute masked pseudo-alm coefficients with masked pixels filled by zero, keep 2&lt;=ell&lt;=64, reconstruct the low-l temperature map, square it on the unmasked sky, fit P(n)=p0+d.n by equal-weight least squares, and return A_P=|d|/p0.&quot;
+
+
+def analyze_map(m, _cache={}):
+    import math
+    import zlib
+    import numpy as np
+
+    LMAX_REQUESTED = 64
+    STAT_CAP = 1.0e6
+
+    def _clean_float(x, default=0.0):
+        try:
+            y = float(x)
+        except Exception:
+            return float(default)
+        if np.isfinite(y):
+            return float(y)
+        return float(default)
+
+    def _finish_stat(x):
+        y = _clean_float(x, 0.0)
+        if y &lt; 0.0:
+            y = 0.0
+        if y &gt; STAT_CAP:
+            y = STAT_CAP
+        return float(y)
+
+    def _as_flat_float(x):
+        try:
+            if np.ma.isMaskedArray(x):
+                a = np.asarray(x.filled(np.nan), dtype=np.float64)
+            else:
+                a = np.asarray(x, dtype=np.float64)
+        except Exception:
+            try:
+                a = np.asarray(np.real(x), dtype=np.float64)
+            except Exception:
+                a = np.asarray([], dtype=np.float64)
+        return np.ravel(a)
+
+    def _mask_sig(valid):
+        v = np.asarray(valid, dtype=bool).ravel()
+        n = int(v.size)
+        c = int(np.count_nonzero(v))
+        try:
+            packed = np.packbits(v)
+            crc = int(zlib.crc32(packed.tobytes()) &amp; 0xffffffff)
+        except Exception:
+            crc = int(c &amp; 0xffffffff)
+        return str(n) + &quot;:&quot; + str(c) + &quot;:&quot; + str(crc)
+
+    def _get_hp():
+        if &quot;hp_loaded&quot; not in _cache:
+            _cache[&quot;hp_loaded&quot;] = True
+            try:
+                import healpy as hp
+                _cache[&quot;hp&quot;] = hp
+            except Exception:
+                _cache[&quot;hp&quot;] = None
+        return _cache.get(&quot;hp&quot;, None)
+
+    def _nside_from_npix(hp, npix):
+        try:
+            ns = int(hp.npix2nside(int(npix)))
+            if ns &gt; 0 and int(hp.nside2npix(ns)) == int(npix):
+                return ns
+        except Exception:
+            pass
+        try:
+            if int(npix) &gt; 0 and int(npix) % 12 == 0:
+                ns = int(round(math.sqrt(float(npix) / 12.0)))
+                if ns &gt; 0 and 12 * ns * ns == int(npix):
+                    return ns
+        except Exception:
+            pass
+        return -1
+
+    def _geometry(hp, nside, valid):
+        sig = _mask_sig(valid)
+        key = &quot;geom_low_l_bandpower_dipole_&quot; + str(int(nside)) + &quot;_&quot; + sig
+        cached = _cache.get(key)
+        if cached is not None:
+            return cached
+        pix = np.flatnonzero(np.asarray(valid, dtype=bool)).astype(np.int64, copy=False)
+        if int(pix.size) &lt; 8:
+            return None
+        try:
+            x, y, z = hp.pix2vec(int(nside), pix, nest=False)
+        except TypeError:
+            x, y, z = hp.pix2vec(int(nside), pix)
+        except Exception:
+            return None
+        x = np.asarray(x, dtype=np.float64)
+        y = np.asarray(y, dtype=np.float64)
+        z = np.asarray(z, dtype=np.float64)
+        if int(x.size) != int(pix.size) or int(y.size) != int(pix.size) or int(z.size) != int(pix.size):
+            return None
+        n = float(pix.size)
+        sx = float(np.sum(x))
+        sy = float(np.sum(y))
+        sz = float(np.sum(z))
+        gram = np.empty((4, 4), dtype=np.float64)
+        gram[0, 0] = n
+        gram[0, 1] = sx
+        gram[1, 0] = sx
+        gram[0, 2] = sy
+        gram[2, 0] = sy
+        gram[0, 3] = sz
+        gram[3, 0] = sz
+        gram[1, 1] = float(np.dot(x, x))
+        gram[1, 2] = float(np.dot(x, y))
+        gram[2, 1] = gram[1, 2]
+        gram[1, 3] = float(np.dot(x, z))
+        gram[3, 1] = gram[1, 3]
+        gram[2, 2] = float(np.dot(y, y))
+        gram[2, 3] = float(np.dot(y, z))
+        gram[3, 2] = gram[2, 3]
+        gram[3, 3] = float(np.dot(z, z))
+        if not np.all(np.isfinite(gram)):
+            return None
+        try:
+            pinv = np.linalg.pinv(gram, rcond=1.0e-12)
+        except TypeError:
+            pinv = np.linalg.pinv(gram)
+        except Exception:
+            return None
+        pinv = np.asarray(pinv, dtype=np.float64)
+        if pinv.shape != (4, 4) or not np.all(np.isfinite(pinv)):
+            return None
+        geom = {&quot;pix&quot;: pix, &quot;x&quot;: x, &quot;y&quot;: y, &quot;z&quot;: z, &quot;pinv&quot;: pinv}
+        _cache[key] = geom
+        return geom
+
+    def _zero_unwanted_ells(hp, alm, lmax):
+        try:
+            lmax_i = int(lmax)
+            for ell in range(0, min(2, lmax_i + 1)):
+                for mm in range(ell + 1):
+                    alm[hp.Alm.getidx(lmax_i, ell, mm)] = 0.0 + 0.0j
+        except Exception:
+            pass
+        return alm
+
+    def _fallback(arr, valid):
+        vals = np.asarray(arr[valid], dtype=np.float64)
+        vals = vals[np.isfinite(vals)]
+        n = int(vals.size)
+        if n &lt; 8:
+            return 0.0
+        vals = vals - float(np.mean(vals))
+        power = vals * vals
+        p0 = float(np.mean(power)) if n &gt; 0 else 0.0
+        if not np.isfinite(p0) or p0 &lt;= 0.0:
+            return 0.0
+        i = np.arange(n, dtype=np.float64)
+        zz = 1.0 - 2.0 * ((i + 0.5) / float(n))
+        phi = (2.39996322972865332 * i) % (2.0 * np.pi)
+        rr = np.sqrt(np.maximum(0.0, 1.0 - zz * zz))
+        xx = rr * np.cos(phi)
+        yy = rr * np.sin(phi)
+        rhs = np.array([float(np.sum(power)), float(np.dot(xx, power)), float(np.dot(yy, power)), float(np.dot(zz, power))], dtype=np.float64)
+        gram = np.empty((4, 4), dtype=np.float64)
+        gram[0, 0] = float(n)
+        gram[0, 1] = float(np.sum(xx))
+        gram[1, 0] = gram[0, 1]
+        gram[0, 2] = float(np.sum(yy))
+        gram[2, 0] = gram[0, 2]
+        gram[0, 3] = float(np.sum(zz))
+        gram[3, 0] = gram[0, 3]
+        gram[1, 1] = float(np.dot(xx, xx))
+        gram[1, 2] = float(np.dot(xx, yy))
+        gram[2, 1] = gram[1, 2]
+        gram[1, 3] = float(np.dot(xx, zz))
+        gram[3, 1] = gram[1, 3]
+        gram[2, 2] = float(np.dot(yy, yy))
+        gram[2, 3] = float(np.dot(yy, zz))
+        gram[3, 2] = gram[2, 3]
+        gram[3, 3] = float(np.dot(zz, zz))
+        try:
+            coeff = np.dot(np.linalg.pinv(gram), rhs)
+        except Exception:
+            return 0.0
+        coeff = np.asarray(coeff, dtype=np.float64).ravel()
+        if coeff.size &lt; 4 or not np.all(np.isfinite(coeff[:4])):
+            return 0.0
+        denom = float(coeff[0])
+        if not np.isfinite(denom) or denom &lt;= 0.0:
+            denom = p0
+        if not np.isfinite(denom) or denom &lt;= 0.0:
+            return 0.0
+        d2 = float(np.dot(coeff[1:4], coeff[1:4]))
+        if not np.isfinite(d2) or d2 &lt; 0.0:
+            return 0.0
+        return _finish_stat(math.sqrt(d2) / denom)
+
+    arr = _as_flat_float(m)
+    npix = int(arr.size)
+    if npix &lt;= 0:
+        return 0.0
+    valid = np.isfinite(arr) &amp; (np.abs(arr) &lt; 1.0e25)
+    if int(np.count_nonzero(valid)) &lt; 8:
+        return 0.0
+
+    hp = _get_hp()
+    if hp is None:
+        return float(_fallback(arr, valid))
+    nside = _nside_from_npix(hp, npix)
+    if nside &lt; 1:
+        return float(_fallback(arr, valid))
+    lmax_use = int(min(LMAX_REQUESTED, max(0, 3 * int(nside) - 1)))
+    if lmax_use &lt; 2:
+        return float(_fallback(arr, valid))
+
+    try:
+        geom = _geometry(hp, nside, valid)
+        if geom is None:
+            return float(_fallback(arr, valid))
+        pix = geom[&quot;pix&quot;]
+        vals = np.asarray(arr[pix], dtype=np.float64)
+        vals = np.where(np.isfinite(vals), vals, 0.0)
+        mu = float(np.mean(vals)) if vals.size &gt; 0 else 0.0
+        if not np.isfinite(mu):
+            mu = 0.0
+        filled = np.zeros(npix, dtype=np.float64)
+        filled[pix] = vals - mu
+        filled = np.where(np.isfinite(filled), filled, 0.0)
+        try:
+            alm = hp.map2alm(filled, lmax=lmax_use, iter=0, pol=False, use_weights=False)
+        except TypeError:
+            try:
+                alm = hp.map2alm(filled, lmax=lmax_use, iter=0, pol=False)
+            except TypeError:
+                alm = hp.map2alm(filled, lmax=lmax_use, iter=0)
+        alm = np.asarray(alm, dtype=np.complex128)
+        if alm.size &lt;= 0:
+            return 0.0
+        okalm = np.isfinite(alm.real) &amp; np.isfinite(alm.imag)
+        alm = np.where(okalm, alm, 0.0 + 0.0j)
+        alm = _zero_unwanted_ells(hp, alm, lmax_use)
+        try:
+            low_map = hp.alm2map(alm, int(nside), lmax=lmax_use, pol=False, verbose=False)
+        except TypeError:
+            try:
+                low_map = hp.alm2map(alm, int(nside), lmax=lmax_use, pol=False)
+            except TypeError:
+                low_map = hp.alm2map(alm, int(nside), lmax=lmax_use)
+        low_map = np.asarray(low_map, dtype=np.float64).ravel()
+        if int(low_map.size) != npix:
+            return 0.0
+        tl = np.asarray(low_map[pix], dtype=np.float64)
+        tl = np.where(np.isfinite(tl), tl, 0.0)
+        power = tl * tl
+        mean_power = float(np.mean(power)) if power.size &gt; 0 else 0.0
+        if not np.isfinite(mean_power) or mean_power &lt;= 0.0:
+            return 0.0
+        rhs = np.array([float(np.sum(power)), float(np.dot(geom[&quot;x&quot;], power)), float(np.dot(geom[&quot;y&quot;], power)), float(np.dot(geom[&quot;z&quot;], power))], dtype=np.float64)
+        if not np.all(np.isfinite(rhs)):
+            return 0.0
+        coeff = np.dot(geom[&quot;pinv&quot;], rhs)
+        coeff = np.asarray(coeff, dtype=np.float64).ravel()
+        if coeff.size &lt; 4 or not np.all(np.isfinite(coeff[:4])):
+            return 0.0
+        p0 = float(coeff[0])
+        if not np.isfinite(p0) or p0 &lt;= 0.0:
+            p0 = mean_power
+        if not np.isfinite(p0) or p0 &lt;= 0.0:
+            return 0.0
+        d2 = float(np.dot(coeff[1:4], coeff[1:4]))
+        if not np.isfinite(d2) or d2 &lt; 0.0:
+            return 0.0
+        return _finish_stat(math.sqrt(d2) / p0)
+    except Exception:
+        return float(_fallback(arr, valid))
+
+
+def summarize_results(planck_stat, sim_results, _desc=test_description):
+    import numpy as np
+
+    def _ff(x, default=np.nan):
+        try:
+            y = float(x)
+        except Exception:
+            return float(default)
+        if np.isfinite(y):
+            return float(y)
+        return float(default)
+
+    ps = _ff(planck_stat)
+    try:
+        sims = np.asarray(sim_results, dtype=np.float64).ravel()
+    except Exception:
+        vals = []
+        try:
+            for v in sim_results:
+                vals.append(_ff(v))
+        except Exception:
+            vals = []
+        sims = np.asarray(vals, dtype=np.float64)
+    sims = sims[np.isfinite(sims)]
+    n = int(sims.size)
+    out = {
+        &quot;test_description&quot;: _desc,
+        &quot;statistic&quot;: &quot;A_P = |d|/p0 from P(n)=T_L(n)^2 after a masked-pseudo-alm 2&lt;=ell&lt;=64 filter&quot;,
+        &quot;planck_stat&quot;: ps,
+        &quot;n_sims&quot;: n,
+        &quot;tail_of_interest&quot;: &quot;upper tail; larger A_P means a stronger dipole in the low-l bandpower map&quot;,
+        &quot;higher_is_more_anomalous&quot;: True,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-l bandpower dipole fraction&quot;,
+            &quot;xlabel&quot;: &quot;A_P = |d|/p0&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: &quot;Distribution of the fractional dipole amplitude of the squared low-l temperature field. The SMICA value is compared with the upper tail of the simulations.&quot;
+        }
+    }
+    if not np.isfinite(ps):
+        out[&quot;warning&quot;] = &quot;The Planck statistic is not finite.&quot;
+        return out
+    if n &lt;= 0:
+        out[&quot;warning&quot;] = &quot;No finite simulation statistics were supplied.&quot;
+        return out
+
+    n_lt = int(np.count_nonzero(sims &lt; ps))
+    n_le = int(np.count_nonzero(sims &lt;= ps))
+    n_gt = int(np.count_nonzero(sims &gt; ps))
+    n_ge = int(np.count_nonzero(sims &gt;= ps))
+    n_eq = int(n - n_lt - n_gt)
+    p_upper = float((n_ge + 1.0) / (n + 1.0))
+    p_lower = float((n_le + 1.0) / (n + 1.0))
+    p_two = float(min(1.0, 2.0 * min(p_upper, p_lower)))
+    mean = float(np.mean(sims))
+    median = float(np.median(sims))
+    std = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    zscore = None
+    if np.isfinite(std) and std &gt; 0.0:
+        zscore = float((ps - mean) / std)
+    qs = np.percentile(sims, [1, 5, 16, 50, 84, 95, 99])
+    out.update({
+        &quot;sim_mean&quot;: mean,
+        &quot;sim_median&quot;: median,
+        &quot;sim_std&quot;: std,
+        &quot;sim_min&quot;: float(np.min(sims)),
+        &quot;sim_max&quot;: float(np.max(sims)),
+        &quot;sim_percentile_1&quot;: float(qs[0]),
+        &quot;sim_percentile_5&quot;: float(qs[1]),
+        &quot;sim_percentile_16&quot;: float(qs[2]),
+        &quot;sim_percentile_50&quot;: float(qs[3]),
+        &quot;sim_percentile_84&quot;: float(qs[4]),
+        &quot;sim_percentile_95&quot;: float(qs[5]),
+        &quot;sim_percentile_99&quot;: float(qs[6]),
+        &quot;planck_zscore_vs_sims&quot;: zscore,
+        &quot;planck_percentile_midrank_low_to_high&quot;: float(100.0 * (n_lt + 0.5 * n_eq) / n),
+        &quot;rank_descending_1_is_largest_A_P&quot;: int(n_gt + 1),
+        &quot;rank_ascending_1_is_smallest_A_P&quot;: int(n_lt + 1),
+        &quot;n_sim_lt_planck&quot;: n_lt,
+        &quot;n_sim_le_planck&quot;: n_le,
+        &quot;n_sim_eq_planck&quot;: n_eq,
+        &quot;n_sim_gt_planck&quot;: n_gt,
+        &quot;n_sim_ge_planck&quot;: n_ge,
+        &quot;fraction_sims_gt_planck&quot;: float(n_gt / n),
+        &quot;fraction_sims_ge_planck&quot;: float(n_ge / n),
+        &quot;empirical_p_upper_tail_including_ties_plus_one&quot;: p_upper,
+        &quot;empirical_p_lower_tail_including_ties_plus_one&quot;: p_lower,
+        &quot;empirical_p_two_sided_extremeness&quot;: p_two,
+        &quot;is_upper_tail_5pct&quot;: bool(p_upper &lt;= 0.05),
+        &quot;is_upper_tail_1pct&quot;: bool(p_upper &lt;= 0.01)
+    })
+    if std == 0.0:
+        out[&quot;warning&quot;] = &quot;All finite simulation statistics are identical; check for degenerate inputs or missing harmonic-transform support.&quot;
+    elif p_upper &lt;= 0.01:
+        out[&quot;interpretation&quot;] = &quot;SMICA lies in the highest 1% tail for this low-l bandpower dipole fraction.&quot;
+    elif p_upper &lt;= 0.05:
+        out[&quot;interpretation&quot;] = &quot;SMICA lies in the highest 5% tail for this low-l bandpower dipole fraction.&quot;
+    else:
+        out[&quot;interpretation&quot;] = &quot;SMICA is not in the highest 5% tail for this low-l bandpower dipole fraction.&quot;
+    return out</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/gpt5-5/test-09-low-l-bandpower-dipole-fraction.png" alt="Statistic distribution for Low-l Bandpower Dipole Fraction">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>GPT5.5</td></tr>
+<tr><th>Run path</th><td>runs/anomaly_agent_gpt_run</td></tr>
+<tr><th>Primary p-value</th><td>0.113</td></tr>
+<tr><th>One-tailed p-value</th><td>0.113</td></tr>
+<tr><th>Two-tailed p-value</th><td>n/a</td></tr>
+<tr><th>Sigma</th><td>1.211</td></tr>
+<tr><th>Planck statistic</th><td>0.337</td></tr>
+<tr><th>Simulation mean</th><td>0.218</td></tr>
+<tr><th>Simulation std.</th><td>0.0961</td></tr>
+<tr><th>Simulation median</th><td>0.208</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>one-tailed, upper</td></tr>
+<tr><th>Family</th><td>power</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/gpt5-5/test-09-low-l-bandpower-dipole-fraction.png">Figure PNG</a>
+<a href="../../../assets/figures/gpt5-5/test-09-low-l-bandpower-dipole-fraction.pdf">Figure PDF</a>
+<a href="../../../data/raw/gpt5-5/test-09-low-l-bandpower-dipole-fraction.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/gpt5-5/test-09-low-l-bandpower-dipole-fraction.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/gpt5-5/test-09-low-l-bandpower-dipole-fraction.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 2 model(s).</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixed Ecliptic Low-l Variance Log-Contrast · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 11 · GPT5.5</p>
+      <h1>Fixed Ecliptic Low-l Variance Log-Contrast</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">← Catalogue</a>
+      <a href="../../../">Paper</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label anomaly">Anomaly</span>
+        <span class="muted">GPT5.5 · Variation · variance · one-tailed, upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>Planck has an anomalously large positive low-l ecliptic variance log-contrast, A = ln(V_S/V_N), meaning excess low-l variance in the southern ecliptic hemisphere relative to the northern hemisphere compared with LCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Masked SMICA and 1000 LCDM simulations were filtered to 2 &lt;= l &lt;= 30, split into fixed ecliptic north/south hemispheres, demeaned per hemisphere, and compared using A = ln(V_S/V_N).</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck gives A = 0.480, i.e. V_S/V_N = 1.62. Simulations have mean A = 0.004 and std = 0.209. Planck is at the 98.3rd percentile, with 17/1000 simulations larger: one-tailed upper p = 0.017, about 2.12 sigma.</p>
+          <p>The statistic shows a significant positive southern ecliptic low-l variance excess relative to LCDM simulations, passing the 5% one-sided threshold but not the 1% threshold.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The statistic is explicitly oriented so that larger values indicate stronger southern ecliptic variance excess, and the code identifies the “tail_of_interest” as the upper tail for excess southern low-ell variance. Therefore the anomaly being tested has a clear directional preference toward large positive A.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No directly matching published test of this fixed ecliptic low-l variance log-contrast was found in the provided/previous searches. It is broadly related to CMB hemispherical power-asymmetry and local-variance studies, but uses a specific fixed ecliptic split and log variance ratio.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>test_description = &quot;Fixed Ecliptic Low-l Variance Log-Contrast: transform each masked temperature map to masked-sky pseudo-spherical-harmonic coefficients, keep only 2 &lt;= ell &lt;= 30, synthesize the low-ell map at nside=256, and return A = ln(V_S/V_N), the ecliptic south-to-north hemisphere variance log-contrast.&quot;
+
+
+def analyze_map(m, _cache={}):
+    import math
+    import zlib
+    import numpy as np
+
+    LMAX = 30
+    NSIDE_OUT = 256
+    MIN_HEMI_PIX = 4
+    TINY = float(np.finfo(np.float64).tiny)
+
+    def _finish(x):
+        try:
+            y = float(x)
+        except Exception:
+            return 0.0
+        if not np.isfinite(y):
+            return 0.0
+        if y &gt; 1.0e6:
+            y = 1.0e6
+        elif y &lt; -1.0e6:
+            y = -1.0e6
+        return float(y)
+
+    def _as_flat_float(x):
+        try:
+            if np.ma.isMaskedArray(x):
+                a = np.asarray(x.filled(np.nan), dtype=np.float64)
+            else:
+                a = np.asarray(x, dtype=np.float64)
+        except Exception:
+            try:
+                a = np.asarray(np.real(x), dtype=np.float64)
+            except Exception:
+                a = np.asarray([], dtype=np.float64)
+        return np.ravel(a)
+
+    def _get_hp():
+        if &quot;hp_loaded_fixed_ecliptic_lowl_var&quot; not in _cache:
+            _cache[&quot;hp_loaded_fixed_ecliptic_lowl_var&quot;] = True
+            try:
+                import healpy as hp
+                _cache[&quot;hp_fixed_ecliptic_lowl_var&quot;] = hp
+            except Exception:
+                _cache[&quot;hp_fixed_ecliptic_lowl_var&quot;] = None
+        return _cache.get(&quot;hp_fixed_ecliptic_lowl_var&quot;, None)
+
+    def _nside_from_npix(hp, npix):
+        try:
+            ns = int(hp.npix2nside(int(npix)))
+            if ns &gt; 0 and int(hp.nside2npix(ns)) == int(npix):
+                return ns
+        except Exception:
+            pass
+        try:
+            if int(npix) &gt; 0 and int(npix) % 12 == 0:
+                ns = int(round(math.sqrt(float(npix) / 12.0)))
+                if ns &gt; 0 and 12 * ns * ns == int(npix):
+                    return ns
+        except Exception:
+            pass
+        return -1
+
+    def _mask_signature(valid):
+        v = np.asarray(valid, dtype=bool).ravel()
+        n = int(v.size)
+        c = int(np.count_nonzero(v))
+        try:
+            packed = np.packbits(v)
+            crc = int(zlib.crc32(packed.tobytes()) &amp; 0xffffffff)
+        except Exception:
+            crc = int(c &amp; 0xffffffff)
+        return str(n) + &quot;:&quot; + str(c) + &quot;:&quot; + str(crc)
+
+    def _ecliptic_north_vec_galactic():
+        key = &quot;ecliptic_north_vec_galactic_j2000_v1&quot;
+        vec = _cache.get(key)
+        if vec is not None:
+            return vec
+        # North ecliptic pole in Galactic coordinates, J2000: l=96.384 deg, b=29.812 deg.
+        lon = math.radians(96.384)
+        lat = math.radians(29.812)
+        clat = math.cos(lat)
+        vec = np.array([clat * math.cos(lon), clat * math.sin(lon), math.sin(lat)], dtype=np.float64)
+        norm = float(np.sqrt(np.dot(vec, vec)))
+        if np.isfinite(norm) and norm &gt; 0.0:
+            vec = vec / norm
+        else:
+            vec = np.array([0.0, 0.0, 1.0], dtype=np.float64)
+        _cache[key] = vec
+        return vec
+
+    def _hemisphere_north_bool(hp, nside):
+        nside = int(nside)
+        key = &quot;ecliptic_north_bool_nside_&quot; + str(nside) + &quot;_ring_v1&quot;
+        cached = _cache.get(key)
+        if cached is not None:
+            return cached
+        npix = int(hp.nside2npix(nside))
+        pix = np.arange(npix, dtype=np.int64)
+        try:
+            x, y, z = hp.pix2vec(nside, pix, nest=False)
+        except TypeError:
+            x, y, z = hp.pix2vec(nside, pix)
+        vec = _ecliptic_north_vec_galactic()
+        dot = vec[0] * np.asarray(x, dtype=np.float64) + vec[1] * np.asarray(y, dtype=np.float64) + vec[2] * np.asarray(z, dtype=np.float64)
+        north = np.asarray(dot &gt;= 0.0, dtype=bool)
+        _cache[key] = north
+        return north
+
+    def _output_regions(hp, nside_in, valid_in):
+        nside_in = int(nside_in)
+        sig = _mask_signature(valid_in)
+        key = &quot;fixed_ecliptic_lowl_regions_&quot; + str(nside_in) + &quot;_to_&quot; + str(NSIDE_OUT) + &quot;_&quot; + sig
+        cached = _cache.get(key)
+        if cached is not None:
+            return cached
+
+        north = _hemisphere_north_bool(hp, NSIDE_OUT)
+        npix_out = int(hp.nside2npix(NSIDE_OUT))
+        valid_in = np.asarray(valid_in, dtype=bool).ravel()
+
+        if nside_in == NSIDE_OUT and int(valid_in.size) == npix_out:
+            mask_out = valid_in
+            idx_n = np.flatnonzero(mask_out &amp; north).astype(np.int64, copy=False)
+            idx_s = np.flatnonzero(mask_out &amp; (~north)).astype(np.int64, copy=False)
+            w_n = None
+            w_s = None
+        else:
+            # If the input map is not nside=256, carry the binary mask to the synthesis grid.
+            # The fractional downgraded/upgraded mask is used as a pixel-area weight so that
+            # partial output pixels do not get counted as fully unmasked area.
+            mask_float = valid_in.astype(np.float64)
+            try:
+                frac = hp.ud_grade(mask_float, nside_out=NSIDE_OUT, order_in=&quot;RING&quot;, order_out=&quot;RING&quot;, power=0)
+            except TypeError:
+                frac = hp.ud_grade(mask_float, NSIDE_OUT)
+            frac = np.asarray(frac, dtype=np.float64).ravel()
+            if int(frac.size) != npix_out:
+                return None
+            frac = np.where(np.isfinite(frac), frac, 0.0)
+            frac = np.clip(frac, 0.0, 1.0)
+            use = frac &gt; 1.0e-12
+            idx_n = np.flatnonzero(use &amp; north).astype(np.int64, copy=False)
+            idx_s = np.flatnonzero(use &amp; (~north)).astype(np.int64, copy=False)
+            w_n = np.asarray(frac[idx_n], dtype=np.float64)
+            w_s = np.asarray(frac[idx_s], dtype=np.float64)
+
+        if int(idx_n.size) &lt; MIN_HEMI_PIX or int(idx_s.size) &lt; MIN_HEMI_PIX:
+            return None
+        reg = {&quot;idx_n&quot;: idx_n, &quot;idx_s&quot;: idx_s, &quot;w_n&quot;: w_n, &quot;w_s&quot;: w_s}
+        try:
+            ncache = int(_cache.get(&quot;fixed_ecliptic_lowl_region_cache_count&quot;, 0))
+            if ncache &lt; 8:
+                _cache[key] = reg
+                _cache[&quot;fixed_ecliptic_lowl_region_cache_count&quot;] = ncache + 1
+        except Exception:
+            pass
+        return reg
+
+    def _weighted_variance(values, weights=None):
+        vals = np.asarray(values, dtype=np.float64).ravel()
+        good = np.isfinite(vals)
+        if weights is None:
+            vals = vals[good]
+            if int(vals.size) &lt; MIN_HEMI_PIX:
+                return None
+            mu = float(np.mean(vals))
+            var = float(np.mean((vals - mu) * (vals - mu)))
+            if not np.isfinite(var):
+                return None
+            return var
+        w = np.asarray(weights, dtype=np.float64).ravel()
+        if int(w.size) != int(vals.size):
+            return None
+        good = good &amp; np.isfinite(w) &amp; (w &gt; 0.0)
+        vals = vals[good]
+        w = w[good]
+        if int(vals.size) &lt; MIN_HEMI_PIX:
+            return None
+        sw = float(np.sum(w))
+        if not np.isfinite(sw) or sw &lt;= 0.0:
+            return None
+        mu = float(np.dot(w, vals) / sw)
+        var = float(np.dot(w, (vals - mu) * (vals - mu)) / sw)
+        if not np.isfinite(var):
+            return None
+        return var
+
+    def _log_ratio_from_variances(vs, vn):
+        try:
+            vs = float(vs)
+            vn = float(vn)
+        except Exception:
+            return 0.0
+        if not np.isfinite(vs) or not np.isfinite(vn):
+            return 0.0
+        if vs &lt;= 0.0 and vn &lt;= 0.0:
+            return 0.0
+        vs = max(vs, TINY)
+        vn = max(vn, TINY)
+        return _finish(math.log(vs) - math.log(vn))
+
+    def _raw_fallback(arr, valid, hp=None, nside=-1):
+        # Non-harmonic fallback used only if healpy transforms fail.  It keeps the result finite
+        # and non-degenerate, but normal operation uses the specified ell=2..30 filtered map.
+        try:
+            arr = np.asarray(arr, dtype=np.float64).ravel()
+            valid = np.asarray(valid, dtype=bool).ravel()
+            if int(arr.size) != int(valid.size) or int(np.count_nonzero(valid)) &lt; 2 * MIN_HEMI_PIX:
+                return 0.0
+            if hp is not None and int(nside) &gt; 0:
+                north = _hemisphere_north_bool(hp, int(nside))
+                if int(north.size) == int(arr.size):
+                    idx_n = np.flatnonzero(valid &amp; north)
+                    idx_s = np.flatnonzero(valid &amp; (~north))
+                else:
+                    idx = np.flatnonzero(valid)
+                    half = int(idx.size) // 2
+                    idx_n = idx[:half]
+                    idx_s = idx[half:]
+            else:
+                idx = np.flatnonzero(valid)
+                half = int(idx.size) // 2
+                idx_n = idx[:half]
+                idx_s = idx[half:]
+            if int(idx_n.size) &lt; MIN_HEMI_PIX or int(idx_s.size) &lt; MIN_HEMI_PIX:
+                return 0.0
+            vn = _weighted_variance(arr[idx_n], None)
+            vs = _weighted_variance(arr[idx_s], None)
+            if vn is None or vs is None:
+                return 0.0
+            return _log_ratio_from_variances(vs, vn)
+        except Exception:
+            return 0.0
+
+    arr = _as_flat_float(m)
+    npix = int(arr.size)
+    if npix &lt;= 0:
+        return 0.0
+    valid = np.isfinite(arr)
+    if int(np.count_nonzero(valid)) &lt; 2 * MIN_HEMI_PIX:
+        return 0.0
+
+    hp = _get_hp()
+    if hp is None:
+        return float(_raw_fallback(arr, valid, None, -1))
+    nside_in = _nside_from_npix(hp, npix)
+    if nside_in &lt;= 0:
+        return float(_raw_fallback(arr, valid, hp, nside_in))
+
+    try:
+        regions = _output_regions(hp, nside_in, valid)
+        if regions is None:
+            return float(_raw_fallback(arr, valid, hp, nside_in))
+
+        filled = np.zeros(npix, dtype=np.float64)
+        filled[valid] = arr[valid]
+        # Healpy must never receive NaN or inf values.
+        filled = np.where(np.isfinite(filled), filled, 0.0)
+
+        try:
+            alm = hp.map2alm(filled, lmax=LMAX, iter=0, pol=False, use_weights=False)
+        except TypeError:
+            try:
+                alm = hp.map2alm(filled, lmax=LMAX, iter=0, pol=False)
+            except TypeError:
+                alm = hp.map2alm(filled, lmax=LMAX, iter=0)
+        alm = np.asarray(alm, dtype=np.complex128).ravel()
+        try:
+            if int(alm.size) &lt; int(hp.Alm.getsize(LMAX)):
+                return float(_raw_fallback(arr, valid, hp, nside_in))
+        except Exception:
+            if int(alm.size) &lt;= 0:
+                return float(_raw_fallback(arr, valid, hp, nside_in))
+        ok = np.isfinite(alm.real) &amp; np.isfinite(alm.imag)
+        alm = np.where(ok, alm, 0.0 + 0.0j)
+
+        # Retain only multipoles 2 &lt;= ell &lt;= 30.  lmax in map2alm already removes ell &gt; 30.
+        for ell in (0, 1):
+            for mm in range(ell + 1):
+                try:
+                    alm[hp.Alm.getidx(LMAX, ell, mm)] = 0.0 + 0.0j
+                except Exception:
+                    pass
+
+        try:
+            low_map = hp.alm2map(alm, NSIDE_OUT, lmax=LMAX, pol=False, verbose=False)
+        except TypeError:
+            try:
+                low_map = hp.alm2map(alm, NSIDE_OUT, lmax=LMAX, pol=False)
+            except TypeError:
+                low_map = hp.alm2map(alm, NSIDE_OUT, lmax=LMAX)
+        low_map = np.asarray(low_map, dtype=np.float64).ravel()
+        if int(low_map.size) != int(hp.nside2npix(NSIDE_OUT)):
+            return float(_raw_fallback(arr, valid, hp, nside_in))
+        low_map = np.where(np.isfinite(low_map), low_map, 0.0)
+
+        idx_n = regions[&quot;idx_n&quot;]
+        idx_s = regions[&quot;idx_s&quot;]
+        vn = _weighted_variance(low_map[idx_n], regions.get(&quot;w_n&quot;, None))
+        vs = _weighted_variance(low_map[idx_s], regions.get(&quot;w_s&quot;, None))
+        if vn is None or vs is None:
+            return float(_raw_fallback(arr, valid, hp, nside_in))
+        return float(_log_ratio_from_variances(vs, vn))
+    except Exception:
+        return float(_raw_fallback(arr, valid, hp, nside_in))
+
+
+def summarize_results(planck_stat, sim_results, _desc=test_description):
+    import math
+    import numpy as np
+
+    def _finite_float(x, default=np.nan):
+        try:
+            y = float(x)
+        except Exception:
+            return float(default)
+        if np.isfinite(y):
+            return float(y)
+        return float(default)
+
+    def _safe_exp(x):
+        x = _finite_float(x)
+        if not np.isfinite(x) or abs(x) &gt; 700.0:
+            return None
+        return float(math.exp(x))
+
+    ps = _finite_float(planck_stat)
+    try:
+        sims = np.asarray(sim_results, dtype=np.float64).ravel()
+    except Exception:
+        vals = []
+        try:
+            for v in sim_results:
+                vals.append(_finite_float(v))
+        except Exception:
+            vals = []
+        sims = np.asarray(vals, dtype=np.float64)
+    sims = sims[np.isfinite(sims)]
+    n = int(sims.size)
+
+    out = {
+        &quot;test_description&quot;: _desc,
+        &quot;statistic&quot;: &quot;A = ln(V_S / V_N)&quot;,
+        &quot;planck_stat&quot;: ps,
+        &quot;planck_south_to_north_variance_ratio&quot;: _safe_exp(ps),
+        &quot;n_sims&quot;: n,
+        &quot;tail_of_interest&quot;: &quot;upper tail for excess low-ell variance in the southern ecliptic hemisphere; lower tail indicates northern excess&quot;,
+        &quot;higher_is_more_southern&quot;: True,
+        &quot;ecliptic_coordinate_assumption&quot;: &quot;Input HEALPix maps are in Galactic coordinates; the fixed ecliptic hemispheres use the J2000 ecliptic north pole at Galactic (l,b)=(96.384,29.812) deg.&quot;,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Fixed ecliptic low-ell variance log-contrast&quot;,
+            &quot;xlabel&quot;: &quot;A = ln(V_S / V_N)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: &quot;Distribution of the ell=2..30 masked-sky filtered ecliptic south-to-north variance log-contrast. Positive values mean larger low-ell variance in the southern ecliptic hemisphere.&quot;
+        }
+    }
+
+    if not np.isfinite(ps):
+        out[&quot;warning&quot;] = &quot;The Planck statistic is not finite.&quot;
+        return out
+    if n &lt;= 0:
+        out[&quot;warning&quot;] = &quot;No finite simulation statistics were supplied.&quot;
+        return out
+
+    n_lt = int(np.count_nonzero(sims &lt; ps))
+    n_le = int(np.count_nonzero(sims &lt;= ps))
+    n_gt = int(np.count_nonzero(sims &gt; ps))
+    n_ge = int(np.count_nonzero(sims &gt;= ps))
+    n_eq = int(n - n_lt - n_gt)
+
+    p_upper = float((n_ge + 1.0) / (n + 1.0))
+    p_lower = float((n_le + 1.0) / (n + 1.0))
+    p_two = float(min(1.0, 2.0 * min(p_upper, p_lower)))
+    n_abs_ge = int(np.count_nonzero(np.abs(sims) &gt;= abs(ps)))
+    p_abs = float((n_abs_ge + 1.0) / (n + 1.0))
+    p_same_direction = p_upper if ps &gt;= 0.0 else p_lower
+
+    mean = float(np.mean(sims))
+    median = float(np.median(sims))
+    std = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    zscore = None
+    if np.isfinite(std) and std &gt; 0.0:
+        zscore = float((ps - mean) / std)
+    q = np.percentile(sims, [1, 5, 16, 50, 84, 95, 99])
+    ratios = np.exp(np.clip(sims, -700.0, 700.0))
+    rq = np.percentile(ratios, [5, 50, 95])
+
+    out.update({
+        &quot;sim_mean&quot;: mean,
+        &quot;sim_median&quot;: median,
+        &quot;sim_std&quot;: std,
+        &quot;sim_min&quot;: float(np.min(sims)),
+        &quot;sim_max&quot;: float(np.max(sims)),
+        &quot;sim_percentile_1&quot;: float(q[0]),
+        &quot;sim_percentile_5&quot;: float(q[1]),
+        &quot;sim_percentile_16&quot;: float(q[2]),
+        &quot;sim_percentile_50&quot;: float(q[3]),
+        &quot;sim_percentile_84&quot;: float(q[4]),
+        &quot;sim_percentile_95&quot;: float(q[5]),
+        &quot;sim_percentile_99&quot;: float(q[6]),
+        &quot;sim_south_to_north_ratio_percentile_5&quot;: float(rq[0]),
+        &quot;sim_south_to_north_ratio_median&quot;: float(rq[1]),
+        &quot;sim_south_to_north_ratio_percentile_95&quot;: float(rq[2]),
+        &quot;planck_zscore_vs_sims&quot;: zscore,
+        &quot;planck_percentile_midrank_low_to_high&quot;: float(100.0 * (n_lt + 0.5 * n_eq) / n),
+        &quot;rank_descending_1_is_largest_southern_excess&quot;: int(n_gt + 1),
+        &quot;rank_ascending_1_is_largest_northern_excess&quot;: int(n_lt + 1),
+        &quot;n_sim_lt_planck&quot;: n_lt,
+        &quot;n_sim_le_planck&quot;: n_le,
+        &quot;n_sim_eq_planck&quot;: n_eq,
+        &quot;n_sim_gt_planck&quot;: n_gt,
+        &quot;n_sim_ge_planck&quot;: n_ge,
+        &quot;fraction_sims_gt_planck&quot;: float(n_gt / n),
+        &quot;fraction_sims_ge_planck&quot;: float(n_ge / n),
+        &quot;empirical_p_upper_tail_southern_excess_including_ties_plus_one&quot;: p_upper,
+        &quot;empirical_p_lower_tail_northern_excess_including_ties_plus_one&quot;: p_lower,
+        &quot;empirical_p_two_sided_from_signed_rank&quot;: p_two,
+        &quot;empirical_p_abs_logcontrast_about_zero_plus_one&quot;: p_abs,
+        &quot;empirical_p_tail_in_planck_direction_plus_one&quot;: float(p_same_direction),
+        &quot;planck_direction&quot;: &quot;southern ecliptic excess&quot; if ps &gt; 0.0 else (&quot;northern ecliptic excess&quot; if ps &lt; 0.0 else &quot;no contrast&quot;),
+        &quot;is_southern_excess_upper_tail_5pct&quot;: bool(p_upper &lt;= 0.05),
+        &quot;is_southern_excess_upper_tail_1pct&quot;: bool(p_upper &lt;= 0.01),
+        &quot;is_abs_logcontrast_tail_5pct&quot;: bool(p_abs &lt;= 0.05),
+        &quot;is_abs_logcontrast_tail_1pct&quot;: bool(p_abs &lt;= 0.01)
+    })
+
+    if std == 0.0:
+        out[&quot;warning&quot;] = &quot;All finite simulation statistics are identical; check the input maps, mask, and harmonic-transform support.&quot;
+    elif ps &gt; 0.0 and p_upper &lt;= 0.01:
+        out[&quot;interpretation&quot;] = &quot;Planck is in the highest 1% upper tail: unusually large southern ecliptic low-ell variance relative to the north.&quot;
+    elif ps &gt; 0.0 and p_upper &lt;= 0.05:
+        out[&quot;interpretation&quot;] = &quot;Planck is in the highest 5% upper tail: enhanced southern ecliptic low-ell variance relative to simulations.&quot;
+    elif ps &lt; 0.0 and p_lower &lt;= 0.05:
+        out[&quot;interpretation&quot;] = &quot;Planck is in the low tail, indicating an unusually large northern ecliptic low-ell variance relative to the south.&quot;
+    else:
+        out[&quot;interpretation&quot;] = &quot;Planck is not in a 5% one-sided tail for this fixed ecliptic low-ell variance log-contrast.&quot;
+    return out</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/gpt5-5/test-11-fixed-ecliptic-low-l-variance-log-contrast.png" alt="Statistic distribution for Fixed Ecliptic Low-l Variance Log-Contrast">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>GPT5.5</td></tr>
+<tr><th>Run path</th><td>runs/anomaly_agent_gpt_run</td></tr>
+<tr><th>Primary p-value</th><td>0.017</td></tr>
+<tr><th>One-tailed p-value</th><td>0.017</td></tr>
+<tr><th>Two-tailed p-value</th><td>n/a</td></tr>
+<tr><th>Sigma</th><td>2.12</td></tr>
+<tr><th>Planck statistic</th><td>0.48</td></tr>
+<tr><th>Simulation mean</th><td>0.00395</td></tr>
+<tr><th>Simulation std.</th><td>0.209</td></tr>
+<tr><th>Simulation median</th><td>-0.00392</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>one-tailed, upper</td></tr>
+<tr><th>Family</th><td>variance</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/gpt5-5/test-11-fixed-ecliptic-low-l-variance-log-contrast.png">Figure PNG</a>
+<a href="../../../assets/figures/gpt5-5/test-11-fixed-ecliptic-low-l-variance-log-contrast.pdf">Figure PDF</a>
+<a href="../../../data/raw/gpt5-5/test-11-fixed-ecliptic-low-l-variance-log-contrast.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/gpt5-5/test-11-fixed-ecliptic-low-l-variance-log-contrast.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/gpt5-5/test-11-fixed-ecliptic-low-l-variance-log-contrast.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 2 model(s).</p>
+  </footer>
+</body>
+</html>

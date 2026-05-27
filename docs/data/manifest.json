@@ -18,39 +18,39 @@
     }
   ],
   "source_counts": {
-    "GPT5.5": 7,
+    "GPT5.5": 20,
     "Mimo V2.5 Pro": 107
   },
   "model_counts": {
-    "GPT5.5": 7,
+    "GPT5.5": 20,
     "Mimo V2.5 Pro": 107
   },
   "visual_assets": {
     "planck_masked": "assets/cmb/planckcmbwithmask256.png",
     "planck_unmasked": "assets/cmb/planckcmbnomask256.png"
   },
-  "generated_at_utc": "2026-05-27T13:13:58+00:00",
+  "generated_at_utc": "2026-05-27T19:09:41+00:00",
   "curation_note": "This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.",
-  "n_tests": 114,
+  "n_tests": 127,
   "verdict_counts": {
-    "Anomaly": 4,
-    "Borderline": 13,
-    "Consistent": 97
+    "Anomaly": 5,
+    "Borderline": 15,
+    "Consistent": 107
   },
   "novelty_counts": {
-    "Novel": 52,
+    "Novel": 55,
     "Repeat": 5,
-    "Variation": 57
+    "Variation": 67
   },
   "family_counts": {
-    "alignment": 8,
+    "alignment": 9,
     "cross correlation": 7,
-    "direction": 8,
-    "hemispherical": 8,
-    "other": 60,
-    "parity": 8,
-    "power": 7,
-    "variance": 8
+    "direction": 9,
+    "hemispherical": 9,
+    "other": 63,
+    "parity": 10,
+    "power": 10,
+    "variance": 10
   },
   "minimum_primary_p_value": 0.001,
   "registry_files": {

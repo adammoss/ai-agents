@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Whitened Low-l Bandpower Entropy · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 19 · GPT5.5</p>
+      <h1>Whitened Low-l Bandpower Entropy</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">← Catalogue</a>
+      <a href="../../../">Paper</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">GPT5.5 · Novel · power · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Planck low-\(\ell\) pseudo-bandpower distribution, after whitening by the LCDM simulation mean, has an anomalous entropy compared with LCDM simulations, indicating that power is either unusually concentrated in a few multipoles or unusually evenly spread across multipoles.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Masked, monopole/dipole-subtracted Planck and LCDM simulation maps were converted to pseudo-\(C_\ell\) spectra for \(2\le\ell\le30\), whitened by the simulation-mean pseudo-spectrum, normalized across multipoles, and summarized by normalized Shannon entropy \(H\). Low \(H\) means power concentrated in few multipoles; high \(H\) means unusually even spreading.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck has \(H\simeq0.987\)–0.988, close to the simulation mean/median \(\simeq0.986\)–0.987 with simulation scatter \(\simeq0.005\). Its percentile is about 58% low-to-high, with two-tailed empirical \(p\simeq0.84\)–0.85 and \(|z|&lt;0.4\).</p>
+          <p>Planck is not in either the low-entropy or high-entropy tail. The whitened low-\(\ell\) power is neither unusually concentrated in a few multipoles nor unusually evenly distributed compared with LCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The statistic is explicitly interpretable in both directions: low \(H\) indicates unusually concentrated low-\(\ell\) power, while high \(H\) indicates unusually even spreading. The code computes lower-tail, upper-tail, and two-sided empirical p-values and does not impose a single directional prediction. Therefore the appropriate default is a two-tailed anomaly test.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>General Planck low-\(\ell\) anomalies are widely discussed, e.g. Planck Collaboration VII, A&amp;A 641, A7 (2020), but previous searches found no directly comparable published use of this specific whitened low-\(\ell\) bandpower Shannon-entropy statistic.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import math
+import numpy as np
+
+
+test_description = &quot;Whitened Low-l Bandpower Entropy: fit and subtract the monopole and dipole on unmasked pixels, set masked pixels to zero, compute pseudo-C_ell for 2&lt;=ell&lt;=30, whiten by the LCDM simulation mean pseudo-spectrum, normalize the whitened powers, and return H=-sum p_ell ln p_ell / ln(29).&quot;
+
+_LMIN = 2
+_LMAX = 30
+_NBAND = _LMAX - _LMIN + 1
+_LOG_NBAND = math.log(float(_NBAND))
+_ELL = np.arange(_LMIN, _LMAX + 1, dtype=np.float64)
+_STATE = {&quot;records&quot;: []}
+
+
+def _as_1d_float(m):
+    try:
+        if np.ma.isMaskedArray(m):
+            a = np.asarray(m.filled(np.nan), dtype=np.float64)
+        else:
+            a = np.asarray(m, dtype=np.float64)
+    except Exception:
+        try:
+            a = np.asarray(np.real(m), dtype=np.float64)
+        except Exception:
+            a = np.asarray([], dtype=np.float64)
+    return np.ravel(a)
+
+
+def _finite_float(x, default=np.nan):
+    try:
+        y = float(x)
+    except Exception:
+        return float(default)
+    return float(y) if np.isfinite(y) else float(default)
+
+
+def _get_healpy():
+    if &quot;healpy&quot; not in _STATE:
+        try:
+            import healpy as hp
+            _STATE[&quot;healpy&quot;] = hp
+        except Exception:
+            _STATE[&quot;healpy&quot;] = None
+    return _STATE.get(&quot;healpy&quot;)
+
+
+def _nside_from_npix(hp, npix):
+    try:
+        ns = int(hp.npix2nside(int(npix)))
+        if ns &gt; 0 and int(hp.nside2npix(ns)) == int(npix):
+            return ns
+    except Exception:
+        pass
+    try:
+        npix = int(npix)
+        if npix &gt; 0 and npix % 12 == 0:
+            ns = int(round((float(npix) / 12.0) ** 0.5))
+            if ns &gt; 0 and 12 * ns * ns == npix:
+                return ns
+    except Exception:
+        pass
+    return -1
+
+
+def _geometry(hp, nside):
+    key = (&quot;geometry&quot;, int(nside))
+    if key in _STATE:
+        return _STATE[key]
+    npix = int(hp.nside2npix(int(nside)))
+    pix = np.arange(npix, dtype=np.int64)
+    try:
+        x, y, z = hp.pix2vec(int(nside), pix, nest=False)
+    except TypeError:
+        x, y, z = hp.pix2vec(int(nside), pix)
+    out = (np.asarray(x, dtype=np.float64),
+           np.asarray(y, dtype=np.float64),
+           np.asarray(z, dtype=np.float64))
+    _STATE[key] = out
+    return out
+
+
+def _fit_monopole_dipole(arr, valid, x, y, z):
+    n_valid = int(np.count_nonzero(valid))
+    if n_valid &lt;= 0:
+        return np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float64)
+    t = np.asarray(arr[valid], dtype=np.float64)
+    if n_valid &lt; 4:
+        mu = float(np.mean(t)) if t.size else 0.0
+        if not np.isfinite(mu):
+            mu = 0.0
+        return np.array([mu, 0.0, 0.0, 0.0], dtype=np.float64)
+
+    xv = np.asarray(x[valid], dtype=np.float64)
+    yv = np.asarray(y[valid], dtype=np.float64)
+    zv = np.asarray(z[valid], dtype=np.float64)
+
+    n = float(n_valid)
+    sx = float(np.sum(xv)); sy = float(np.sum(yv)); sz = float(np.sum(zv))
+    sxx = float(np.dot(xv, xv)); syy = float(np.dot(yv, yv)); szz = float(np.dot(zv, zv))
+    sxy = float(np.dot(xv, yv)); sxz = float(np.dot(xv, zv)); syz = float(np.dot(yv, zv))
+    st = float(np.sum(t))
+    stx = float(np.dot(t, xv)); sty = float(np.dot(t, yv)); stz = float(np.dot(t, zv))
+
+    A = np.array([[n, sx, sy, sz],
+                  [sx, sxx, sxy, sxz],
+                  [sy, sxy, syy, syz],
+                  [sz, sxz, syz, szz]], dtype=np.float64)
+    b = np.array([st, stx, sty, stz], dtype=np.float64)
+    try:
+        coef = np.linalg.solve(A, b)
+    except Exception:
+        try:
+            coef = np.linalg.lstsq(A, b, rcond=None)[0]
+        except Exception:
+            coef = None
+    if coef is None or not np.all(np.isfinite(coef)):
+        mu = float(np.mean(t)) if t.size else 0.0
+        if not np.isfinite(mu):
+            mu = 0.0
+        coef = np.array([mu, 0.0, 0.0, 0.0], dtype=np.float64)
+    return np.asarray(coef, dtype=np.float64)
+
+
+def _clean_spectrum(v):
+    a = np.asarray(v, dtype=np.float64).ravel()
+    if a.size &lt; _NBAND:
+        b = np.zeros(_NBAND, dtype=np.float64)
+        if a.size &gt; 0:
+            b[:a.size] = a
+        a = b
+    elif a.size &gt; _NBAND:
+        a = a[:_NBAND]
+    a = np.where(np.isfinite(a) &amp; (a &gt; 0.0), a, 0.0)
+    return np.asarray(a, dtype=np.float64)
+
+
+def _fallback_low_spectrum(arr, valid):
+    # Used only if healpy is unavailable or the input is not a valid HEALPix map.
+    try:
+        vals = np.asarray(arr[valid], dtype=np.float64)
+        vals = vals[np.isfinite(vals)]
+        n = int(vals.size)
+        if n &lt; 2:
+            return np.zeros(_NBAND, dtype=np.float64)
+        vals = vals - float(np.mean(vals))
+        vals = np.where(np.isfinite(vals), vals, 0.0)
+        if float(np.dot(vals, vals)) &lt;= 0.0:
+            return np.zeros(_NBAND, dtype=np.float64)
+        ff = np.fft.rfft(vals)
+        pw = (ff.real * ff.real + ff.imag * ff.imag) / max(float(n), 1.0)
+        pw = np.asarray(pw[1:], dtype=np.float64)
+        pw = pw[np.isfinite(pw)]
+        if pw.size &lt;= 0:
+            return np.zeros(_NBAND, dtype=np.float64)
+        if pw.size == 1:
+            low = np.full(_NBAND, float(pw[0]), dtype=np.float64)
+        else:
+            xp = np.arange(pw.size, dtype=np.float64)
+            xq = np.linspace(0.0, float(pw.size - 1), _NBAND)
+            low = np.interp(xq, xp, pw)
+        return _clean_spectrum(low)
+    except Exception:
+        return np.zeros(_NBAND, dtype=np.float64)
+
+
+def _anafast_scalar(hp, mp, lmax):
+    try:
+        cl = hp.anafast(mp, lmax=int(lmax), iter=0, pol=False, use_weights=False)
+    except TypeError:
+        try:
+            cl = hp.anafast(mp, lmax=int(lmax), iter=0, pol=False)
+        except TypeError:
+            cl = hp.anafast(mp, lmax=int(lmax), iter=0)
+    if isinstance(cl, (tuple, list)):
+        cl = cl[0]
+    return np.asarray(cl, dtype=np.float64).ravel()
+
+
+def _compute_low_l_pseudo_spectrum(m):
+    arr = _as_1d_float(m)
+    npix = int(arr.size)
+    if npix &lt;= 0:
+        return np.zeros(_NBAND, dtype=np.float64)
+    valid = np.isfinite(arr)
+    if int(np.count_nonzero(valid)) &lt;= 0:
+        return np.zeros(_NBAND, dtype=np.float64)
+
+    hp = _get_healpy()
+    if hp is None:
+        return _fallback_low_spectrum(arr, valid)
+    nside = _nside_from_npix(hp, npix)
+    if nside &lt;= 0:
+        return _fallback_low_spectrum(arr, valid)
+
+    try:
+        x, y, z = _geometry(hp, nside)
+        if x.size != npix:
+            return _fallback_low_spectrum(arr, valid)
+        coef = _fit_monopole_dipole(arr, valid, x, y, z)
+        mp = np.zeros(npix, dtype=np.float64)
+        mp[valid] = (np.asarray(arr[valid], dtype=np.float64)
+                     - (coef[0] + coef[1] * x[valid] + coef[2] * y[valid] + coef[3] * z[valid]))
+        # Never pass NaNs or infs into healpy; masked pixels are zero filled.
+        mp[~np.isfinite(mp)] = 0.0
+        lmax_eff = int(_LMAX)
+        try:
+            lmax_eff = min(int(_LMAX), max(0, 3 * int(nside) - 1))
+        except Exception:
+            lmax_eff = int(_LMAX)
+        cl = _anafast_scalar(hp, mp, lmax_eff)
+        full = np.zeros(_LMAX + 1, dtype=np.float64)
+        ncopy = min(int(cl.size), _LMAX + 1)
+        if ncopy &gt; 0:
+            full[:ncopy] = cl[:ncopy]
+        return _clean_spectrum(full[_LMIN:_LMAX + 1])
+    except Exception:
+        return _fallback_low_spectrum(arr, valid)
+
+
+def _default_reference():
+    # Approximate LCDM low-l shape used only before the simulation mean is available.
+    # The final summary recomputes H with the mean cached simulation pseudo-spectrum.
+    ref = _STATE.get(&quot;default_reference&quot;)
+    if ref is None:
+        ref = 1.0 / np.maximum(_ELL * (_ELL + 1.0), 1.0)
+        ref = np.asarray(ref, dtype=np.float64)
+        _STATE[&quot;default_reference&quot;] = ref
+    return np.asarray(ref, dtype=np.float64)
+
+
+def _coerce_reference(ref):
+    if ref is None:
+        return _default_reference().copy()
+    try:
+        a = np.asarray(ref, dtype=np.float64).ravel()
+    except Exception:
+        return _default_reference().copy()
+    if a.size &gt;= _LMAX + 1:
+        a = a[_LMIN:_LMAX + 1]
+    elif a.size &gt;= _NBAND:
+        a = a[:_NBAND]
+    else:
+        return _default_reference().copy()
+    good = np.isfinite(a) &amp; (a &gt; 0.0)
+    if not np.any(good):
+        return _default_reference().copy()
+    floor = float(np.median(a[good])) * 1.0e-12
+    if not np.isfinite(floor) or floor &lt;= 0.0:
+        floor = float(np.finfo(np.float64).tiny)
+    return np.maximum(np.where(good, a, floor), floor).astype(np.float64)
+
+
+def _external_reference():
+    # If the harness supplies an already-computed simulation mean, use it directly.
+    names = (&quot;mean_pseudo_cl_low_l&quot;, &quot;bar_pseudo_cl_low_l&quot;, &quot;lcdm_mean_pseudo_cl_low_l&quot;,
+             &quot;mean_pseudo_spectrum_low_l&quot;, &quot;bar_pseudo_spectrum_low_l&quot;,
+             &quot;mean_pseudo_cl&quot;, &quot;bar_pseudo_cl&quot;, &quot;lcdm_mean_pseudo_cl&quot;)
+    for name in names:
+        try:
+            if name in globals() and globals()[name] is not None:
+                ref = _coerce_reference(globals()[name])
+                if ref.size == _NBAND and np.all(np.isfinite(ref)) and np.all(ref &gt; 0.0):
+                    return ref
+        except Exception:
+            pass
+    try:
+        ref = _STATE.get(&quot;analysis_reference&quot;)
+        if ref is not None:
+            ref = _coerce_reference(ref)
+            if ref.size == _NBAND and np.all(np.isfinite(ref)) and np.all(ref &gt; 0.0):
+                return ref
+    except Exception:
+        pass
+    return None
+
+
+def _reference_for_analyze():
+    ref = _external_reference()
+    if ref is not None:
+        return ref
+    return _default_reference().copy()
+
+
+def _entropy_from_spectrum(spec, ref=None):
+    c = _clean_spectrum(spec)
+    rref = _coerce_reference(ref)
+    r = c / rref
+    r = np.where(np.isfinite(r) &amp; (r &gt; 0.0), r, 0.0)
+    total = float(np.sum(r))
+    if not np.isfinite(total) or total &lt;= 0.0:
+        return 1.0
+    p = r / total
+    p = np.where(np.isfinite(p) &amp; (p &gt; 0.0), p, 0.0)
+    nz = p &gt; 0.0
+    if not np.any(nz):
+        return 1.0
+    h = -float(np.dot(p[nz], np.log(p[nz]))) / _LOG_NBAND
+    if not np.isfinite(h):
+        h = 1.0
+    if h &lt; 0.0:
+        h = 0.0
+    elif h &gt; 1.0:
+        h = 1.0
+    return float(h)
+
+
+def _remember_result(stat, spec):
+    try:
+        rec = _STATE.setdefault(&quot;records&quot;, [])
+        if len(rec) &lt; 50000:
+            rec.append((float(stat), _clean_spectrum(spec).copy()))
+    except Exception:
+        pass
+
+
+def analyze_map(m):
+    spec = _compute_low_l_pseudo_spectrum(m)
+    h = _entropy_from_spectrum(spec, _reference_for_analyze())
+    if not np.isfinite(h):
+        h = 1.0
+    h = float(min(1.0, max(0.0, h)))
+    _remember_result(h, spec)
+    return h
+
+
+def _finite_1d(x):
+    try:
+        a = np.asarray(x, dtype=np.float64).ravel()
+    except Exception:
+        vals = []
+        try:
+            for v in x:
+                fv = _finite_float(v)
+                if np.isfinite(fv):
+                    vals.append(fv)
+        except Exception:
+            vals = []
+        a = np.asarray(vals, dtype=np.float64)
+    return a[np.isfinite(a)]
+
+
+def _same_stat(a, b):
+    a = _finite_float(a)
+    b = _finite_float(b)
+    if not np.isfinite(a) or not np.isfinite(b):
+        return False
+    return abs(a - b) &lt;= max(1.0e-10, 1.0e-8 * max(1.0, abs(a), abs(b)))
+
+
+def _cached_spectra_for_summary(planck_stat, sim_stats):
+    records = list(_STATE.get(&quot;records&quot;, []))
+    n = int(sim_stats.size)
+    if len(records) &lt; n + 1 or n &lt;= 0:
+        return None, None
+
+    # Prefer the chronological block ending at the most recent analyze_map calls.
+    try:
+        block = records[-(n + 1):]
+        if _same_stat(block[0][0], planck_stat):
+            ok = True
+            for i in range(n):
+                if not _same_stat(block[i + 1][0], sim_stats[i]):
+                    ok = False
+                    break
+            if ok:
+                return _clean_spectrum(block[0][1]), [_clean_spectrum(b[1]) for b in block[1:]]
+    except Exception:
+        pass
+
+    # Fall back to value matching; this also handles a registration-time Planck probe.
+    try:
+        vals = np.asarray([r[0] for r in records], dtype=np.float64)
+        used = np.zeros(vals.size, dtype=bool)
+    except Exception:
+        return None, None
+
+    def pick(v):
+        fv = _finite_float(v)
+        if not np.isfinite(fv):
+            return None
+        d = np.abs(vals - fv)
+        d[used] = np.inf
+        if not np.any(np.isfinite(d)):
+            return None
+        j = int(np.argmin(d))
+        if not _same_stat(vals[j], fv):
+            return None
+        used[j] = True
+        return _clean_spectrum(records[j][1])
+
+    ps = pick(planck_stat)
+    if ps is None:
+        return None, None
+    ss = []
+    for v in sim_stats:
+        sp = pick(v)
+        if sp is None:
+            return None, None
+        ss.append(sp)
+    return ps, ss
+
+
+def _neff(h):
+    h = _finite_float(h)
+    if not np.isfinite(h):
+        return None
+    try:
+        return float(math.exp(h * _LOG_NBAND))
+    except Exception:
+        return None
+
+
+def _float_or_none(x):
+    x = _finite_float(x)
+    return float(x) if np.isfinite(x) else None
+
+
+def summarize_results(planck_stat, sim_results):
+    ps_in = _finite_float(planck_stat)
+    sims_in = _finite_1d(sim_results)
+    ps = ps_in
+    sims = sims_in.copy()
+    recomputed = False
+    whitening_reference = &quot;analyze_map values (external reference if supplied, otherwise approximate ell(ell+1) whitening)&quot;
+
+    # In the normal notebook run, analyze_map has cached every raw pseudo-spectrum.
+    # Recompute the reported Planck and simulation entropies with the exact mean
+    # pseudo-spectrum of the supplied simulations, implementing the requested whitening.
+    try:
+        p_spec, s_specs = _cached_spectra_for_summary(ps_in, sims_in)
+        if p_spec is not None and s_specs is not None and len(s_specs) == int(sims_in.size) and len(s_specs) &gt; 0:
+            sim_spec_arr = np.vstack([_clean_spectrum(s) for s in s_specs])
+            bar = _coerce_reference(np.mean(sim_spec_arr, axis=0))
+            ps = _entropy_from_spectrum(p_spec, bar)
+            sims = np.asarray([_entropy_from_spectrum(s, bar) for s in sim_spec_arr], dtype=np.float64)
+            sims = sims[np.isfinite(sims)]
+            _STATE[&quot;analysis_reference&quot;] = bar.copy()
+            recomputed = True
+            whitening_reference = &quot;mean pseudo-C_ell over the supplied LCDM simulation spectra cached from analyze_map&quot;
+    except Exception:
+        ps = ps_in
+        sims = sims_in.copy()
+        recomputed = False
+
+    n = int(sims.size)
+    out = {
+        &quot;test_description&quot;: test_description,
+        &quot;statistic&quot;: &quot;Normalized Shannon entropy of p_ell proportional to tilde C_ell/bar C_ell for 2&lt;=ell&lt;=30.&quot;,
+        &quot;multipole_range&quot;: &quot;2 &lt;= ell &lt;= 30&quot;,
+        &quot;number_of_multipoles&quot;: int(_NBAND),
+        &quot;planck_entropy_H&quot;: _float_or_none(ps),
+        &quot;planck_effective_number_of_multipoles_29_to_the_H&quot;: _neff(ps),
+        &quot;planck_concentration_index_1_minus_H&quot;: (_float_or_none(1.0 - ps) if np.isfinite(ps) else None),
+        &quot;n_sims&quot;: n,
+        &quot;summary_recomputed_using_cached_simulation_mean_pseudo_spectrum&quot;: bool(recomputed),
+        &quot;whitening_reference&quot;: whitening_reference,
+        &quot;tail_of_interest&quot;: &quot;lower tail = whitened low-l power concentrated in unusually few multipoles; upper tail = unusually even spread&quot;,
+        &quot;masked_pixel_handling&quot;: &quot;finite pixels are used for the monopole/dipole fit; np.nan mask pixels are then filled with 0.0 before healpy.anafast&quot;,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Whitened low-l bandpower entropy&quot;,
+            &quot;xlabel&quot;: &quot;H = -sum p_l ln p_l / ln(29)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: &quot;Distribution of normalized entropy for the 2&lt;=ell&lt;=30 whitened pseudo-bandpowers. Low H indicates concentration into a few multipoles.&quot;
+        }
+    }
+
+    if recomputed and np.isfinite(ps_in):
+        out[&quot;analyze_map_returned_planck_H_before_simulation_mean_recompute&quot;] = float(ps_in)
+    if not np.isfinite(ps):
+        out[&quot;warning&quot;] = &quot;The Planck statistic is not finite.&quot;
+        return out
+    if n &lt;= 0:
+        out[&quot;warning&quot;] = &quot;No finite simulation statistics were supplied.&quot;
+        return out
+
+    n_lt = int(np.count_nonzero(sims &lt; ps))
+    n_gt = int(np.count_nonzero(sims &gt; ps))
+    n_eq = int(n - n_lt - n_gt)
+    n_le = int(n_lt + n_eq)
+    n_ge = int(n_gt + n_eq)
+    p_lower = float((n_le + 1.0) / (n + 1.0))
+    p_upper = float((n_ge + 1.0) / (n + 1.0))
+    p_two = float(min(1.0, 2.0 * min(p_lower, p_upper)))
+
+    mean = float(np.mean(sims))
+    median = float(np.median(sims))
+    std = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    z = None
+    if np.isfinite(std) and std &gt; 0.0:
+        z = float((ps - mean) / std)
+    q = np.percentile(sims, [1, 5, 16, 50, 84, 95, 99])
+
+    out.update({
+        &quot;sim_mean_H&quot;: mean,
+        &quot;sim_median_H&quot;: median,
+        &quot;sim_std_H&quot;: std,
+        &quot;sim_min_H&quot;: float(np.min(sims)),
+        &quot;sim_max_H&quot;: float(np.max(sims)),
+        &quot;sim_percentile_1_H&quot;: float(q[0]),
+        &quot;sim_percentile_5_H&quot;: float(q[1]),
+        &quot;sim_percentile_16_H&quot;: float(q[2]),
+        &quot;sim_percentile_50_H&quot;: float(q[3]),
+        &quot;sim_percentile_84_H&quot;: float(q[4]),
+        &quot;sim_percentile_95_H&quot;: float(q[5]),
+        &quot;sim_percentile_99_H&quot;: float(q[6]),
+        &quot;sim_median_effective_number_of_multipoles&quot;: _neff(median),
+        &quot;planck_zscore_vs_sims&quot;: z,
+        &quot;planck_percentile_midrank_low_to_high&quot;: float(100.0 * (n_lt + 0.5 * n_eq) / n),
+        &quot;rank_ascending_1_is_lowest_entropy_most_concentrated&quot;: int(n_lt + 1),
+        &quot;rank_descending_1_is_highest_entropy_most_even&quot;: int(n_gt + 1),
+        &quot;n_sim_lt_planck&quot;: n_lt,
+        &quot;n_sim_le_planck&quot;: n_le,
+        &quot;n_sim_eq_planck&quot;: n_eq,
+        &quot;n_sim_gt_planck&quot;: n_gt,
+        &quot;n_sim_ge_planck&quot;: n_ge,
+        &quot;fraction_sims_lt_planck&quot;: float(n_lt / n),
+        &quot;fraction_sims_le_planck&quot;: float(n_le / n),
+        &quot;fraction_sims_gt_planck&quot;: float(n_gt / n),
+        &quot;fraction_sims_ge_planck&quot;: float(n_ge / n),
+        &quot;empirical_p_lower_tail_low_entropy_concentrated_plus_one&quot;: p_lower,
+        &quot;empirical_p_upper_tail_high_entropy_even_plus_one&quot;: p_upper,
+        &quot;empirical_p_two_sided_plus_one&quot;: p_two,
+        &quot;difference_planck_minus_sim_median_H&quot;: float(ps - median),
+        &quot;difference_planck_minus_sim_mean_H&quot;: float(ps - mean),
+        &quot;is_lower_tail_5pct_concentrated&quot;: bool(p_lower &lt;= 0.05),
+        &quot;is_lower_tail_1pct_concentrated&quot;: bool(p_lower &lt;= 0.01),
+        &quot;is_upper_tail_5pct_even&quot;: bool(p_upper &lt;= 0.05),
+        &quot;is_upper_tail_1pct_even&quot;: bool(p_upper &lt;= 0.01),
+        &quot;is_two_sided_5pct&quot;: bool(p_two &lt;= 0.05),
+        &quot;is_two_sided_1pct&quot;: bool(p_two &lt;= 0.01)
+    })
+
+    if std == 0.0:
+        out[&quot;warning&quot;] = &quot;All finite simulation entropy values are identical; check that maps and mask are varying.&quot;
+    elif p_lower &lt;= 0.01:
+        out[&quot;interpretation&quot;] = &quot;Planck is in the lowest 1% of simulations: whitened 2&lt;=ell&lt;=30 power is exceptionally concentrated in a few multipoles.&quot;
+    elif p_lower &lt;= 0.05:
+        out[&quot;interpretation&quot;] = &quot;Planck is in the lowest 5% of simulations: whitened 2&lt;=ell&lt;=30 power is unusually concentrated in a few multipoles.&quot;
+    elif p_upper &lt;= 0.01:
+        out[&quot;interpretation&quot;] = &quot;Planck is in the highest 1% of simulations: whitened power is exceptionally evenly spread across multipoles.&quot;
+    elif p_upper &lt;= 0.05:
+        out[&quot;interpretation&quot;] = &quot;Planck is in the highest 5% of simulations: whitened power is unusually evenly spread across multipoles.&quot;
+    else:
+        out[&quot;interpretation&quot;] = &quot;Planck is not in either 5% tail of the simulation distribution for this entropy statistic.&quot;
+    return out
+
+
+# Some execution harnesses use separate globals and locals for exec().  Copy the
+# definitions into the function global namespace so analyze_map can always find
+# its helper functions during registration and later execution.
+globals().update(locals())</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/gpt5-5/test-19-whitened-low-l-bandpower-entropy.png" alt="Statistic distribution for Whitened Low-l Bandpower Entropy">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>GPT5.5</td></tr>
+<tr><th>Run path</th><td>runs/anomaly_agent_gpt_run</td></tr>
+<tr><th>Primary p-value</th><td>0.844</td></tr>
+<tr><th>One-tailed p-value</th><td>n/a</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.844</td></tr>
+<tr><th>Sigma</th><td>0.197</td></tr>
+<tr><th>Planck statistic</th><td>0.987</td></tr>
+<tr><th>Simulation mean</th><td>0.986</td></tr>
+<tr><th>Simulation std.</th><td>0.00473</td></tr>
+<tr><th>Simulation median</th><td>0.986</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>power</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/gpt5-5/test-19-whitened-low-l-bandpower-entropy.png">Figure PNG</a>
+<a href="../../../assets/figures/gpt5-5/test-19-whitened-low-l-bandpower-entropy.pdf">Figure PDF</a>
+<a href="../../../data/raw/gpt5-5/test-19-whitened-low-l-bandpower-entropy.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/gpt5-5/test-19-whitened-low-l-bandpower-entropy.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/gpt5-5/test-19-whitened-low-l-bandpower-entropy.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 2 model(s).</p>
+  </footer>
+</body>
+</html>
