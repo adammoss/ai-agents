@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Masked Low-l Bipolar Dipole-Modulation Amplitude · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 26 · GPT5.5</p>
+      <h1>Masked Low-l Bipolar Dipole-Modulation Amplitude</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">← Catalogue</a>
+      <a href="../../../">Paper</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">GPT5.5 · Variation · hemispherical · one-tailed, upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The masked CMB temperature map has an anomalously large low-\(\ell\) dipole-modulation / hemispherical-power-asymmetry signal, measured by a bias-subtracted adjacent-multipole bipolar amplitude \(S\), compared with isotropic simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Measures a bias-subtracted adjacent-multipole bipolar amplitude S over 2&lt;=ell&lt;=64 on masked CMB temperature maps after monopole/dipole removal; larger S indicates stronger low-l dipole-modulation or hemispherical-power-asymmetry coupling.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck has S=0.00493. Using the preferred ensemble-calibrated reconstruction, the simulation mean is 0.00333 with std 0.00144, placing Planck at about z=1.09 and percentile 84.8. The upper-tail empirical p-value is 0.153 from 1000 simulations.</p>
+          <p>The Planck value is elevated relative to the simulation mean but well outside the upper 5% tail, so this statistic does not provide significant evidence for an anomalously large dipole-modulation signal.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The statistic \(S\) is a nonnegative amplitude, and the test description and code explicitly state that larger \(S\) indicates a stronger dipole-modulation-like anomaly. The summary code evaluates upper-tail probabilities, so the directional alternative is that Planck has larger \(S\) than expected from simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Directly matching published studies of this exact masked pseudo-alm, adjacent-multipole, bias-subtracted scalar were not found. It is methodologically related to established CMB hemispherical-power-asymmetry, dipole-modulation, and BipoSH analyses discussed in Planck isotropy papers, but appears to differ in implementation and calibration.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+
+test_description = &quot;Masked Low-l Bipolar Dipole-Modulation Amplitude: remove the best-fit monopole and dipole on the unmasked sky, compute masked pseudo-harmonic coefficients for 2&lt;=ell&lt;=64, form adjacent-multipole dipole-coupling coefficients B_M, and use the simulation ensemble when available to report the bias-subtracted amplitude S=sqrt(sum_M |B_M-&lt;B_M&gt;_sim|^2). Larger S indicates stronger low-ell dipole-modulation / hemispherical-power-asymmetry coupling.&quot;
+
+# Keep all mutable state behind default arguments of the public functions.  Some
+# runners execute user code with separate globals/locals; using defaults avoids
+# NameError for cached state inside analyze_map and summarize_results.
+_BIPOLAR_DM_STATE = {
+    &quot;geom_cache&quot;: {},
+    &quot;md_cache&quot;: {},
+    &quot;cg_cache&quot;: None,
+    &quot;raw_records&quot;: [],
+    &quot;call_index&quot;: 0,
+}
+
+
+def analyze_map(m, _state=_BIPOLAR_DM_STATE):
+    import math
+    import numpy as np
+
+    LMIN = 2
+    LMAX = 64
+    LMAX_PAIR = 63
+    NPAIR = LMAX_PAIR - LMIN + 1
+    WNORM = float(sum(2 * ell + 1 for ell in range(LMIN, LMAX_PAIR + 1)))
+    CHUNK = 262144
+    EPS = 1.0e-30
+
+    def _infer_nside(npix):
+        try:
+            npix_i = int(npix)
+            if npix_i &lt;= 0 or npix_i % 12 != 0:
+                return -1
+            nside = int(round(math.sqrt(npix_i / 12.0)))
+            if nside &lt;= 0 or 12 * nside * nside != npix_i:
+                return -1
+            return nside
+        except Exception:
+            return -1
+
+    def _alm_index(lmax, ell, mm):
+        # healpy Alm storage is in non-negative-m blocks.
+        return int(mm * (2 * lmax + 1 - mm) // 2 + ell)
+
+    def _get_geometry(nside, npix):
+        key = (int(nside), int(npix))
+        cache = _state.get(&quot;geom_cache&quot;)
+        if not isinstance(cache, dict):
+            cache = {}
+            _state[&quot;geom_cache&quot;] = cache
+        item = cache.get(key)
+        if item is not None:
+            return item
+        import healpy as hp
+        pix = np.arange(int(npix), dtype=np.int64)
+        x, y, z = hp.pix2vec(int(nside), pix, nest=False)
+        item = (np.asarray(x, dtype=np.float64).ravel(),
+                np.asarray(y, dtype=np.float64).ravel(),
+                np.asarray(z, dtype=np.float64).ravel())
+        if len(cache) &gt; 2:
+            cache.clear()
+        cache[key] = item
+        return item
+
+    def _get_md_solver(nside, npix, valid, x, y, z):
+        cache = _state.get(&quot;md_cache&quot;)
+        if not isinstance(cache, dict):
+            cache = {}
+            _state[&quot;md_cache&quot;] = cache
+        packed = np.packbits(np.asarray(valid, dtype=np.bool_))
+        mask_bytes = packed.tobytes()
+        key = (int(nside), int(npix), int(np.count_nonzero(valid)), hash(mask_bytes))
+        item = cache.get(key)
+        if item is not None and item.get(&quot;mask_bytes&quot;) == mask_bytes:
+            return item
+
+        idx = np.flatnonzero(valid).astype(np.int64, copy=False)
+        G = np.zeros((4, 4), dtype=np.float64)
+        # Equal-area least squares on the unmasked sky for basis [1, x, y, z].
+        for start in range(0, int(idx.size), CHUNK):
+            ii = idx[start:start + CHUNK]
+            xx = x[ii]
+            yy = y[ii]
+            zz = z[ii]
+            n = float(ii.size)
+            G[0, 0] += n
+            G[0, 1] += float(np.sum(xx)); G[1, 0] = G[0, 1]
+            G[0, 2] += float(np.sum(yy)); G[2, 0] = G[0, 2]
+            G[0, 3] += float(np.sum(zz)); G[3, 0] = G[0, 3]
+            G[1, 1] += float(np.dot(xx, xx))
+            G[1, 2] += float(np.dot(xx, yy)); G[2, 1] = G[1, 2]
+            G[1, 3] += float(np.dot(xx, zz)); G[3, 1] = G[1, 3]
+            G[2, 2] += float(np.dot(yy, yy))
+            G[2, 3] += float(np.dot(yy, zz)); G[3, 2] = G[2, 3]
+            G[3, 3] += float(np.dot(zz, zz))
+        try:
+            solver = np.linalg.pinv(G, rcond=1.0e-12)
+        except Exception:
+            solver = np.zeros((4, 4), dtype=np.float64)
+        item = {&quot;idx&quot;: idx, &quot;solver&quot;: np.asarray(solver, dtype=np.float64), &quot;mask_bytes&quot;: mask_bytes}
+        if len(cache) &gt; 4:
+            cache.clear()
+        cache[key] = item
+        return item
+
+    def _remove_monopole_dipole(arr, valid, nside, npix):
+        x, y, z = _get_geometry(nside, npix)
+        entry = _get_md_solver(nside, npix, valid, x, y, z)
+        idx = entry[&quot;idx&quot;]
+        rhs = np.zeros(4, dtype=np.float64)
+        for start in range(0, int(idx.size), CHUNK):
+            ii = idx[start:start + CHUNK]
+            vals = np.asarray(arr[ii], dtype=np.float64)
+            rhs[0] += float(np.sum(vals))
+            rhs[1] += float(np.dot(x[ii], vals))
+            rhs[2] += float(np.dot(y[ii], vals))
+            rhs[3] += float(np.dot(z[ii], vals))
+        coeff = np.asarray(entry[&quot;solver&quot;].dot(rhs), dtype=np.float64).ravel()
+        if coeff.size != 4 or not np.all(np.isfinite(coeff)):
+            coeff = np.zeros(4, dtype=np.float64)
+        clean = np.zeros(int(npix), dtype=np.float64)
+        for start in range(0, int(idx.size), CHUNK):
+            ii = idx[start:start + CHUNK]
+            clean[ii] = (np.asarray(arr[ii], dtype=np.float64)
+                         - coeff[0] - coeff[1] * x[ii] - coeff[2] * y[ii] - coeff[3] * z[ii])
+        clean[~np.isfinite(clean)] = 0.0
+        return clean
+
+    def _get_cg_table():
+        item = _state.get(&quot;cg_cache&quot;)
+        if item is not None:
+            return item
+        table = {}
+        # Closed-form Condon-Shortley Clebsch-Gordan coefficients for
+        # &lt;ell m, ell+1 (M-m) | 1 M&gt;, with M=-1,0,1.  The statistic needs
+        # m&#x27; = m-M and an extra factor (-1)^m&#x27;.
+        for ell in range(LMIN, LMAX_PAIR + 1):
+            mvals = np.arange(-ell, ell + 1, dtype=np.int64)
+            coeff = np.zeros((3, mvals.size), dtype=np.float64)
+            idx2 = np.zeros((3, mvals.size), dtype=np.int64)
+            phase_lm = np.where(((ell - mvals) % 2) == 0, 1.0, -1.0)
+            den0 = float((ell + 1) * (2 * ell + 1) * (2 * ell + 3))
+            for mi, M in enumerate((-1, 0, 1)):
+                mp = mvals - M
+                phase_mp = np.where((mp % 2) == 0, 1.0, -1.0)
+                if M == 0:
+                    term = (ell + 1) * (ell + 1) - mvals * mvals
+                    cg = phase_lm * np.sqrt(np.maximum(0.0, 3.0 * term.astype(np.float64) / den0))
+                elif M == 1:
+                    term = (ell + mvals + 1) * (ell + mvals + 2)
+                    cg = phase_lm * np.sqrt(np.maximum(0.0, 3.0 * term.astype(np.float64) / (2.0 * den0)))
+                else:  # M == -1
+                    term = (ell - mvals + 1) * (ell - mvals + 2)
+                    cg = phase_lm * np.sqrt(np.maximum(0.0, 3.0 * term.astype(np.float64) / (2.0 * den0)))
+                coeff[mi, :] = phase_mp * cg
+                idx2[mi, :] = mp + (ell + 1)
+            table[ell] = (coeff, idx2)
+        _state[&quot;cg_cache&quot;] = table
+        return table
+
+    def _alm_full_row(alm, lmax, ell):
+        out = np.empty(2 * ell + 1, dtype=np.complex128)
+        out[ell] = complex(alm[_alm_index(lmax, ell, 0)])
+        for mm in range(1, ell + 1):
+            v = complex(alm[_alm_index(lmax, ell, mm)])
+            out[ell + mm] = v
+            out[ell - mm] = (1.0 if (mm % 2 == 0) else -1.0) * np.conj(v)
+        return out
+
+    def _compute_cl_and_cross(raw_alm):
+        rows = {}
+        cl = np.zeros(LMAX + 1, dtype=np.float64)
+        for ell in range(LMIN, LMAX + 1):
+            row = _alm_full_row(raw_alm, LMAX, ell)
+            rows[ell] = row
+            c = float(np.vdot(row, row).real / (2 * ell + 1))
+            cl[ell] = c if np.isfinite(c) and c &gt; 0.0 else 0.0
+        cg = _get_cg_table()
+        cross = np.zeros((NPAIR, 3), dtype=np.complex128)
+        for ell in range(LMIN, LMAX_PAIR + 1):
+            a1 = rows[ell]
+            a2c = np.conj(rows[ell + 1])
+            coeff, idx2 = cg[ell]
+            for mi in range(3):
+                cross[ell - LMIN, mi] = np.sum(a1 * a2c[idx2[mi]] * coeff[mi])
+        cross[~np.isfinite(cross)] = 0.0
+        return cl, cross
+
+    def _smooth_fid_from_cl(cl):
+        cfid = np.ones(LMAX + 1, dtype=np.float64)
+        vals = np.asarray(cl[LMIN:LMAX + 1], dtype=np.float64)
+        good = vals[np.isfinite(vals) &amp; (vals &gt; 0.0)]
+        if good.size == 0:
+            return cfid
+        floor = max(float(np.median(good)) * 1.0e-12, EPS)
+        logs = np.log(np.maximum(vals, floor))
+        sm = np.empty_like(logs)
+        n = int(logs.size)
+        for i in range(n):
+            lo = max(0, i - 2)
+            hi = min(n, i + 3)
+            sm[i] = float(np.mean(logs[lo:hi]))
+        cfid[LMIN:LMAX + 1] = np.exp(sm)
+        return cfid
+
+    def _stabilize_fid(cfid):
+        arr = np.asarray(cfid, dtype=np.float64).ravel()
+        if arr.size &lt; LMAX + 1:
+            tmp = np.ones(LMAX + 1, dtype=np.float64)
+            tmp[:arr.size] = arr
+            arr = tmp
+        else:
+            arr = arr[:LMAX + 1].copy()
+        good = arr[LMIN:LMAX + 1][np.isfinite(arr[LMIN:LMAX + 1]) &amp; (arr[LMIN:LMAX + 1] &gt; 0.0)]
+        floor = max(float(np.median(good)) * 1.0e-12, EPS) if good.size else EPS
+        arr = np.where(np.isfinite(arr) &amp; (arr &gt; floor), arr, floor)
+        return arr
+
+    def _B_from_cross(cross, cfid):
+        cfid = _stabilize_fid(cfid)
+        B = np.zeros(3, dtype=np.complex128)
+        for ell in range(LMIN, LMAX_PAIR + 1):
+            den = math.sqrt(max(float(cfid[ell]), EPS) * max(float(cfid[ell + 1]), EPS))
+            if np.isfinite(den) and den &gt; 0.0:
+                B += np.asarray(cross[ell - LMIN], dtype=np.complex128) / den
+        B /= WNORM
+        B[~np.isfinite(B)] = 0.0
+        return B
+
+    try:
+        if np.ma.isMaskedArray(m):
+            arr = np.asarray(m.filled(np.nan), dtype=np.float64).ravel()
+        else:
+            arr = np.asarray(m, dtype=np.float64).ravel()
+    except Exception:
+        try:
+            arr = np.asarray(np.real(m), dtype=np.float64).ravel()
+        except Exception:
+            return 0.0
+
+    npix = int(arr.size)
+    nside = _infer_nside(npix)
+    if nside &lt;= 0:
+        return 0.0
+
+    # The official mask is represented by NaN.  The large-amplitude guard also
+    # avoids accidentally treating HEALPix UNSEEN values as real sky pixels.
+    valid = np.isfinite(arr) &amp; (np.abs(arr) &lt; 1.0e25)
+    if int(np.count_nonzero(valid)) &lt; 16:
+        return 0.0
+
+    try:
+        import healpy as hp
+        clean = _remove_monopole_dipole(arr, valid, nside, npix)
+        # Never pass NaNs to healpy.  clean is finite, with zeros outside the mask.
+        raw_alm = hp.map2alm(clean, lmax=LMAX, iter=0, pol=False, use_weights=False)
+        cl, cross = _compute_cl_and_cross(raw_alm)
+        cfid = _smooth_fid_from_cl(cl)
+        B = _B_from_cross(cross, cfid)
+        scalar = float(np.sqrt(np.sum(np.abs(B) ** 2)))
+        if not np.isfinite(scalar):
+            scalar = 0.0
+        scalar = float(max(0.0, scalar))
+
+        # Store compact ingredients so summarize_results can reconstruct the
+        # requested ensemble-calibrated S using the actual simulation mean C_l and
+        # the simulation mean B_M when all maps have been evaluated.
+        try:
+            rec_index = int(_state.get(&quot;call_index&quot;, 0))
+            _state[&quot;call_index&quot;] = rec_index + 1
+            records = _state.get(&quot;raw_records&quot;)
+            if not isinstance(records, list):
+                records = []
+                _state[&quot;raw_records&quot;] = records
+            records.append({
+                &quot;index&quot;: rec_index,
+                &quot;cl&quot;: np.asarray(cl, dtype=np.float64).copy(),
+                &quot;cross&quot;: np.asarray(cross, dtype=np.complex128).copy(),
+                &quot;B_self&quot;: np.asarray(B, dtype=np.complex128).copy(),
+                &quot;scalar&quot;: scalar,
+            })
+            if len(records) &gt; 5000:
+                del records[:len(records) - 5000]
+        except Exception:
+            pass
+        return scalar
+    except Exception:
+        return 0.0
+
+
+def summarize_results(planck_stat, sim_results, _state=_BIPOLAR_DM_STATE, _desc=test_description):
+    import math
+    import numpy as np
+
+    LMIN = 2
+    LMAX = 64
+    LMAX_PAIR = 63
+    WNORM = float(sum(2 * ell + 1 for ell in range(LMIN, LMAX_PAIR + 1)))
+    EPS = 1.0e-30
+
+    def _as_float(x):
+        try:
+            v = float(x)
+            return v if np.isfinite(v) else np.nan
+        except Exception:
+            return np.nan
+
+    ps = _as_float(planck_stat)
+    try:
+        sims_all = np.asarray(sim_results, dtype=np.float64).ravel()
+    except Exception:
+        vals = []
+        try:
+            for item in sim_results:
+                v = _as_float(item)
+                if np.isfinite(v):
+                    vals.append(v)
+        except Exception:
+            pass
+        sims_all = np.asarray(vals, dtype=np.float64)
+    sims = sims_all[np.isfinite(sims_all)]
+    n = int(sims.size)
+
+    out = {
+        &quot;test_description&quot;: _desc,
+        &quot;statistic&quot;: &quot;S = sqrt(sum_{M=-1}^{1} |B_M - &lt;B_M&gt;_sim|^2), where B_M is an adjacent-multipole masked pseudo-alm dipole-coupling over 2&lt;=ell&lt;=63. analyze_map returns a finite scalar per map; when cached ensemble components are available, this summary reconstructs the exact simulation-calibrated S values.&quot;,
+        &quot;tail&quot;: &quot;upper; larger S means stronger low-ell dipole-modulation / hemispherical-power-asymmetry coupling&quot;,
+        &quot;mask_handling&quot;: &quot;Non-finite pixels are excluded from the monopole/dipole fit and are filled with 0 before healpy.map2alm.&quot;,
+        &quot;harmonic_range&quot;: {&quot;lmin&quot;: 2, &quot;lmax&quot;: 64, &quot;coupled_pairs_lmin&quot;: 2, &quot;coupled_pairs_lmax&quot;: 63},
+        &quot;planck_S_returned_by_analyze_map&quot;: float(ps) if np.isfinite(ps) else None,
+        &quot;n_sims&quot;: n,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Masked low-l bipolar dipole-modulation amplitude&quot;,
+            &quot;xlabel&quot;: &quot;S (adjacent-l dipole coupling amplitude)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: &quot;Simulation distribution for the scalar returned by analyze_map. If cached harmonic components are available, the table also reports the preferred ensemble-calibrated version using the simulation mean pseudo-C_l and simulation mean B_M.&quot;
+        }
+    }
+
+    def _rank_summary(value, sample):
+        sample = np.asarray(sample, dtype=np.float64).ravel()
+        sample = sample[np.isfinite(sample)]
+        nn = int(sample.size)
+        if nn &lt;= 0 or not np.isfinite(value):
+            return {}
+        n_lt = int(np.count_nonzero(sample &lt; value))
+        n_gt = int(np.count_nonzero(sample &gt; value))
+        n_eq = int(nn - n_lt - n_gt)
+        n_le = int(n_lt + n_eq)
+        n_ge = int(n_gt + n_eq)
+        p_upper = float((n_ge + 1.0) / (nn + 1.0))
+        p_lower = float((n_le + 1.0) / (nn + 1.0))
+        p_two = float(min(1.0, 2.0 * min(p_upper, p_lower)))
+        mean = float(np.mean(sample))
+        median = float(np.median(sample))
+        std = float(np.std(sample, ddof=1)) if nn &gt; 1 else 0.0
+        q = np.percentile(sample, [1, 5, 16, 50, 84, 95, 99]) if nn &gt; 1 else np.array([sample[0]] * 7)
+        return {
+            &quot;sim_mean&quot;: mean,
+            &quot;sim_median&quot;: median,
+            &quot;sim_std&quot;: std,
+            &quot;sim_min&quot;: float(np.min(sample)),
+            &quot;sim_max&quot;: float(np.max(sample)),
+            &quot;sim_percentile_1&quot;: float(q[0]),
+            &quot;sim_percentile_5&quot;: float(q[1]),
+            &quot;sim_percentile_16&quot;: float(q[2]),
+            &quot;sim_percentile_50&quot;: float(q[3]),
+            &quot;sim_percentile_84&quot;: float(q[4]),
+            &quot;sim_percentile_95&quot;: float(q[5]),
+            &quot;sim_percentile_99&quot;: float(q[6]),
+            &quot;zscore_vs_sims&quot;: float((value - mean) / std) if std &gt; 0.0 and np.isfinite(std) else None,
+            &quot;n_sim_lt_planck&quot;: n_lt,
+            &quot;n_sim_le_planck&quot;: n_le,
+            &quot;n_sim_eq_planck&quot;: n_eq,
+            &quot;n_sim_gt_planck&quot;: n_gt,
+            &quot;n_sim_ge_planck&quot;: n_ge,
+            &quot;planck_percentile_midrank_low_to_high&quot;: float(100.0 * (n_lt + 0.5 * n_eq) / nn),
+            &quot;upper_tail_rank_descending_1_is_largest&quot;: int(n_gt + 1),
+            &quot;upper_tail_midrank_descending_1_is_largest&quot;: float(n_gt + 0.5 * n_eq + 1.0),
+            &quot;fraction_sims_ge_planck_upper_tail_including_ties&quot;: float(n_ge / nn),
+            &quot;fraction_sims_gt_planck_strict_upper_tail&quot;: float(n_gt / nn),
+            &quot;empirical_p_upper_tail_plus_one&quot;: p_upper,
+            &quot;empirical_p_lower_tail_plus_one&quot;: p_lower,
+            &quot;empirical_p_two_sided_rank_plus_one&quot;: p_two,
+            &quot;is_5pct_upper_tail&quot;: bool(p_upper &lt;= 0.05),
+            &quot;is_1pct_upper_tail&quot;: bool(p_upper &lt;= 0.01),
+            &quot;is_5pct_two_sided_rank&quot;: bool(p_two &lt;= 0.05),
+            &quot;is_1pct_two_sided_rank&quot;: bool(p_two &lt;= 0.01),
+        }
+
+    if np.isfinite(ps) and n &gt; 0:
+        basic = _rank_summary(ps, sims)
+        for k, v in basic.items():
+            out[&quot;returned_&quot; + k] = v
+    elif not np.isfinite(ps):
+        out[&quot;warning&quot;] = &quot;The Planck statistic supplied to summarize_results is not finite.&quot;
+        return out
+    else:
+        out[&quot;warning&quot;] = &quot;No finite simulation statistics were supplied.&quot;
+        return out
+
+    def _close(a, b):
+        try:
+            aa = float(a); bb = float(b)
+            if not (np.isfinite(aa) and np.isfinite(bb)):
+                return False
+            return abs(aa - bb) &lt;= 1.0e-8 * max(1.0, abs(aa), abs(bb))
+        except Exception:
+            return False
+
+    def _stabilize_fid(cfid):
+        arr = np.asarray(cfid, dtype=np.float64).ravel()
+        if arr.size &lt; LMAX + 1:
+            tmp = np.ones(LMAX + 1, dtype=np.float64)
+            tmp[:arr.size] = arr
+            arr = tmp
+        else:
+            arr = arr[:LMAX + 1].copy()
+        good = arr[LMIN:LMAX + 1][np.isfinite(arr[LMIN:LMAX + 1]) &amp; (arr[LMIN:LMAX + 1] &gt; 0.0)]
+        floor = max(float(np.median(good)) * 1.0e-12, EPS) if good.size else EPS
+        arr = np.where(np.isfinite(arr) &amp; (arr &gt; floor), arr, floor)
+        return arr
+
+    def _B_from_cross(cross, cfid):
+        cfid = _stabilize_fid(cfid)
+        cr = np.asarray(cross, dtype=np.complex128)
+        if cr.shape[0] &lt; (LMAX_PAIR - LMIN + 1) or cr.shape[1] &lt; 3:
+            return None
+        B = np.zeros(3, dtype=np.complex128)
+        for ell in range(LMIN, LMAX_PAIR + 1):
+            den = math.sqrt(max(float(cfid[ell]), EPS) * max(float(cfid[ell + 1]), EPS))
+            if np.isfinite(den) and den &gt; 0.0:
+                B += cr[ell - LMIN, :3] / den
+        B /= WNORM
+        B[~np.isfinite(B)] = 0.0
+        return B
+
+    # Preferred reconstruction of the exact requested statistic, if analyze_map
+    # was run in this interpreter and stored the compact harmonic ingredients.
+    try:
+        records0 = _state.get(&quot;raw_records&quot;, [])
+        records = []
+        if isinstance(records0, list):
+            for r in records0:
+                if isinstance(r, dict) and (&quot;cl&quot; in r) and (&quot;cross&quot; in r):
+                    records.append(r)
+        if n &gt; 0 and len(records) &gt;= n + 1:
+            # Locate the block corresponding to the supplied planck_stat followed
+            # by the supplied simulations.  This avoids confusion from any probe
+            # calls made during registration.
+            best_score = -1
+            best_start = max(0, len(records) - (n + 1))
+            check_js = list(range(min(n, 10)))
+            if n &gt; 15:
+                check_js += list(range(max(10, n - 5), n))
+            for start in range(0, len(records) - n):
+                score = 0
+                if _close(records[start].get(&quot;scalar&quot;, np.nan), ps):
+                    score += 1000
+                for j in check_js:
+                    if _close(records[start + 1 + j].get(&quot;scalar&quot;, np.nan), sims[j]):
+                        score += 1
+                if score &gt; best_score:
+                    best_score = score
+                    best_start = start
+            block = records[best_start:best_start + n + 1]
+            if len(block) == n + 1:
+                planck_rec = block[0]
+                sim_recs = block[1:]
+                cls = []
+                for r in sim_recs:
+                    c = np.asarray(r.get(&quot;cl&quot;), dtype=np.float64).ravel()
+                    if c.size &gt;= LMAX + 1:
+                        cls.append(c[:LMAX + 1])
+                if len(cls) == n:
+                    cfid = _stabilize_fid(np.mean(np.vstack(cls), axis=0))
+                    B_planck = _B_from_cross(planck_rec.get(&quot;cross&quot;), cfid)
+                    B_sims_list = []
+                    for r in sim_recs:
+                        b = _B_from_cross(r.get(&quot;cross&quot;), cfid)
+                        if b is not None:
+                            B_sims_list.append(b)
+                    if B_planck is not None and len(B_sims_list) == n:
+                        B_sims = np.vstack(B_sims_list)
+                        B_mean = np.mean(B_sims, axis=0)
+                        cal_planck = float(np.sqrt(np.sum(np.abs(B_planck - B_mean) ** 2)))
+                        cal_sims = np.sqrt(np.sum(np.abs(B_sims - B_mean[None, :]) ** 2, axis=1)).astype(np.float64)
+                        if np.isfinite(cal_planck) and np.all(np.isfinite(cal_sims)):
+                            cal_rank = _rank_summary(cal_planck, cal_sims)
+                            out[&quot;ensemble_calibrated_available&quot;] = True
+                            out[&quot;preferred_statistic&quot;] = &quot;ensemble_calibrated_cached_components&quot;
+                            out[&quot;calibrated_planck_S&quot;] = cal_planck
+                            out[&quot;calibrated_n_sims&quot;] = int(cal_sims.size)
+                            for k, v in cal_rank.items():
+                                out[&quot;calibrated_&quot; + k] = v
+                            out[&quot;calibrated_component_bias_mean_B&quot;] = {
+                                &quot;B_minus1_real&quot;: float(np.real(B_mean[0])),
+                                &quot;B_minus1_imag&quot;: float(np.imag(B_mean[0])),
+                                &quot;B_0_real&quot;: float(np.real(B_mean[1])),
+                                &quot;B_0_imag&quot;: float(np.imag(B_mean[1])),
+                                &quot;B_plus1_real&quot;: float(np.real(B_mean[2])),
+                                &quot;B_plus1_imag&quot;: float(np.imag(B_mean[2])),
+                            }
+                            out[&quot;fiducial_pseudo_Cl_summary_from_sims&quot;] = {
+                                &quot;median_Cfid_ell2_to64&quot;: float(np.median(cfid[LMIN:LMAX + 1])),
+                                &quot;min_Cfid_ell2_to64&quot;: float(np.min(cfid[LMIN:LMAX + 1])),
+                                &quot;max_Cfid_ell2_to64&quot;: float(np.max(cfid[LMIN:LMAX + 1])),
+                            }
+        if &quot;ensemble_calibrated_available&quot; not in out:
+            out[&quot;ensemble_calibrated_available&quot;] = False
+            out[&quot;preferred_statistic&quot;] = &quot;returned_scalar_from_analyze_map&quot;
+    except Exception as exc:
+        out[&quot;ensemble_calibrated_available&quot;] = False
+        out[&quot;preferred_statistic&quot;] = &quot;returned_scalar_from_analyze_map&quot;
+        out[&quot;calibration_note&quot;] = &quot;Cached harmonic components were not usable for ensemble recalibration: %s&quot; % (str(exc)[:160],)
+
+    # Preferred interpretation: use the exact cached ensemble calibration when it
+    # exists; otherwise use the returned scalar rank.
+    p_pref = out.get(&quot;calibrated_empirical_p_upper_tail_plus_one&quot;, out.get(&quot;returned_empirical_p_upper_tail_plus_one&quot;, None))
+    out[&quot;preferred_empirical_p_upper_tail_plus_one&quot;] = p_pref
+    if p_pref is not None:
+        if p_pref &lt;= 0.01:
+            out[&quot;interpretation&quot;] = &quot;Planck is in the upper 1% simulation tail: the masked low-l adjacent-multipole dipole-coupling amplitude is unusually large.&quot;
+        elif p_pref &lt;= 0.05:
+            out[&quot;interpretation&quot;] = &quot;Planck is in the upper 5% simulation tail: it shows a stronger low-l dipole-modulation-like coupling than most simulations.&quot;
+        else:
+            out[&quot;interpretation&quot;] = &quot;Planck is not in the upper 5% simulation tail for this masked low-l bipolar dipole-modulation amplitude.&quot;
+
+    if out.get(&quot;returned_sim_std&quot;, 1.0) == 0.0:
+        out[&quot;warning&quot;] = &quot;All finite simulation values returned by analyze_map are identical; check map variation, mask handling, and healpy availability.&quot;
+    return out</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/gpt5-5/test-26-masked-low-l-bipolar-dipole-modulation-amplitude.png" alt="Statistic distribution for Masked Low-l Bipolar Dipole-Modulation Amplitude">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>GPT5.5</td></tr>
+<tr><th>Run path</th><td>runs/anomaly_agent_gpt_run</td></tr>
+<tr><th>Primary p-value</th><td>0.162</td></tr>
+<tr><th>One-tailed p-value</th><td>0.162</td></tr>
+<tr><th>Two-tailed p-value</th><td>n/a</td></tr>
+<tr><th>Sigma</th><td>0.986</td></tr>
+<tr><th>Planck statistic</th><td>0.00493</td></tr>
+<tr><th>Simulation mean</th><td>0.00341</td></tr>
+<tr><th>Simulation std.</th><td>0.00146</td></tr>
+<tr><th>Simulation median</th><td>0.00325</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>one-tailed, upper</td></tr>
+<tr><th>Family</th><td>hemispherical</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/gpt5-5/test-26-masked-low-l-bipolar-dipole-modulation-amplitude.png">Figure PNG</a>
+<a href="../../../assets/figures/gpt5-5/test-26-masked-low-l-bipolar-dipole-modulation-amplitude.pdf">Figure PDF</a>
+<a href="../../../data/raw/gpt5-5/test-26-masked-low-l-bipolar-dipole-modulation-amplitude.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/gpt5-5/test-26-masked-low-l-bipolar-dipole-modulation-amplitude.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/gpt5-5/test-26-masked-low-l-bipolar-dipole-modulation-amplitude.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 2 model(s).</p>
+  </footer>
+</body>
+</html>

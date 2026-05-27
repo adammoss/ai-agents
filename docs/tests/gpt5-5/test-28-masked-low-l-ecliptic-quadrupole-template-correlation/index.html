@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Masked Low-l Ecliptic Quadrupole Template Correlation · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 28 · GPT5.5</p>
+      <h1>Masked Low-l Ecliptic Quadrupole Template Correlation</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">← Catalogue</a>
+      <a href="../../../">Paper</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">GPT5.5 · Variation · direction · one-tailed, upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Planck low-l temperature field has an unusually large squared masked-sky Pearson correlation, S = r^2, with the fixed ecliptic quadrupole template compared with LCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>After masked-sky monopole/dipole removal, the Planck and 1000 LCDM maps were filtered to 2&lt;=l&lt;=10 and compared with a fixed ecliptic quadrupole template using S=r^2, the squared masked-sky Pearson correlation. Large S was the pre-defined anomaly direction.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck S=0.00785, equivalent to |r|=0.0886, below the simulation mean 0.0560 and median 0.0296. In the upper-tail test, 736/1000 simulations had S&gt;=Planck, giving p=0.736 and sigma=-0.63.</p>
+          <p>Planck does not show an unusually strong low-l correlation with this ecliptic-plane quadrupolar template; it lies around the lower 26th percentile of simulations rather than in the anomalous upper tail.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test description and code explicitly define large S as anomalous, discard the sign of r via S = r^2, and compute an upper-tail empirical p-value for simulations with S greater than or equal to Planck.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Related low-l/ecliptic anomaly studies using multipole vectors have reported significant quadrupole-octopole and ecliptic-plane alignments, e.g. Weeks (2004) found quadrupole-octopole alignment unusual at 98.7% and ecliptic-plane alignment at better than 2 sigma (https://arxiv.org/abs/astro-ph/0412231). This test probes a different template-correlation statistic and finds no corresponding anomaly.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+
+test_description = &quot;Masked Low-l Ecliptic Quadrupole Template Correlation: remove the best-fit monopole and dipole on finite unmasked pixels, fill the masked pixels with zero for a common healpy spherical-harmonic transform, retain only multipoles 2 &lt;= ell &lt;= 10, and return S = r^2 where r is the equal-area masked-sky Pearson correlation between the filtered low-l temperature field and the fixed ecliptic quadrupole template Q(n)=0.5*(3*(n.e_ecl)^2-1). Large S indicates excess low-l temperature correlation with an ecliptic-plane quadrupolar pattern.&quot;
+
+_ECL_QUAD_STATE = {
+    &quot;geom_cache&quot;: {},
+    &quot;md_cache&quot;: {},
+    &quot;template_cache&quot;: {},
+}
+
+
+def analyze_map(m, _state=_ECL_QUAD_STATE):
+    import math
+    import numpy as np
+
+    LMIN = 2
+    LMAX_REQUEST = 10
+    CHUNK = 262144
+    EPS = 1.0e-30
+
+    # North ecliptic pole in Galactic coordinates, J2000.  Standard CMB maps
+    # in this context are Galactic-coordinate HEALPix maps.
+    ECL_LON_DEG = 96.384
+    ECL_LAT_DEG = 29.812
+
+    def _infer_nside(npix):
+        try:
+            n = int(npix)
+            if n &lt;= 0 or n % 12 != 0:
+                return -1
+            ns = int(round(math.sqrt(n / 12.0)))
+            if ns &lt;= 0:
+                return -1
+            if 12 * ns * ns != n:
+                return -1
+            return ns
+        except Exception:
+            return -1
+
+    def _alm_index(lmax, ell, mm):
+        return int(mm * (2 * lmax + 1 - mm) // 2 + ell)
+
+    def _get_geometry(nside, npix):
+        key = str(int(nside)) + &quot;:&quot; + str(int(npix))
+        cache = _state.get(&quot;geom_cache&quot;)
+        if not isinstance(cache, dict):
+            cache = {}
+            _state[&quot;geom_cache&quot;] = cache
+        item = cache.get(key)
+        if item is not None:
+            return item
+        import healpy as hp
+        pix = np.arange(int(npix), dtype=np.int64)
+        vec = hp.pix2vec(int(nside), pix, nest=False)
+        item = {
+            &quot;x&quot;: np.asarray(vec[0], dtype=np.float64).ravel(),
+            &quot;y&quot;: np.asarray(vec[1], dtype=np.float64).ravel(),
+            &quot;z&quot;: np.asarray(vec[2], dtype=np.float64).ravel(),
+        }
+        if len(cache) &gt; 3:
+            cache.clear()
+        cache[key] = item
+        return item
+
+    def _mask_key(nside, npix, valid):
+        nvalid = int(np.count_nonzero(valid))
+        packed = np.packbits(np.asarray(valid, dtype=np.bool_))
+        mask_bytes = packed.tobytes()
+        key = str(int(nside)) + &quot;:&quot; + str(int(npix)) + &quot;:&quot; + str(nvalid) + &quot;:&quot; + str(hash(mask_bytes))
+        return {&quot;key&quot;: key, &quot;bytes&quot;: mask_bytes, &quot;nvalid&quot;: nvalid}
+
+    def _get_md_solver(nside, npix, valid, mask_info, geom):
+        cache = _state.get(&quot;md_cache&quot;)
+        if not isinstance(cache, dict):
+            cache = {}
+            _state[&quot;md_cache&quot;] = cache
+        key = mask_info[&quot;key&quot;]
+        item = cache.get(key)
+        if item is not None and item.get(&quot;mask_bytes&quot;) == mask_info[&quot;bytes&quot;]:
+            return item
+
+        x = geom[&quot;x&quot;]
+        y = geom[&quot;y&quot;]
+        z = geom[&quot;z&quot;]
+        idx = np.flatnonzero(valid).astype(np.int64, copy=False)
+        s0 = sx = sy = sz = 0.0
+        sxx = sxy = sxz = syy = syz = szz = 0.0
+        for start in range(0, int(idx.size), CHUNK):
+            ii = idx[start:start + CHUNK]
+            xx = x[ii]
+            yy = y[ii]
+            zz = z[ii]
+            s0 += float(ii.size)
+            sx += float(np.sum(xx))
+            sy += float(np.sum(yy))
+            sz += float(np.sum(zz))
+            sxx += float(np.dot(xx, xx))
+            sxy += float(np.dot(xx, yy))
+            sxz += float(np.dot(xx, zz))
+            syy += float(np.dot(yy, yy))
+            syz += float(np.dot(yy, zz))
+            szz += float(np.dot(zz, zz))
+        G = np.array([[s0,  sx,  sy,  sz],
+                      [sx, sxx, sxy, sxz],
+                      [sy, sxy, syy, syz],
+                      [sz, sxz, syz, szz]], dtype=np.float64)
+        try:
+            solver = np.linalg.pinv(G, rcond=1.0e-12)
+        except Exception:
+            solver = np.zeros((4, 4), dtype=np.float64)
+        item = {&quot;idx&quot;: idx, &quot;solver&quot;: np.asarray(solver, dtype=np.float64), &quot;mask_bytes&quot;: mask_info[&quot;bytes&quot;]}
+        if len(cache) &gt; 6:
+            cache.clear()
+        cache[key] = item
+        return item
+
+    def _remove_monopole_dipole(arr, valid, nside, npix, mask_info, geom):
+        x = geom[&quot;x&quot;]
+        y = geom[&quot;y&quot;]
+        z = geom[&quot;z&quot;]
+        entry = _get_md_solver(nside, npix, valid, mask_info, geom)
+        idx = entry[&quot;idx&quot;]
+        clean = np.zeros(int(npix), dtype=np.float64)
+        if int(idx.size) == 0:
+            return clean
+
+        rhs = np.zeros(4, dtype=np.float64)
+        for start in range(0, int(idx.size), CHUNK):
+            ii = idx[start:start + CHUNK]
+            vals = np.asarray(arr[ii], dtype=np.float64)
+            rhs[0] += float(np.sum(vals))
+            rhs[1] += float(np.dot(x[ii], vals))
+            rhs[2] += float(np.dot(y[ii], vals))
+            rhs[3] += float(np.dot(z[ii], vals))
+        try:
+            coeff = np.asarray(entry[&quot;solver&quot;].dot(rhs), dtype=np.float64).ravel()
+        except Exception:
+            coeff = np.zeros(4, dtype=np.float64)
+        if coeff.size != 4 or not np.all(np.isfinite(coeff)):
+            coeff = np.zeros(4, dtype=np.float64)
+
+        for start in range(0, int(idx.size), CHUNK):
+            ii = idx[start:start + CHUNK]
+            clean[ii] = np.asarray(arr[ii], dtype=np.float64) - coeff[0] - coeff[1] * x[ii] - coeff[2] * y[ii] - coeff[3] * z[ii]
+        clean[~np.isfinite(clean)] = 0.0
+        return clean
+
+    def _map2alm_requested(clean, hp, nside):
+        import warnings
+        lmax = int(LMAX_REQUEST)
+        with warnings.catch_warnings():
+            warnings.simplefilter(&quot;ignore&quot;)
+            try:
+                try:
+                    alm = hp.map2alm(clean, lmax=lmax, iter=0, pol=False, use_weights=False)
+                except TypeError:
+                    alm = hp.map2alm(clean, lmax=lmax, iter=0, pol=False)
+            except Exception:
+                lmax_alt = min(int(LMAX_REQUEST), max(0, 3 * int(nside) - 1))
+                if lmax_alt &lt; LMIN or lmax_alt == lmax:
+                    raise
+                lmax = int(lmax_alt)
+                try:
+                    alm = hp.map2alm(clean, lmax=lmax, iter=0, pol=False, use_weights=False)
+                except TypeError:
+                    alm = hp.map2alm(clean, lmax=lmax, iter=0, pol=False)
+        return {&quot;alm&quot;: np.asarray(alm, dtype=np.complex128).ravel(), &quot;lmax&quot;: int(lmax)}
+
+    def _alm2map_safe(alm, hp, nside, lmax):
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter(&quot;ignore&quot;)
+            try:
+                out = hp.alm2map(alm, int(nside), lmax=int(lmax), pol=False, verbose=False)
+            except TypeError:
+                out = hp.alm2map(alm, int(nside), lmax=int(lmax), pol=False)
+        return np.asarray(out, dtype=np.float64).ravel()
+
+    def _get_template(nside, npix, geom):
+        key = str(int(nside)) + &quot;:&quot; + str(int(npix)) + &quot;:&quot; + str(float(ECL_LON_DEG)) + &quot;:&quot; + str(float(ECL_LAT_DEG))
+        cache = _state.get(&quot;template_cache&quot;)
+        if not isinstance(cache, dict):
+            cache = {}
+            _state[&quot;template_cache&quot;] = cache
+        item = cache.get(key)
+        if item is not None:
+            return item
+        lon = math.radians(ECL_LON_DEG)
+        lat = math.radians(ECL_LAT_DEG)
+        ex = math.cos(lat) * math.cos(lon)
+        ey = math.cos(lat) * math.sin(lon)
+        ez = math.sin(lat)
+        dot = geom[&quot;x&quot;] * ex + geom[&quot;y&quot;] * ey + geom[&quot;z&quot;] * ez
+        q = 0.5 * (3.0 * dot * dot - 1.0)
+        q = np.asarray(q, dtype=np.float64).ravel()
+        q[~np.isfinite(q)] = 0.0
+        if len(cache) &gt; 3:
+            cache.clear()
+        cache[key] = q
+        return q
+
+    try:
+        if np.ma.isMaskedArray(m):
+            arr = np.asarray(m.filled(np.nan), dtype=np.float64).ravel()
+        else:
+            arr = np.asarray(m, dtype=np.float64).ravel()
+    except Exception:
+        try:
+            arr = np.asarray(np.real(m), dtype=np.float64).ravel()
+        except Exception:
+            return 0.0
+
+    npix = int(arr.size)
+    nside = _infer_nside(npix)
+    if nside &lt;= 0:
+        return 0.0
+
+    valid = np.isfinite(arr) &amp; (np.abs(arr) &lt; 1.0e25)
+    mask_info = _mask_key(nside, npix, valid)
+    if int(mask_info[&quot;nvalid&quot;]) &lt; 16:
+        return 0.0
+
+    try:
+        import healpy as hp
+
+        geom = _get_geometry(nside, npix)
+        clean = _remove_monopole_dipole(arr, valid, nside, npix, mask_info, geom)
+        # clean is finite and contains zero in masked pixels, so no NaN values
+        # are ever passed to healpy spherical-harmonic routines.
+        alm_info = _map2alm_requested(clean, hp, nside)
+        alm = alm_info[&quot;alm&quot;]
+        lmax = int(alm_info[&quot;lmax&quot;])
+        if lmax &lt; LMIN:
+            return 0.0
+
+        # Retain only 2 &lt;= ell &lt;= lmax.  The map2alm call already omits ell
+        # above lmax, so only monopole and dipole coefficients are zeroed here.
+        max_low = min(LMIN, lmax + 1)
+        for ell in range(0, max_low):
+            for mm in range(ell + 1):
+                k = _alm_index(lmax, ell, mm)
+                if 0 &lt;= k &lt; alm.size:
+                    alm[k] = 0.0 + 0.0j
+
+        t_low = _alm2map_safe(alm, hp, nside, lmax)
+        if int(t_low.size) != npix:
+            return 0.0
+        t_low[~np.isfinite(t_low)] = 0.0
+
+        q = _get_template(nside, npix, geom)
+        idx = np.flatnonzero(valid).astype(np.int64, copy=False)
+        if int(idx.size) &lt; 3:
+            return 0.0
+
+        # Equal-area HEALPix pixels make the requested weighted masked-sky
+        # Pearson correlation equivalent to uniform weights over valid pixels.
+        sum_t = 0.0
+        sum_q = 0.0
+        count = 0
+        for start in range(0, int(idx.size), CHUNK):
+            ii = idx[start:start + CHUNK]
+            tt = np.asarray(t_low[ii], dtype=np.float64)
+            qq = np.asarray(q[ii], dtype=np.float64)
+            good = np.isfinite(tt) &amp; np.isfinite(qq)
+            if np.any(good):
+                sum_t += float(np.sum(tt[good]))
+                sum_q += float(np.sum(qq[good]))
+                count += int(np.count_nonzero(good))
+        if count &lt; 3:
+            return 0.0
+        mean_t = sum_t / float(count)
+        mean_q = sum_q / float(count)
+        if not np.isfinite(mean_t) or not np.isfinite(mean_q):
+            return 0.0
+
+        num = 0.0
+        s_tt = 0.0
+        s_qq = 0.0
+        for start in range(0, int(idx.size), CHUNK):
+            ii = idx[start:start + CHUNK]
+            tt = np.asarray(t_low[ii], dtype=np.float64)
+            qq = np.asarray(q[ii], dtype=np.float64)
+            good = np.isfinite(tt) &amp; np.isfinite(qq)
+            if np.any(good):
+                dt = tt[good] - mean_t
+                dq = qq[good] - mean_q
+                num += float(np.dot(dt, dq))
+                s_tt += float(np.dot(dt, dt))
+                s_qq += float(np.dot(dq, dq))
+        if not np.isfinite(num) or not np.isfinite(s_tt) or not np.isfinite(s_qq):
+            return 0.0
+        den = math.sqrt(max(s_tt, 0.0) * max(s_qq, 0.0))
+        if not np.isfinite(den) or den &lt;= EPS:
+            return 0.0
+        r = float(num / den)
+        if not np.isfinite(r):
+            return 0.0
+        if r &gt; 1.0:
+            r = 1.0
+        if r &lt; -1.0:
+            r = -1.0
+        s = float(r * r)
+        if not np.isfinite(s):
+            return 0.0
+        if s &lt; 0.0:
+            s = 0.0
+        if s &gt; 1.0:
+            s = 1.0
+        return float(s)
+    except Exception:
+        return 0.0
+
+
+def summarize_results(planck_stat, sim_results, _desc=test_description):
+    import numpy as np
+
+    def _as_float(x):
+        try:
+            v = float(x)
+            if np.isfinite(v):
+                return v
+            return np.nan
+        except Exception:
+            return np.nan
+
+    ps = _as_float(planck_stat)
+    try:
+        sims_all = np.asarray(sim_results, dtype=np.float64).ravel()
+    except Exception:
+        vals = []
+        try:
+            iterator = iter(sim_results)
+        except Exception:
+            iterator = []
+        for item in iterator:
+            v = _as_float(item)
+            if np.isfinite(v):
+                vals.append(v)
+        sims_all = np.asarray(vals, dtype=np.float64)
+    sims = sims_all[np.isfinite(sims_all)]
+    n = int(sims.size)
+
+    out = {
+        &quot;test_description&quot;: _desc,
+        &quot;statistic&quot;: &quot;S = r^2, where r is the equal-area masked-sky Pearson correlation between the ell=2..10 temperature field and Q(n)=0.5*(3*(n.e_ecl)^2-1) after masked-sky monopole/dipole removal.&quot;,
+        &quot;tail&quot;: &quot;upper; unusually large S indicates stronger low-l temperature correlation with the fixed ecliptic quadrupole template than expected in LCDM simulations&quot;,
+        &quot;harmonic_range&quot;: {&quot;lmin&quot;: 2, &quot;lmax&quot;: 10},
+        &quot;monopole_dipole_fit&quot;: &quot;least-squares fit of [1, x, y, z] on finite unmasked pixels only&quot;,
+        &quot;template&quot;: &quot;ecliptic quadrupole using north ecliptic pole at Galactic (l,b)=(96.384 deg, 29.812 deg); sign of r is discarded by S=r^2&quot;,
+        &quot;mask_and_transform_handling&quot;: &quot;non-finite pixels are ignored in fits/correlations and filled with 0.0 before healpy spherical-harmonic transforms&quot;,
+        &quot;planck_S&quot;: float(ps) if np.isfinite(ps) else None,
+        &quot;planck_abs_r_equivalent&quot;: float(np.sqrt(max(ps, 0.0))) if np.isfinite(ps) else None,
+        &quot;n_sims&quot;: n,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Masked low-l ecliptic quadrupole template correlation&quot;,
+            &quot;xlabel&quot;: &quot;S = r^2&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: &quot;Simulation distribution of squared masked-sky correlations between the ell=2..10 temperature field and the fixed ecliptic quadrupole template. The Planck anomaly criterion is the upper tail.&quot;
+        }
+    }
+
+    if not np.isfinite(ps):
+        out[&quot;warning&quot;] = &quot;The Planck statistic supplied to summarize_results is not finite.&quot;
+        return out
+    if n &lt;= 0:
+        out[&quot;warning&quot;] = &quot;No finite simulation statistics were supplied.&quot;
+        return out
+
+    ps_clamped = float(min(1.0, max(0.0, ps)))
+    sims_clamped = np.minimum(1.0, np.maximum(0.0, sims))
+
+    n_lt = int(np.count_nonzero(sims_clamped &lt; ps_clamped))
+    n_le = int(np.count_nonzero(sims_clamped &lt;= ps_clamped))
+    n_eq = int(np.count_nonzero(sims_clamped == ps_clamped))
+    n_gt = int(np.count_nonzero(sims_clamped &gt; ps_clamped))
+    n_ge = int(np.count_nonzero(sims_clamped &gt;= ps_clamped))
+
+    p_upper = float((n_ge + 1.0) / (n + 1.0))
+    p_lower = float((n_le + 1.0) / (n + 1.0))
+    rank_desc = int(n_gt + 1)
+
+    mean = float(np.mean(sims_clamped))
+    median = float(np.median(sims_clamped))
+    std = float(np.std(sims_clamped, ddof=1)) if n &gt; 1 else 0.0
+    if n &gt; 1:
+        q = np.percentile(sims_clamped, [1, 5, 16, 50, 84, 95, 99])
+    else:
+        q = np.asarray([sims_clamped[0], sims_clamped[0], sims_clamped[0], sims_clamped[0], sims_clamped[0], sims_clamped[0], sims_clamped[0]], dtype=np.float64)
+
+    out.update({
+        &quot;sim_mean&quot;: mean,
+        &quot;sim_median&quot;: median,
+        &quot;sim_std&quot;: std,
+        &quot;sim_min&quot;: float(np.min(sims_clamped)),
+        &quot;sim_max&quot;: float(np.max(sims_clamped)),
+        &quot;sim_percentile_1&quot;: float(q[0]),
+        &quot;sim_percentile_5&quot;: float(q[1]),
+        &quot;sim_percentile_16&quot;: float(q[2]),
+        &quot;sim_percentile_50&quot;: float(q[3]),
+        &quot;sim_percentile_84&quot;: float(q[4]),
+        &quot;sim_percentile_95&quot;: float(q[5]),
+        &quot;sim_percentile_99&quot;: float(q[6]),
+        &quot;zscore_vs_sims&quot;: float((ps_clamped - mean) / std) if std &gt; 0.0 and np.isfinite(std) else None,
+        &quot;n_sim_lt_planck&quot;: n_lt,
+        &quot;n_sim_le_planck&quot;: n_le,
+        &quot;n_sim_eq_planck&quot;: n_eq,
+        &quot;n_sim_gt_planck&quot;: n_gt,
+        &quot;n_sim_ge_planck&quot;: n_ge,
+        &quot;fraction_sims_ge_planck_upper_tail_including_ties&quot;: float(n_ge / n),
+        &quot;fraction_sims_gt_planck_upper_tail_strict&quot;: float(n_gt / n),
+        &quot;empirical_p_upper_tail_plus_one&quot;: p_upper,
+        &quot;empirical_p_lower_tail_plus_one&quot;: p_lower,
+        &quot;upper_tail_rank_descending_1_is_largest_S&quot;: rank_desc,
+        &quot;planck_percentile_midrank_low_to_high&quot;: float(100.0 * (n_lt + 0.5 * n_eq) / n),
+        &quot;is_5pct_upper_tail&quot;: bool(p_upper &lt;= 0.05),
+        &quot;is_1pct_upper_tail&quot;: bool(p_upper &lt;= 0.01)
+    })
+
+    if p_upper &lt;= 0.01:
+        out[&quot;interpretation&quot;] = &quot;Planck lies in the upper 1% simulation tail: unusually strong squared low-l correlation with the fixed ecliptic quadrupole template.&quot;
+    elif p_upper &lt;= 0.05:
+        out[&quot;interpretation&quot;] = &quot;Planck lies in the upper 5% simulation tail: stronger squared low-l correlation with the fixed ecliptic quadrupole template than most simulations.&quot;
+    else:
+        out[&quot;interpretation&quot;] = &quot;Planck is not in the 5% upper simulation tail for this ecliptic-quadrupole template-correlation statistic.&quot;
+
+    if std == 0.0:
+        out[&quot;warning&quot;] = &quot;All finite simulation S values are identical; check map variation, mask handling, and healpy availability.&quot;
+    return out</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/gpt5-5/test-28-masked-low-l-ecliptic-quadrupole-template-correlation.png" alt="Statistic distribution for Masked Low-l Ecliptic Quadrupole Template Correlation">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>GPT5.5</td></tr>
+<tr><th>Run path</th><td>runs/anomaly_agent_gpt_run</td></tr>
+<tr><th>Primary p-value</th><td>0.736</td></tr>
+<tr><th>One-tailed p-value</th><td>0.736</td></tr>
+<tr><th>Two-tailed p-value</th><td>n/a</td></tr>
+<tr><th>Sigma</th><td>-0.631</td></tr>
+<tr><th>Planck statistic</th><td>0.00785</td></tr>
+<tr><th>Simulation mean</th><td>0.056</td></tr>
+<tr><th>Simulation std.</th><td>0.0675</td></tr>
+<tr><th>Simulation median</th><td>0.0296</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>one-tailed, upper</td></tr>
+<tr><th>Family</th><td>direction</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/gpt5-5/test-28-masked-low-l-ecliptic-quadrupole-template-correlation.png">Figure PNG</a>
+<a href="../../../assets/figures/gpt5-5/test-28-masked-low-l-ecliptic-quadrupole-template-correlation.pdf">Figure PDF</a>
+<a href="../../../data/raw/gpt5-5/test-28-masked-low-l-ecliptic-quadrupole-template-correlation.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/gpt5-5/test-28-masked-low-l-ecliptic-quadrupole-template-correlation.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/gpt5-5/test-28-masked-low-l-ecliptic-quadrupole-template-correlation.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 2 model(s).</p>
+  </footer>
+</body>
+</html>

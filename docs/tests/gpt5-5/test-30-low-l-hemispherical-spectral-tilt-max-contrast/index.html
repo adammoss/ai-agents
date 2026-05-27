@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-l Hemispherical Spectral-Tilt Max Contrast · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 30 · GPT5.5</p>
+      <h1>Low-l Hemispherical Spectral-Tilt Max Contrast</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">← Catalogue</a>
+      <a href="../../../">Paper</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">GPT5.5 · Novel · hemispherical · one-tailed, upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The CMB temperature map has an anomalously large maximum hemispherical contrast in low-ell spectral tilt, meaning one pair of opposite hemispheres shows an unusually different log variance ratio between ell=11–30 and ell=2–10 compared with simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Scans coarse HEALPix hemisphere axes and measures the maximum absolute north-south difference in local low-l tilt, tau=log(V_ell11-30/V_ell2-10), using masked, mean-subtracted, bandpassed CMB temperature maps.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck gives S=0.826, compared with simulations mean=0.689, std=0.210, median=0.652. The one-tailed upper p-value is 0.241 from 1000 simulations, with Planck at the 75.9th percentile and about 0.70 sigma.</p>
+          <p>The measured Planck contrast is somewhat above the simulation mean but well within the LCDM simulation distribution. It is not in the upper 5% tail, so the hypothesised anomalously large hemispherical low-l spectral-tilt contrast is not supported.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The statistic is S=max_axis |tau_N−tau_S|, so the sign of the hemispherical difference is removed and only the magnitude of the contrast matters. The code explicitly evaluates the upper tail, where larger S means a stronger hemispherical spectral-tilt contrast.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No directly comparable prior statistic was identified in the provided or previous searches; no like-for-like literature p-value comparison is available.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import math
+import numpy as np
+
+
+test_description = &quot;Low-l Hemispherical Spectral-Tilt Max Contrast: subtract the mean on finite unmasked pixels, fill masked pixels with 0.0, make bandpassed maps for ell=2..10 and ell=11..30, scan an unoriented coarse HEALPix nside=4 grid of hemisphere axes, compute the unmasked pixel variance of each band in the two opposite hemispheres, define tau=log(V_11-30/V_2-10), and return S=max_axis |tau_N-tau_S|.&quot;
+
+_LST_LOW_MIN = 2
+_LST_LOW_MAX = 10
+_LST_HIGH_MIN = 11
+_LST_HIGH_MAX = 30
+_LST_AXIS_NSIDE = 4
+_LST_CHUNK = 8192
+_LST_MIN_VALID_PIX = 32
+_LST_MIN_HEMI_PIX = 8
+_LST_MAX_HEMI_CACHE_ENTRIES = 24000000
+_LST_REL_FLOOR = 1.0e-30
+_LST_ABS_FLOOR = 1.0e-300
+
+_LST_STATE = {
+    &quot;axes_cache&quot;: {},
+    &quot;geom_cache&quot;: {},
+    &quot;hemi_cache&quot;: {},
+}
+
+
+def _lst_infer_nside(npix):
+    try:
+        n = int(npix)
+        if n &lt;= 0 or n % 12 != 0:
+            return -1
+        ns = int(round(math.sqrt(n / 12.0)))
+        if ns &lt;= 0 or 12 * ns * ns != n:
+            return -1
+        return ns
+    except Exception:
+        return -1
+
+
+def _lst_alm_size(lmax):
+    lmax = int(lmax)
+    if lmax &lt; 0:
+        return 0
+    return int((lmax + 1) * (lmax + 2) // 2)
+
+
+def _lst_alm_index(lmax, ell, mm):
+    return int(mm * (2 * lmax + 1 - mm) // 2 + ell)
+
+
+def _lst_get_axes(hp, state):
+    cache = state.get(&quot;axes_cache&quot;)
+    if not isinstance(cache, dict):
+        cache = {}
+        state[&quot;axes_cache&quot;] = cache
+    key = str(int(_LST_AXIS_NSIDE))
+    axes = cache.get(key)
+    if axes is not None:
+        return axes
+
+    npix_axis = int(hp.nside2npix(int(_LST_AXIS_NSIDE)))
+    pix = np.arange(npix_axis, dtype=np.int64)
+    vec = hp.pix2vec(int(_LST_AXIS_NSIDE), pix, nest=False)
+    axes_all = np.vstack((np.asarray(vec[0], dtype=np.float64),
+                          np.asarray(vec[1], dtype=np.float64),
+                          np.asarray(vec[2], dtype=np.float64))).T
+    norm = np.sqrt(np.sum(axes_all * axes_all, axis=1))
+    good = np.isfinite(norm) &amp; (norm &gt; 0.0)
+    axes_all = axes_all[good]
+    norm = norm[good]
+    if axes_all.size == 0:
+        axes_all = np.array([[0.0, 0.0, 1.0]], dtype=np.float64)
+        norm = np.array([1.0], dtype=np.float64)
+    axes_all = axes_all / norm[:, None]
+
+    # A hemisphere axis is unoriented: axis a and -a give the same absolute
+    # contrast after swapping N and S.  Keep one deterministic representative
+    # from each antipodal pair for speed while retaining the same max |Delta tau|.
+    tol = 1.0e-14
+    x = axes_all[:, 0]
+    y = axes_all[:, 1]
+    z = axes_all[:, 2]
+    keep = (z &gt; tol) | ((np.abs(z) &lt;= tol) &amp; ((y &gt; tol) | ((np.abs(y) &lt;= tol) &amp; (x &gt;= -tol))))
+    if int(np.count_nonzero(keep)) &gt; 0:
+        axes = np.asarray(axes_all[keep], dtype=np.float64)
+    else:
+        axes = np.asarray(axes_all, dtype=np.float64)
+
+    if len(cache) &gt; 4:
+        cache.clear()
+    cache[key] = axes
+    return axes
+
+
+def _lst_get_geometry(hp, nside, npix, state):
+    cache = state.get(&quot;geom_cache&quot;)
+    if not isinstance(cache, dict):
+        cache = {}
+        state[&quot;geom_cache&quot;] = cache
+    key = str(int(nside)) + &quot;:&quot; + str(int(npix))
+    item = cache.get(key)
+    if item is not None:
+        return item
+
+    pix = np.arange(int(npix), dtype=np.int64)
+    vec = hp.pix2vec(int(nside), pix, nest=False)
+    item = {
+        &quot;x&quot;: np.asarray(vec[0], dtype=np.float64).ravel(),
+        &quot;y&quot;: np.asarray(vec[1], dtype=np.float64).ravel(),
+        &quot;z&quot;: np.asarray(vec[2], dtype=np.float64).ravel(),
+    }
+    if len(cache) &gt; 3:
+        cache.clear()
+    cache[key] = item
+    return item
+
+
+def _lst_make_mask_info(nside, npix, valid):
+    v = np.asarray(valid, dtype=np.bool_).ravel()
+    nvalid = int(np.count_nonzero(v))
+    packed = np.packbits(v)
+    mask_bytes = packed.tobytes()
+    key = (str(int(nside)) + &quot;:&quot; + str(int(npix)) + &quot;:&quot; + str(nvalid) + &quot;:&quot; +
+           str(hash(mask_bytes)) + &quot;:axis&quot; + str(int(_LST_AXIS_NSIDE)))
+    return {&quot;key&quot;: key, &quot;bytes&quot;: mask_bytes, &quot;nvalid&quot;: nvalid}
+
+
+def _lst_get_hemi_entry(hp, nside, npix, valid, mask_info, state):
+    cache = state.get(&quot;hemi_cache&quot;)
+    if not isinstance(cache, dict):
+        cache = {}
+        state[&quot;hemi_cache&quot;] = cache
+    key = mask_info[&quot;key&quot;]
+    item = cache.get(key)
+    if item is not None and item.get(&quot;mask_bytes&quot;) == mask_info[&quot;bytes&quot;]:
+        return item
+
+    idx = np.flatnonzero(np.asarray(valid, dtype=np.bool_)).astype(np.int64, copy=False)
+    axes = _lst_get_axes(hp, state)
+    naxis = int(axes.shape[0])
+    nvalid = int(idx.size)
+    H = None
+    counts = None
+
+    # Cache a boolean hemisphere-membership matrix when it is modest in size.
+    # This avoids recomputing axis dot products for every simulation when the
+    # mask is fixed, but falls back to chunked accumulation for larger maps.
+    if nvalid &gt; 0 and naxis &gt; 0 and naxis * nvalid &lt;= int(_LST_MAX_HEMI_CACHE_ENTRIES):
+        geom = _lst_get_geometry(hp, nside, npix, state)
+        H = np.empty((naxis, nvalid), dtype=np.bool_)
+        for start in range(0, nvalid, int(_LST_CHUNK)):
+            end = min(nvalid, start + int(_LST_CHUNK))
+            ii = idx[start:end]
+            xyz = np.empty((3, int(ii.size)), dtype=np.float64)
+            xyz[0, :] = geom[&quot;x&quot;][ii]
+            xyz[1, :] = geom[&quot;y&quot;][ii]
+            xyz[2, :] = geom[&quot;z&quot;][ii]
+            H[:, start:end] = (axes.dot(xyz) &gt;= 0.0)
+        counts = np.asarray(np.count_nonzero(H, axis=1), dtype=np.float64)
+
+    item = {
+        &quot;idx&quot;: idx,
+        &quot;H&quot;: H,
+        &quot;counts&quot;: counts,
+        &quot;mask_bytes&quot;: mask_info[&quot;bytes&quot;],
+        &quot;naxis&quot;: naxis,
+    }
+    if len(cache) &gt; 4:
+        cache.clear()
+    cache[key] = item
+    return item
+
+
+def _lst_map2alm(finite_map, hp, lmax):
+    import warnings
+    lmax = int(lmax)
+    fmap = np.asarray(finite_map, dtype=np.float64).ravel()
+    if not np.all(np.isfinite(fmap)):
+        fmap = np.array(fmap, dtype=np.float64, copy=True)
+        fmap[~np.isfinite(fmap)] = 0.0
+    with warnings.catch_warnings():
+        warnings.simplefilter(&quot;ignore&quot;)
+        try:
+            try:
+                alm = hp.map2alm(fmap, lmax=lmax, iter=0, pol=False, use_weights=False)
+            except TypeError:
+                alm = hp.map2alm(fmap, lmax=lmax, iter=0, pol=False)
+        except Exception:
+            raise
+    alm = np.asarray(alm, dtype=np.complex128).ravel()
+    expected = _lst_alm_size(lmax)
+    if int(alm.size) &lt; expected:
+        tmp = np.zeros(expected, dtype=np.complex128)
+        tmp[:int(alm.size)] = alm
+        alm = tmp
+    elif int(alm.size) &gt; expected:
+        alm = alm[:expected]
+    bad = ~np.isfinite(alm)
+    if np.any(bad):
+        alm = np.array(alm, dtype=np.complex128, copy=True)
+        alm[bad] = 0.0 + 0.0j
+    return alm
+
+
+def _lst_alm2map(alm, hp, nside, lmax):
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter(&quot;ignore&quot;)
+        try:
+            out = hp.alm2map(alm, int(nside), lmax=int(lmax), pol=False, verbose=False)
+        except TypeError:
+            out = hp.alm2map(alm, int(nside), lmax=int(lmax), pol=False)
+    if np.ma.isMaskedArray(out):
+        out = out.filled(0.0)
+    out = np.asarray(out, dtype=np.float64).ravel()
+    if not np.all(np.isfinite(out)):
+        out = np.array(out, dtype=np.float64, copy=True)
+        out[~np.isfinite(out)] = 0.0
+    return out
+
+
+def _lst_band_alm(alm, lmax, ell_min, ell_max):
+    lmax = int(lmax)
+    ell_min = int(ell_min)
+    ell_max = min(int(ell_max), lmax)
+    out = np.zeros(_lst_alm_size(lmax), dtype=np.complex128)
+    if ell_max &lt; ell_min:
+        return out
+    alm = np.asarray(alm, dtype=np.complex128).ravel()
+    for mm in range(0, ell_max + 1):
+        lo = max(ell_min, mm)
+        hi = ell_max
+        if lo &lt;= hi:
+            i0 = _lst_alm_index(lmax, lo, mm)
+            i1 = _lst_alm_index(lmax, hi, mm) + 1
+            if i0 &lt; int(alm.size):
+                n = min(i1 - i0, int(alm.size) - i0, int(out.size) - i0)
+                if n &gt; 0:
+                    out[i0:i0 + n] = alm[i0:i0 + n]
+    return out
+
+
+def _lst_make_band_maps(clean_map, hp, nside):
+    lmax = int(_LST_HIGH_MAX)
+    alm = _lst_map2alm(clean_map, hp, lmax)
+    alm_low = _lst_band_alm(alm, lmax, _LST_LOW_MIN, _LST_LOW_MAX)
+    alm_high = _lst_band_alm(alm, lmax, _LST_HIGH_MIN, _LST_HIGH_MAX)
+    low_map = _lst_alm2map(alm_low, hp, nside, lmax)
+    high_map = _lst_alm2map(alm_high, hp, nside, lmax)
+    return low_map, high_map
+
+
+def _lst_variance_from_sums(sum1, sum2, count):
+    sum1 = np.asarray(sum1, dtype=np.float64)
+    sum2 = np.asarray(sum2, dtype=np.float64)
+    count = np.asarray(count, dtype=np.float64)
+    out = np.full(count.shape, np.nan, dtype=np.float64)
+    good = np.isfinite(count) &amp; (count &gt;= float(_LST_MIN_HEMI_PIX))
+    if np.any(good):
+        with np.errstate(divide=&quot;ignore&quot;, invalid=&quot;ignore&quot;, over=&quot;ignore&quot;):
+            mean = sum1[good] / count[good]
+            var = sum2[good] / count[good] - mean * mean
+        var = np.asarray(var, dtype=np.float64)
+        var[~np.isfinite(var)] = np.nan
+        # Roundoff can make a true non-negative variance slightly negative.
+        neg = np.isfinite(var) &amp; (var &lt; 0.0)
+        if np.any(neg):
+            var[neg] = 0.0
+        out[good] = var
+    return out
+
+
+def _lst_chunked_hemi_sums(idx, lv, hv, hp, nside, npix, state):
+    axes = _lst_get_axes(hp, state)
+    geom = _lst_get_geometry(hp, nside, npix, state)
+    naxis = int(axes.shape[0])
+    n = int(idx.size)
+    counts = np.zeros(naxis, dtype=np.float64)
+    sums = np.zeros((naxis, 4), dtype=np.float64)
+    if n &lt;= 0 or naxis &lt;= 0:
+        return counts, sums
+
+    for start in range(0, n, int(_LST_CHUNK)):
+        end = min(n, start + int(_LST_CHUNK))
+        ii = idx[start:end]
+        l = np.asarray(lv[start:end], dtype=np.float64)
+        h = np.asarray(hv[start:end], dtype=np.float64)
+        vals = np.empty((int(ii.size), 4), dtype=np.float64)
+        vals[:, 0] = l
+        vals[:, 1] = l * l
+        vals[:, 2] = h
+        vals[:, 3] = h * h
+        xyz = np.empty((3, int(ii.size)), dtype=np.float64)
+        xyz[0, :] = geom[&quot;x&quot;][ii]
+        xyz[1, :] = geom[&quot;y&quot;][ii]
+        xyz[2, :] = geom[&quot;z&quot;][ii]
+        hemi = (axes.dot(xyz) &gt;= 0.0)
+        counts += np.asarray(np.count_nonzero(hemi, axis=1), dtype=np.float64)
+        sums += np.asarray(hemi.dot(vals), dtype=np.float64)
+    return counts, sums
+
+
+def _lst_max_tilt_contrast(low_map, high_map, hemi_entry, hp, nside, npix, state):
+    idx0 = np.asarray(hemi_entry.get(&quot;idx&quot;, []), dtype=np.int64).ravel()
+    n0 = int(idx0.size)
+    if n0 &lt; int(_LST_MIN_VALID_PIX):
+        return 0.0
+
+    low = np.asarray(low_map, dtype=np.float64).ravel()
+    high = np.asarray(high_map, dtype=np.float64).ravel()
+    if int(low.size) != int(npix) or int(high.size) != int(npix):
+        return 0.0
+
+    lv0 = low[idx0]
+    hv0 = high[idx0]
+    good = np.isfinite(lv0) &amp; np.isfinite(hv0)
+    if not np.all(good):
+        if int(np.count_nonzero(good)) &lt; int(_LST_MIN_VALID_PIX):
+            return 0.0
+        idx = idx0[good]
+        lv = np.asarray(lv0[good], dtype=np.float64)
+        hv = np.asarray(hv0[good], dtype=np.float64)
+        H = None
+        cached_counts = None
+    else:
+        idx = idx0
+        lv = np.asarray(lv0, dtype=np.float64)
+        hv = np.asarray(hv0, dtype=np.float64)
+        H = hemi_entry.get(&quot;H&quot;)
+        cached_counts = hemi_entry.get(&quot;counts&quot;)
+
+    n = int(idx.size)
+    if n &lt; int(_LST_MIN_VALID_PIX):
+        return 0.0
+
+    with np.errstate(over=&quot;ignore&quot;, invalid=&quot;ignore&quot;):
+        lv2 = lv * lv
+        hv2 = hv * hv
+    if (not np.all(np.isfinite(lv2))) or (not np.all(np.isfinite(hv2))):
+        return 0.0
+
+    total = np.array([float(np.sum(lv)), float(np.sum(lv2)),
+                      float(np.sum(hv)), float(np.sum(hv2))], dtype=np.float64)
+    if not np.all(np.isfinite(total)):
+        return 0.0
+
+    if H is not None and cached_counts is not None and int(np.asarray(H).shape[1]) == n:
+        vals = np.empty((n, 4), dtype=np.float64)
+        vals[:, 0] = lv
+        vals[:, 1] = lv2
+        vals[:, 2] = hv
+        vals[:, 3] = hv2
+        counts_N = np.asarray(cached_counts, dtype=np.float64).ravel()
+        try:
+            sums_N = np.asarray(H.dot(vals), dtype=np.float64)
+        except Exception:
+            counts_N, sums_N = _lst_chunked_hemi_sums(idx, lv, hv, hp, nside, npix, state)
+    else:
+        counts_N, sums_N = _lst_chunked_hemi_sums(idx, lv, hv, hp, nside, npix, state)
+
+    if sums_N.ndim != 2 or int(sums_N.shape[1]) != 4:
+        return 0.0
+    counts_N = np.asarray(counts_N, dtype=np.float64).ravel()
+    naxis = int(counts_N.size)
+    if naxis &lt;= 0 or int(sums_N.shape[0]) != naxis:
+        return 0.0
+
+    counts_S = float(n) - counts_N
+    sums_S = total[None, :] - sums_N
+
+    with np.errstate(divide=&quot;ignore&quot;, invalid=&quot;ignore&quot;, over=&quot;ignore&quot;):
+        gvar_low = total[1] / float(n) - (total[0] / float(n)) ** 2
+        gvar_high = total[3] / float(n) - (total[2] / float(n)) ** 2
+    if not np.isfinite(gvar_low):
+        gvar_low = 0.0
+    if not np.isfinite(gvar_high):
+        gvar_high = 0.0
+    if gvar_low &lt; 0.0:
+        gvar_low = 0.0
+    if gvar_high &lt; 0.0:
+        gvar_high = 0.0
+    scale = max(float(gvar_low), float(gvar_high))
+    if not np.isfinite(scale) or scale &lt;= 0.0:
+        return 0.0
+    floor = max(float(_LST_ABS_FLOOR), float(_LST_REL_FLOOR) * scale)
+
+    var_low_N = _lst_variance_from_sums(sums_N[:, 0], sums_N[:, 1], counts_N)
+    var_high_N = _lst_variance_from_sums(sums_N[:, 2], sums_N[:, 3], counts_N)
+    var_low_S = _lst_variance_from_sums(sums_S[:, 0], sums_S[:, 1], counts_S)
+    var_high_S = _lst_variance_from_sums(sums_S[:, 2], sums_S[:, 3], counts_S)
+
+    good_axis = (counts_N &gt;= float(_LST_MIN_HEMI_PIX)) &amp; (counts_S &gt;= float(_LST_MIN_HEMI_PIX))
+    good_axis &amp;= np.isfinite(var_low_N) &amp; np.isfinite(var_high_N) &amp; np.isfinite(var_low_S) &amp; np.isfinite(var_high_S)
+    if not np.any(good_axis):
+        return 0.0
+
+    with np.errstate(divide=&quot;ignore&quot;, invalid=&quot;ignore&quot;, over=&quot;ignore&quot;):
+        tau_N = np.log((var_high_N + floor) / (var_low_N + floor))
+        tau_S = np.log((var_high_S + floor) / (var_low_S + floor))
+        diff = np.abs(tau_N - tau_S)
+    diff = np.asarray(diff, dtype=np.float64)
+    diff[~good_axis] = np.nan
+    finite = np.isfinite(diff)
+    if not np.any(finite):
+        return 0.0
+    S = float(np.max(diff[finite]))
+    if not np.isfinite(S) or S &lt; 0.0:
+        return 0.0
+    return S
+
+
+def analyze_map(m):
+    try:
+        if np.ma.isMaskedArray(m):
+            arr = np.asarray(m.filled(np.nan), dtype=np.float64).ravel()
+        else:
+            arr = np.asarray(m, dtype=np.float64).ravel()
+    except Exception:
+        try:
+            arr = np.asarray(np.real(m), dtype=np.float64).ravel()
+        except Exception:
+            return 0.0
+
+    npix = int(arr.size)
+    nside = _lst_infer_nside(npix)
+    if nside &lt;= 0:
+        return 0.0
+
+    # Need lmax=30 to realize the specified ell=11..30 band without truncation.
+    if 3 * int(nside) - 1 &lt; int(_LST_HIGH_MAX):
+        return 0.0
+
+    valid = np.isfinite(arr) &amp; (np.abs(arr) &lt; 1.0e25)
+    nvalid = int(np.count_nonzero(valid))
+    if nvalid &lt; int(_LST_MIN_VALID_PIX):
+        return 0.0
+
+    try:
+        vals = np.asarray(arr[valid], dtype=np.float64)
+        mean = float(np.mean(vals))
+    except Exception:
+        return 0.0
+    if not np.isfinite(mean):
+        return 0.0
+
+    clean = np.zeros(npix, dtype=np.float64)
+    clean[valid] = arr[valid] - mean
+    if not np.all(np.isfinite(clean)):
+        clean[~np.isfinite(clean)] = 0.0
+
+    try:
+        import healpy as hp
+
+        mask_info = _lst_make_mask_info(nside, npix, valid)
+        if int(mask_info[&quot;nvalid&quot;]) &lt; int(_LST_MIN_VALID_PIX):
+            return 0.0
+
+        # clean is finite everywhere, with masked pixels filled by zero, so no
+        # NaNs are ever passed into healpy transforms.
+        low_map, high_map = _lst_make_band_maps(clean, hp, nside)
+        if int(low_map.size) != npix or int(high_map.size) != npix:
+            return 0.0
+
+        hemi_entry = _lst_get_hemi_entry(hp, nside, npix, valid, mask_info, _LST_STATE)
+        S = _lst_max_tilt_contrast(low_map, high_map, hemi_entry, hp, nside, npix, _LST_STATE)
+        if not np.isfinite(S) or S &lt; 0.0:
+            return 0.0
+        return float(S)
+    except Exception:
+        return 0.0
+
+
+def summarize_results(planck_stat, sim_results, _desc=test_description,
+                      _low_min=_LST_LOW_MIN, _low_max=_LST_LOW_MAX,
+                      _high_min=_LST_HIGH_MIN, _high_max=_LST_HIGH_MAX,
+                      _axis_nside=_LST_AXIS_NSIDE):
+    import math
+    import numpy as np
+
+    def _as_float(x):
+        try:
+            v = float(x)
+            if np.isfinite(v):
+                return v
+            return np.nan
+        except Exception:
+            return np.nan
+
+    ps = _as_float(planck_stat)
+    try:
+        sims_all = np.asarray(sim_results, dtype=np.float64).ravel()
+    except Exception:
+        vals = []
+        try:
+            iterator = iter(sim_results)
+        except Exception:
+            iterator = []
+        for item in iterator:
+            v = _as_float(item)
+            if np.isfinite(v):
+                vals.append(v)
+        sims_all = np.asarray(vals, dtype=np.float64)
+    sims = sims_all[np.isfinite(sims_all)]
+    sims = np.maximum(sims, 0.0)
+    n = int(sims.size)
+
+    out = {
+        &quot;test_description&quot;: _desc,
+        &quot;statistic&quot;: &quot;S = max over coarse HEALPix hemisphere axes of |tau_N - tau_S|, where tau=log(V_ell11..30/V_ell2..10) and V is the unmasked pixel variance in that hemisphere.&quot;,
+        &quot;primary_tail&quot;: &quot;upper tail in S; larger values mean a stronger hemispherical contrast in the local low-l spectral tilt (high-band variance relative to low-band variance)&quot;,
+        &quot;low_band_ell&quot;: [int(_low_min), int(_low_max)],
+        &quot;high_band_ell&quot;: [int(_high_min), int(_high_max)],
+        &quot;axis_grid&quot;: {&quot;healpix_nside&quot;: int(_axis_nside), &quot;orientation&quot;: &quot;unoriented; one representative from each antipodal pair is scanned&quot;},
+        &quot;mask_and_transform_handling&quot;: &quot;finite pixels define the mask and the masked-sky mean; masked/non-finite pixels are filled with 0.0 before healpy spherical-harmonic transforms and ignored in hemisphere variances&quot;,
+        &quot;n_sims&quot;: n,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-l hemispherical spectral-tilt max contrast&quot;,
+            &quot;xlabel&quot;: &quot;S = max |Delta log(V_11-30 / V_2-10)|&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: &quot;Simulation distribution of the maximum hemispherical contrast in local spectral tilt. Large S indicates that one pair of opposite hemispheres has unusually different high-to-low low-l variance ratios.&quot;
+        }
+    }
+
+    if not np.isfinite(ps):
+        out[&quot;warning&quot;] = &quot;The Planck statistic supplied to summarize_results is not finite.&quot;
+        return out
+
+    ps = max(0.0, float(ps))
+    out[&quot;planck_S&quot;] = ps
+    if ps &lt; 700.0:
+        out[&quot;planck_max_high_low_ratio_contrast_factor&quot;] = float(math.exp(ps))
+    else:
+        out[&quot;planck_max_high_low_ratio_contrast_factor&quot;] = None
+        out[&quot;planck_ratio_factor_note&quot;] = &quot;exp(S) overflows double precision; S itself is the stable log contrast.&quot;
+
+    if n &lt;= 0:
+        out[&quot;warning&quot;] = &quot;No finite simulation statistics were supplied.&quot;
+        return out
+
+    mean = float(np.mean(sims))
+    median = float(np.median(sims))
+    std = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    if n &gt; 1:
+        q = np.percentile(sims, [1, 5, 16, 50, 84, 95, 99])
+    else:
+        q = np.repeat(sims[0], 7)
+
+    n_gt = int(np.count_nonzero(sims &gt; ps))
+    n_ge = int(np.count_nonzero(sims &gt;= ps))
+    n_lt = int(np.count_nonzero(sims &lt; ps))
+    n_le = int(np.count_nonzero(sims &lt;= ps))
+    n_eq = int(np.count_nonzero(sims == ps))
+    p_upper = float((n_ge + 1.0) / (n + 1.0))
+
+    out.update({
+        &quot;sim_mean&quot;: mean,
+        &quot;sim_median&quot;: median,
+        &quot;sim_std&quot;: std,
+        &quot;sim_min&quot;: float(np.min(sims)),
+        &quot;sim_max&quot;: float(np.max(sims)),
+        &quot;sim_percentile_1&quot;: float(q[0]),
+        &quot;sim_percentile_5&quot;: float(q[1]),
+        &quot;sim_percentile_16&quot;: float(q[2]),
+        &quot;sim_percentile_50&quot;: float(q[3]),
+        &quot;sim_percentile_84&quot;: float(q[4]),
+        &quot;sim_percentile_95&quot;: float(q[5]),
+        &quot;sim_percentile_99&quot;: float(q[6]),
+        &quot;zscore_vs_sims&quot;: float((ps - mean) / std) if std &gt; 0.0 and np.isfinite(std) else None,
+        &quot;n_sim_gt_planck&quot;: n_gt,
+        &quot;n_sim_ge_planck&quot;: n_ge,
+        &quot;n_sim_lt_planck&quot;: n_lt,
+        &quot;n_sim_le_planck&quot;: n_le,
+        &quot;n_sim_eq_planck&quot;: n_eq,
+        &quot;fraction_sims_ge_planck&quot;: float(n_ge / n),
+        &quot;empirical_p_upper_tail_plus_one&quot;: p_upper,
+        &quot;upper_tail_rank_descending_1_is_largest&quot;: int(n_gt + 1),
+        &quot;planck_percentile_midrank_low_to_high&quot;: float(100.0 * (n_lt + 0.5 * n_eq) / n),
+        &quot;is_5pct_upper_tail&quot;: bool(p_upper &lt;= 0.05),
+        &quot;is_1pct_upper_tail&quot;: bool(p_upper &lt;= 0.01),
+    })
+
+    if p_upper &lt;= 0.01:
+        out[&quot;interpretation&quot;] = &quot;Planck lies in the upper 1% simulation tail for S: an unusually strong hemispherical contrast in the low-l spectral tilt for this statistic.&quot;
+    elif p_upper &lt;= 0.05:
+        out[&quot;interpretation&quot;] = &quot;Planck lies in the upper 5% simulation tail for S: stronger hemispherical spectral-tilt contrast than most LCDM simulations.&quot;
+    else:
+        out[&quot;interpretation&quot;] = &quot;Planck is not in the upper 5% simulation tail for this low-l hemispherical spectral-tilt contrast statistic.&quot;
+
+    warnings = []
+    if n &gt; 1 and np.isfinite(std) and std == 0.0:
+        warnings.append(&quot;All finite simulation S values are identical; check map variation, healpy availability, lmax/nside compatibility, and mask handling.&quot;)
+    if n &gt; 1 and float(np.max(sims) - np.min(sims)) &lt;= 1.0e-15:
+        warnings.append(&quot;The simulation distribution is numerically collapsed to a constant.&quot;)
+    if warnings:
+        out[&quot;warnings&quot;] = warnings
+    return out
+
+
+# Some notebook registration wrappers execute code with separate globals and locals.
+# Make helper functions/constants visible through function.__globals__ so analyze_map
+# and summarize_results can resolve them when probed after registration.
+try:
+    globals().update(locals())
+except Exception:
+    pass</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/gpt5-5/test-30-low-l-hemispherical-spectral-tilt-max-contrast.png" alt="Statistic distribution for Low-l Hemispherical Spectral-Tilt Max Contrast">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>GPT5.5</td></tr>
+<tr><th>Run path</th><td>runs/anomaly_agent_gpt_run</td></tr>
+<tr><th>Primary p-value</th><td>0.241</td></tr>
+<tr><th>One-tailed p-value</th><td>0.241</td></tr>
+<tr><th>Two-tailed p-value</th><td>n/a</td></tr>
+<tr><th>Sigma</th><td>0.703</td></tr>
+<tr><th>Planck statistic</th><td>0.826</td></tr>
+<tr><th>Simulation mean</th><td>0.689</td></tr>
+<tr><th>Simulation std.</th><td>0.21</td></tr>
+<tr><th>Simulation median</th><td>0.652</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>one-tailed, upper</td></tr>
+<tr><th>Family</th><td>hemispherical</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/gpt5-5/test-30-low-l-hemispherical-spectral-tilt-max-contrast.png">Figure PNG</a>
+<a href="../../../assets/figures/gpt5-5/test-30-low-l-hemispherical-spectral-tilt-max-contrast.pdf">Figure PDF</a>
+<a href="../../../data/raw/gpt5-5/test-30-low-l-hemispherical-spectral-tilt-max-contrast.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/gpt5-5/test-30-low-l-hemispherical-spectral-tilt-max-contrast.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/gpt5-5/test-30-low-l-hemispherical-spectral-tilt-max-contrast.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 2 model(s).</p>
+  </footer>
+</body>
+</html>
