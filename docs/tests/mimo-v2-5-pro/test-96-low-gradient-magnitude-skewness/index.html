@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Gradient Magnitude Skewness · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 96 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Gradient Magnitude Skewness</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The skewness of the gradient magnitude of the low-ℓ CMB temperature map differs from the expected distribution under a Gaussian random field model (i.e., the null hypothesis is that the skewness matches simulations, and the alternative is that it does not).</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Compute the temperature gradient magnitude map from the SMICA CMB map filtered to ℓ ≤ 30 using spherical harmonic derivatives on a HEALPix grid (nside=256). The gradient magnitude |∇T| = sqrt((dT/dθ)² + ((1/sinθ)dT/dφ)²) is calculated at each pixel. The sample skewness of the gradient magnitude distribution across unmasked pixels serves as the test statistic, probing asymmetry in the intensity of spatial temperature fluctuations to distinguish Gaussian from non-Gaussian features.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck gradient magnitude skewness = 0.6501. Simulation mean ± std = 0.6443 ± 0.0697. The observed value falls at the 57th percentile of simulations, yielding z = 0.08 and a two-tailed p-value of 0.862. This is entirely consistent with Gaussian random field expectations.</p>
+          <p>Since |∇T| ≥ 0, the gradient magnitude distribution is inherently positively skewed (Rayleigh-like) even for Gaussian fields. The test correctly compares against simulations rather than assuming zero skewness. The Planck data show no discernible departure from the expected distribution—there is no evidence for excess or deficit in sharp gradient features relative to ΛCDM predictions.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect any departure from Gaussianity in the gradient magnitude distribution, whether positive or negative. The code and description explicitly consider both &quot;positive excess skew&quot; and &quot;negative excess skew&quot; as potential anomalies, and the summary statistics compute two-sided p-values. There is no clear directional expectation; the test is exploratory, aiming to identify non-Gaussian features in either direction. Therefore, a two-tailed test is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Standard CMB non-Gaussianity tests typically employ Minkowski functionals, genus statistics, or temperature-space skewness/kurtosis. Specific tests of gradient magnitude skewness at low multipoles do not appear prominently in published CMB anomaly surveys. This statistic probes a different aspect (gradient field asymmetry) than conventional approaches, though the underlying physics overlaps with existing studies of CMB topology.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Gradient Magnitude Skewness. &quot;
+    &quot;Compute the temperature gradient magnitude map from the low-ℓ (ℓ ≤ 30) &quot;
+    &quot;filtered SMICA map using finite differences on the HEALPix grid (nside=256). &quot;
+    &quot;The gradient magnitude is calculated at each pixel as the Euclidean norm of &quot;
+    &quot;the spatial gradient vector (dT/dθ, (1/sinθ)dT/dφ). Then, compute the &quot;
+    &quot;skewness of the distribution of these gradient magnitude values across all &quot;
+    &quot;unmasked pixels. The final scalar is the sample skewness (third moment divided &quot;
+    &quot;by the cube of the standard deviation) of the gradient magnitude distribution. &quot;
+    &quot;This statistic probes the asymmetry in the intensity of temperature fluctuations, &quot;
+    &quot;potentially distinguishing between Gaussian and non-Gaussian features in the &quot;
+    &quot;large-scale structure of the CMB.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the skewness of the gradient magnitude of the low-ℓ filtered map.
+
+    For a band-limited function (ℓ ≤ 30), alm2map_der1 computes exact spherical
+    harmonic derivatives—mathematically equivalent to finite differences but
+    vectorized and numerically stable, especially near the poles.
+    &quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    lmax = 30
+    valid = np.isfinite(m)
+
+    if np.sum(valid) &lt; 10:
+        return 0.0
+
+    # Replace masked pixels with 0 for harmonic transforms
+    m_filled = np.where(valid, m, 0.0)
+
+    # Decompose into spherical harmonics and compute first derivatives
+    nside_int = int(nside)
+    alm = hp.map2alm(m_filled, lmax=lmax)
+    # derivs = [T, dT/dθ, (1/sinθ) dT/dφ]
+    derivs = hp.alm2map_der1(alm, nside_int, lmax=lmax)
+
+    dT_dtheta = derivs[1]       # ∂T/∂θ
+    dT_dphi_sin = derivs[2]     # (1/sinθ) ∂T/∂φ
+
+    # Gradient magnitude: |∇T| = sqrt( (∂T/∂θ)² + ((1/sinθ) ∂T/∂φ)² )
+    grad_mag = np.sqrt(dT_dtheta ** 2 + dT_dphi_sin ** 2)
+
+    # Restrict to unmasked pixels
+    valid_grad = grad_mag[valid]
+
+    if len(valid_grad) &lt; 10:
+        return 0.0
+
+    mean_g = np.mean(valid_grad)
+    var_g = np.var(valid_grad)
+
+    if var_g &lt; 1e-30:
+        return 0.0
+
+    skew = float(np.mean((valid_grad - mean_g) ** 3) / (var_g ** 1.5))
+
+    if not np.isfinite(skew):
+        return 0.0
+    return skew
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the Low-ℓ Gradient Magnitude Skewness.&quot;&quot;&quot;
+    sims = np.asarray(sim_results, dtype=float)
+    sims = sims[np.isfinite(sims)]
+    n = len(sims)
+    if n == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims))
+    std_s = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    median_s = float(np.median(sims))
+    rank = int(np.sum(sims &lt;= planck_stat))
+    p_upper = float(np.mean(sims &gt;= planck_stat))
+    p_lower = float(np.mean(sims &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else 0.0
+    pct_rank = rank / n * 100 if n &gt; 0 else 50.0
+
+    if pct_rank &lt; 2.5 or pct_rank &gt; 97.5:
+        sig_desc = &quot;highly anomalous (&lt;2.5% or &gt;97.5% of sims)&quot;
+    elif pct_rank &lt; 5 or pct_rank &gt; 95:
+        sig_desc = &quot;marginally anomalous (&lt;5% or &gt;95% of sims)&quot;
+    elif pct_rank &lt; 25 or pct_rank &gt; 75:
+        sig_desc = &quot;noteworthy (outside IQR of sims)&quot;
+    else:
+        sig_desc = &quot;typical (within IQR of sims)&quot;
+
+    if planck_stat &gt; mean_s + std_s:
+        grad_desc = (
+            &quot;positive excess skew: the gradient magnitude distribution has a heavier &quot;
+            &quot;right tail than simulations predict, suggesting localized sharp features &quot;
+            &quot;(hot/cold spot boundaries) are more prominent in the Planck data than &quot;
+            &quot;expected from a Gaussian random field&quot;
+        )
+    elif planck_stat &lt; mean_s - std_s:
+        grad_desc = (
+            &quot;negative excess skew: the gradient magnitude distribution is more &quot;
+            &quot;compact/symmetric than simulations predict, suggesting the low-ℓ &quot;
+            &quot;temperature field has fewer or less prominent sharp features than &quot;
+            &quot;expected from a Gaussian random field&quot;
+        )
+    else:
+        grad_desc = (
+            &quot;gradient magnitude skewness is consistent with Gaussian random field &quot;
+            &quot;expectations (symmetric gradient intensity distribution)&quot;
+        )
+
+    # Gradient magnitude is inherently ≥ 0, so even for a Gaussian field the
+    # skewness will be positive (Rayleigh-like tail). The test compares against
+    # simulations rather than a fixed null value.
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;gradient_mag_skewness&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;sim_median&quot;: median_s,
+        &quot;z_score&quot;: z_score,
+        &quot;rank&quot;: rank,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n,
+        &quot;percentile_rank&quot;: pct_rank,
+        &quot;gradient_asymmetry&quot;: grad_desc,
+        &quot;significance_description&quot;: sig_desc,
+        &quot;interpretation&quot;: (
+            f&quot;Gradient magnitude skewness = {planck_stat:.4f}. &quot;
+            f&quot;Since |∇T| ≥ 0, the skewness is inherently positive even for Gaussian fields &quot;
+            f&quot;(Rayleigh-like distribution). The test compares against simulations to detect &quot;
+            f&quot;departures from Gaussianity. &quot;
+            f&quot;{grad_desc.capitalize()} &quot;
+            f&quot;Sim mean ± std = {mean_s:.4f} ± {std_s:.4f}. &quot;
+            f&quot;{sig_desc.capitalize()}. z = {z_score:.2f}, two-sided p = {p_two:.4f}.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Gradient Magnitude Skewness&quot;,
+            &quot;xlabel&quot;: &quot;Skewness of |∇T| (dimensionless)&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck skewness = {planck_stat:.4f}. &quot;
+                f&quot;Sim mean ± std = {mean_s:.4f} ± {std_s:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, P(two-sided) = {p_two:.4f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-96-low-gradient-magnitude-skewness.png" alt="Statistic distribution for Low-ℓ Gradient Magnitude Skewness">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.862</td></tr>
+<tr><th>One-tailed p-value</th><td>0.431</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.862</td></tr>
+<tr><th>Sigma</th><td>0.174</td></tr>
+<tr><th>Planck statistic</th><td>0.65</td></tr>
+<tr><th>Simulation mean</th><td>0.644</td></tr>
+<tr><th>Simulation std.</th><td>0.0697</td></tr>
+<tr><th>Simulation median</th><td>0.639</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-96-low-gradient-magnitude-skewness.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-96-low-gradient-magnitude-skewness.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-96-low-gradient-magnitude-skewness.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-96-low-gradient-magnitude-skewness.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-96-low-gradient-magnitude-skewness.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-96-low-gradient-magnitude-skewness.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Galactic North Skewness · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 23 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Galactic North Skewness</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The skewness of low-ℓ temperature fluctuations in the northern Galactic hemisphere is zero, consistent with the isotropic and Gaussian predictions of the ΛCDM model.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Skewness of pixel temperatures in the northern Galactic hemisphere (b &gt; 0) computed on a masked, low-ℓ (ℓ = 2–20) CMB temperature map, probing asymmetric tails in the large-scale fluctuation distribution.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck SMICA skewness = 0.0073. Simulation mean = 0.0001 ± 0.0225. The observed value sits at the 63.8th percentile of 1000 ΛCDM simulations (z = 0.35σ, two-tailed p = 0.724). Anomaly strength classified as negligible.</p>
+          <p>The slight positive skewness indicates a mild excess of warm pixels in the northern Galactic hemisphere, but the value is entirely consistent with isotropic, Gaussian ΛCDM expectations. No directional asymmetry in the third moment of the temperature distribution is detected at low multipoles.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed as a general exploration for asymmetry without a prior directional preference. The test description states that under isotropic ΛCDM, the skewness &quot;should be symmetric between hemispheres and centered near zero,&quot; and the code&#x27;s `summarize_results` function explicitly computes both left and right one-sided p-values and a two-sided p-value. The interpretation considers both significant negative skewness (excess cold) and positive skewness (excess warm) as potential anomalies. Since the test is motivated by a search for any unexpected deviation from symmetry, rather than a strong, pre-specified prediction of a particular sign, a two-tailed test is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Hemispherical asymmetry studies using the local variance estimator (LVE) find ~2σ–3σ power asymmetries at low multipoles (e.g., Sanyal et al. 2026, arXiv:2502.10768; McDonald 2014). However, those studies probe the *second* moment (variance/power), not the *third* moment (skewness). I found no prior published work specifically measuring hemispherical skewness of low-ℓ CMB temperature maps. The null result here is consistent with the absence of a detected third-moment anomaly, complementing but not directly contradicting the power-asymmetry findings.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Galactic North Skewness: On the masked, low-ℓ (ℓ = 2–20) temperature &quot;
+    &quot;map, compute the skewness (the third standardized moment) of the pixel &quot;
+    &quot;temperature values restricted to the northern Galactic hemisphere (Galactic &quot;
+    &quot;latitude b &gt; 0). This statistic probes whether the large-scale temperature &quot;
+    &quot;fluctuations in the Galactic north exhibit asymmetric tails in their &quot;
+    &quot;distribution — a property that could signal anomalous alignment, preferred &quot;
+    &quot;directions, or non-Gaussian features at low multipoles. Under isotropic &quot;
+    &quot;ΛCDM the skewness should be symmetric between hemispheres and centered &quot;
+    &quot;near zero, so any significant deviation warrants investigation.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute skewness of low-ℓ temperatures in the northern Galactic hemisphere.
+
+    Steps:
+    1. Identify unmasked pixels with finite values.
+    2. Determine which pixels lie in the northern Galactic hemisphere (b &gt; 0),
+       equivalent to colatitude θ &lt; π/2.
+    3. Extract the temperature values at those pixels.
+    4. Compute and return the skewness (third standardized moment).
+    &quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    npix = len(m)
+
+    # Step 1: Valid (unmasked) pixels
+    valid = np.isfinite(m)
+
+    # Step 2: Northern Galactic hemisphere — b &gt; 0 ↔ θ &lt; π/2
+    # hp.pix2ang returns (theta, phi) in Healpix convention
+    theta, _ = hp.pix2ang(nside, np.arange(npix))
+    north = theta &lt; (np.pi / 2.0)
+
+    # Combined mask: valid AND northern
+    mask = valid &amp; north
+
+    # Step 3: Extract temperatures in the selected region
+    temps = m[mask]
+
+    # Safety: need at least 3 values for skewness
+    if len(temps) &lt; 3:
+        return 0.0
+
+    # Step 4: Compute skewness = E[(X - mu)^3] / sigma^3
+    mu = np.mean(temps)
+    diffs = temps - mu
+    n = len(temps)
+    # Population skewness (third standardized moment)
+    m3 = np.mean(diffs ** 3)
+    m2 = np.mean(diffs ** 2)
+    sigma = np.sqrt(m2)
+    if sigma &lt; 1e-30:
+        return 0.0
+    skewness = m3 / (sigma ** 3)
+
+    return float(skewness)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Galactic North Skewness anomaly.
+
+    Skewness near zero is expected. Significant negative skewness means the
+    northern hemisphere has an excess of cold pixels (heavy left tail), while
+    significant positive skewness means an excess of hot pixels. We test
+    both tails.
+    &quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&#x27;nan&#x27;),
+            &quot;rank&quot;: 0,
+            &quot;n_sims&quot;: 0,
+            &quot;percentile&quot;: float(&#x27;nan&#x27;),
+            &quot;sim_mean&quot;: float(&#x27;nan&#x27;),
+            &quot;sim_std&quot;: float(&#x27;nan&#x27;),
+            &quot;interpretation&quot;: &quot;No simulation results to compare.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Galactic North Skewness&quot;,
+                &quot;xlabel&quot;: &quot;Skewness&quot;,
+                &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data available.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    # Two-sided p-value: fraction of sims at least as extreme as Planck
+    p_value = float(np.mean(np.abs(sim) &gt;= np.abs(planck_stat)))
+
+    # One-sided p-values
+    p_left = float(np.mean(sim &lt;= planck_stat))
+    p_right = float(np.mean(sim &gt;= planck_stat))
+
+    # Rank (among simulations)
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    # Anomaly classification
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    if planck_stat &lt; 0:
+        tail_desc = (
+            f&quot;Planck shows negative skewness ({planck_stat:.4f}), indicating &quot;
+            f&quot;an excess of cold pixels in the northern Galactic hemisphere. &quot;
+        )
+    else:
+        tail_desc = (
+            f&quot;Planck shows positive skewness ({planck_stat:.4f}), indicating &quot;
+            f&quot;an excess of warm pixels in the northern Galactic hemisphere. &quot;
+        )
+
+    if p_value &lt;= 0.05:
+        direction = (
+            f&quot;This is at the {percentile:.1f}th percentile of simulations &quot;
+            f&quot;(two-sided p = {p_value:.4f}), which is anomalously extreme.&quot;
+        )
+    elif p_value &lt;= 0.10:
+        direction = (
+            f&quot;This is at the {percentile:.1f}th percentile of simulations &quot;
+            f&quot;(two-sided p = {p_value:.4f}), showing a moderate tension.&quot;
+        )
+    else:
+        direction = (
+            f&quot;This is at the {percentile:.1f}th percentile of simulations &quot;
+            f&quot;(two-sided p = {p_value:.4f}), consistent with ΛCDM expectations.&quot;
+        )
+
+    interp = (
+        f&quot;Low-ℓ (ℓ = 2–20) Galactic North skewness = {planck_stat:.4f}. &quot;
+        f&quot;{tail_desc}{direction} &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} ± {std_sim:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}.&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the skewness of pixel temperatures in the northern &quot;
+        &quot;Galactic hemisphere (b &gt; 0) for the low-ℓ (ℓ = 2–20) masked map. &quot;
+        &quot;Under isotropic Gaussian ΛCDM, the skewness is centered near zero &quot;
+        &quot;with scatter determined by cosmic variance. A significant negative &quot;
+        &quot;value indicates an excess of cold fluctuations in the north; a &quot;
+        &quot;significant positive value indicates an excess of hot fluctuations. &quot;
+        &quot;The red line marks the Planck SMICA value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_left&quot;: p_left,
+        &quot;p_value_right&quot;: p_right,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Galactic North Skewness&quot;,
+            &quot;xlabel&quot;: &quot;Skewness&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-23-low-galactic-north-skewness.png" alt="Statistic distribution for Low-ℓ Galactic North Skewness">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.724</td></tr>
+<tr><th>One-tailed p-value</th><td>0.362</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.724</td></tr>
+<tr><th>Sigma</th><td>0.353</td></tr>
+<tr><th>Planck statistic</th><td>0.00734</td></tr>
+<tr><th>Simulation mean</th><td>7.18e-05</td></tr>
+<tr><th>Simulation std.</th><td>0.0225</td></tr>
+<tr><th>Simulation median</th><td>0.000483</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-23-low-galactic-north-skewness.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-23-low-galactic-north-skewness.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-23-low-galactic-north-skewness.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-23-low-galactic-north-skewness.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-23-low-galactic-north-skewness.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-23-low-galactic-north-skewness.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

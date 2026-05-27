@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Parity-Even Kurtosis · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 64 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Parity-Even Kurtosis</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · parity · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The CMB temperature map exhibits excess kurtosis in its parity-even low-ℓ components compared to Gaussian random field expectations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Computes the kurtosis of the parity-even field formed from CMB temperature multipoles ℓ=2 to 10 over the full sky.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The observed kurtosis is 2.557 (excess kurtosis = -0.443). Simulation mean ± σ = 2.873 ± 0.460. The Planck value is 0.69σ below the simulation mean, with a one-tailed p-value of 0.731 (fraction of sims ≥ observed).</p>
+          <p>The observed kurtosis is slightly lower than, but consistent with, the distribution expected from Gaussian realizations. The negative z-score indicates the Planck map is less kurtotic than average simulations, not more.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The analysis code explicitly computes the p-value as the fraction of simulations with kurtosis greater than or equal to the observed value, indicating a directional interest in detecting unusually high kurtosis.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Previous studies have examined parity asymmetry in power and multipole alignments (e.g., Aluri et al. 2017, Copi et al. 2004), but no prior work was found that specifically analyzes the kurtosis of the parity-even low-ℓ field.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Parity-Even Kurtosis: &quot;
+    &quot;For the band-limited CMB temperature map containing multipoles ℓ=2 through 10, &quot;
+    &quot;compute the parity-even field T_even(n) defined as the sum over all even-ℓ &quot;
+    &quot;spherical harmonic components (ℓ = 2, 4, 6, 8, 10). &quot;
+    &quot;Calculate the kurtosis (the fourth standardized moment) of the pixel values of &quot;
+    &quot;T_even over the full unmasked sky. The statistic is this single scalar kurtosis value.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the kurtosis (4th standardized moment) of the parity-even low-ℓ CMB field.&quot;&quot;&quot;
+
+    # Identify unmasked pixels
+    finite_mask = np.isfinite(m)
+
+    # Replace NaN with 0 for healpy transforms (never pass NaN to healpy)
+    m_clean = np.where(finite_mask, m, 0.0)
+
+    nside = hp.npix2nside(len(m))
+    lmax = 10
+
+    # Compute spherical harmonic coefficients
+    alm = hp.map2alm(m_clean, lmax=lmax)
+
+    # Zero out all components except even ℓ in {2, 4, 6, 8, 10}
+    for ell in range(lmax + 1):
+        if ell &lt; 2 or ell % 2 == 1:
+            for em in range(ell + 1):
+                idx = hp.Alm.getidx(lmax, ell, em)
+                alm[idx] = 0.0
+
+    # Reconstruct parity-even map
+    T_even = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Extract pixel values on unmasked sky only
+    values = T_even[finite_mask]
+
+    # Compute kurtosis (fourth standardized moment): μ₄ / σ⁴
+    n = len(values)
+    mean = np.mean(values)
+    diff = values - mean
+    m2 = np.mean(diff ** 2)
+    m4 = np.mean(diff ** 4)
+
+    # Guard against degenerate case (negligible variance)
+    if m2 &lt; 1e-30:
+        return 3.0  # Default to Gaussian expectation
+
+    kurtosis = m4 / (m2 * m2)
+
+    return float(kurtosis)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the parity-even kurtosis relative to the simulation ensemble.&quot;&quot;&quot;
+    sims = np.array(sim_results, dtype=float)
+    sims_finite = sims[np.isfinite(sims)]
+    n_sims = len(sims_finite)
+
+    if n_sims == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims_finite))
+    std_s = float(np.std(sims_finite, ddof=1)) if n_sims &gt; 1 else 0.0
+    p_value = float(np.mean(sims_finite &gt;= planck_stat)) if n_sims &gt; 0 else np.nan
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else np.nan
+
+    # For a Gaussian field the fourth standardized moment is exactly 3
+    excess_kurtosis = planck_stat - 3.0
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;excess_kurtosis&quot;: excess_kurtosis,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value&quot;: p_value,
+        &quot;n_sims&quot;: n_sims,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Parity-Even Kurtosis&quot;,
+            &quot;xlabel&quot;: &quot;Kurtosis (4th standardized moment)&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck kurtosis = {planck_stat:.4f} (excess = {excess_kurtosis:.4f}).  &quot;
+                f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}.  &quot;
+                f&quot;z = {z_score:.2f}, p = {p_value:.3f}  &quot;
+                f&quot;(fraction of sims ≥ Planck).&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-64-low-parity-even-kurtosis.png" alt="Statistic distribution for Low-ℓ Parity-Even Kurtosis">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.731</td></tr>
+<tr><th>One-tailed p-value</th><td>0.731</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.538</td></tr>
+<tr><th>Sigma</th><td>0.616</td></tr>
+<tr><th>Planck statistic</th><td>2.557</td></tr>
+<tr><th>Simulation mean</th><td>2.873</td></tr>
+<tr><th>Simulation std.</th><td>0.46</td></tr>
+<tr><th>Simulation median</th><td>2.807</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>parity</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-64-low-parity-even-kurtosis.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-64-low-parity-even-kurtosis.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-64-low-parity-even-kurtosis.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-64-low-parity-even-kurtosis.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-64-low-parity-even-kurtosis.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-64-low-parity-even-kurtosis.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

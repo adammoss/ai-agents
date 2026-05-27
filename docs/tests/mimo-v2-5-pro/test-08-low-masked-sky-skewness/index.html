@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Masked-Sky Skewness · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 08 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Masked-Sky Skewness</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The null hypothesis is that the CMB temperature map at large scales (ℓ=2-20) exhibits skewness consistent with zero, as expected from a Gaussian random field under ΛCDM simulations. The alternative hypothesis is that the skewness deviates from zero, indicating non-Gaussianity.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Applies the Planck foreground mask and bandpass-filters the temperature map to retain only multipoles ℓ = 2–20. Computes the skewness (third central moment normalised by σ³) of pixel values in unmasked regions, providing a single scalar probe of large-scale non-Gaussianity.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck skewness S = −0.209; simulation mean = 0.001, σ_sim = 0.167; z-score = −1.26; two-tailed p-value = 0.206. The observed value lies comfortably within the distribution of 1000 lensed-ΛCDM simulations.</p>
+          <p>The negative skewness indicates a slight tendency toward cold-spot excess, but the deviation is well within Gaussian expectations. No evidence for unexpected large-scale non-Gaussianity is found in the ℓ = 2–20 range after applying the Planck mask.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test description emphasizes significant deviations from zero skewness in either direction, and the analysis code computes a two-sided p-value to assess if the Planck value is extreme relative to simulations without directional bias. No specific directional prediction is provided, making this an exploratory test for non-Gaussian anomalies at large scales, necessitating a two-tailed approach.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Previous studies have probed low-ℓ anomalies using multipole vectors, planarity, and alignment diagnostics (e.g., Copi et al. 2004), but a direct comparison to a masked-sky pixel skewness statistic at these multipoles could not be found in the literature. Searches for &quot;CMB low multipole skewness&quot; returned work on primordial f_NL and ellipticity rather than this specific observable. The result is broadly consistent with the general finding that most low-ℓ non-Gaussianity tests show no strong departure from ΛCDM.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Masked-Sky Skewness. For each map, the Planck mask is applied (masked &quot;
+    &quot;pixels are np.nan) and the temperature anisotropies are filtered to retain only &quot;
+    &quot;multipoles ℓ = 2 to 20 via spherical harmonic decomposition. The skewness of &quot;
+    &quot;the pixel values in the unmasked region is then computed as the third central &quot;
+    &quot;moment divided by the cube of the standard deviation. This single scalar &quot;
+    &quot;quantifies large-scale non-Gaussianity in the CMB temperature map. Significant &quot;
+    &quot;deviations from zero (the Gaussian expectation) would indicate unexpected &quot;
+    &quot;non-Gaussian features at the largest angular scales.&quot;
+)
+
+
+def analyze_map(m):
+    m = np.asarray(m, dtype=np.float64)
+
+    # Identify unmasked pixels (those that are finite)
+    valid_mask = np.isfinite(m)
+
+    # Replace NaN with 0.0 for healpy spherical-harmonic transforms
+    m_clean = np.where(valid_mask, m, 0.0)
+
+    # Compute spherical harmonic coefficients up to lmax=20
+    lmax = 20
+    alm = hp.map2alm(m_clean, lmax=lmax)
+
+    # Zero out monopole (l=0, index 0) and dipole (l=1, indices 1-2)
+    # so only l=2..20 survive
+    hp.remove_dipole(m_clean, copy=False)  # this handles l=0 and l=1
+    # Actually, let&#x27;s do it properly via alm manipulation
+    # Re-compute cleanly: zero l=0 (1 coeff) and l=1 (2 coeffs) = first 3 indices
+    alm[:3] = 0.0
+
+    # Reconstruct the filtered map containing only l=2..20
+    nside = hp.npix2nside(len(m))
+    m_filtered = hp.alm2map(alm, nside=nside, lmax=lmax, verbose=False)
+
+    # Extract pixel values only in the unmasked region
+    values = m_filtered[valid_mask]
+
+    # Compute skewness: third central moment / sigma^3
+    n = len(values)
+    if n &lt; 3:
+        return 0.0
+
+    mu = np.mean(values)
+    centered = values - mu
+    sigma = np.std(values, ddof=0)
+
+    if sigma == 0.0:
+        return 0.0
+
+    skewness = np.mean(centered ** 3) / (sigma ** 3)
+
+    return float(skewness)
+
+
+def summarize_results(planck_stat, sim_results):
+    sim_arr = np.array(sim_results, dtype=np.float64)
+    finite_mask = np.isfinite(sim_arr)
+    n_finite = int(finite_mask.sum())
+
+    if n_finite &gt; 0:
+        valid = sim_arr[finite_mask]
+        # Two-sided p-value: how extreme is Planck relative to simulations?
+        rank = int(np.sum(np.abs(valid) &gt;= np.abs(planck_stat)))
+        p_value = rank / n_finite
+    else:
+        rank = 0
+        p_value = float(&#x27;nan&#x27;)
+
+    sim_median = float(np.nanmedian(sim_arr))
+    sim_mean = float(np.nanmean(sim_arr))
+    sim_std = float(np.nanstd(sim_arr))
+
+    # Determine direction of skewness
+    if planck_stat &gt; 0:
+        skew_dir = &quot;positive (tail toward hot spots)&quot;
+    else:
+        skew_dir = &quot;negative (tail toward cold spots)&quot;
+
+    interpretation = (
+        f&quot;Anomalous: low-ℓ skewness S = {planck_stat:.4f} ({skew_dir}), &quot;
+        f&quot;two-sided p = {p_value:.3f} — inconsistent with Gaussian ΛCDM&quot;
+        if p_value &lt; 0.05
+        else f&quot;Low-ℓ skewness S = {planck_stat:.4f} ({skew_dir}) is consistent &quot;
+             f&quot;with Gaussian ΛCDM expectations (two-sided p = {p_value:.3f})&quot;
+    )
+
+    result = {
+        &quot;test_description&quot;: test_description,
+        &quot;planck_stat&quot;: float(planck_stat),
+        &quot;p_value&quot;: float(p_value),
+        &quot;rank&quot;: rank,
+        &quot;n_simulations&quot;: len(sim_results),
+        &quot;n_valid&quot;: n_finite,
+        &quot;sim_mean&quot;: sim_mean,
+        &quot;sim_std&quot;: sim_std,
+        &quot;sim_median&quot;: sim_median,
+        &quot;exceeds_95th_percentile&quot;: bool(p_value &lt; 0.05),
+        &quot;interpretation&quot;: interpretation,
+        &quot;skewness_direction&quot;: skew_dir,
+        &quot;expected_gaussian_skewness&quot;: &quot;≈0 for a Gaussian random field&quot;,
+    }
+
+    result[&quot;plot_spec&quot;] = {
+        &quot;kind&quot;: &quot;histogram&quot;,
+        &quot;title&quot;: &quot;Low-ℓ Masked-Sky Skewness (ℓ = 2–20)&quot;,
+        &quot;xlabel&quot;: &quot;Skewness S = ⟨(T−μ)³⟩ / σ³&quot;,
+        &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+        &quot;bins&quot;: 50,
+        &quot;caption&quot;: (
+            f&quot;Histogram of low-ℓ skewness S from {n_finite} lensed-ΛCDM simulations &quot;
+            f&quot;(ℓ = 2–20, Planck mask applied). Planck value = {planck_stat:.4f} &quot;
+            f&quot;(two-sided p = {p_value:.3f}, rank {rank}/{n_finite}). &quot;
+            f&quot;Skewness measures large-scale non-Gaussianity; a value of 0 is expected &quot;
+            f&quot;for a statistically isotropic Gaussian CMB sky.&quot;
+        ),
+    }
+
+    return result</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-08-low-masked-sky-skewness.png" alt="Statistic distribution for Low-ℓ Masked-Sky Skewness">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.206</td></tr>
+<tr><th>One-tailed p-value</th><td>0.103</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.206</td></tr>
+<tr><th>Sigma</th><td>1.265</td></tr>
+<tr><th>Planck statistic</th><td>-0.209</td></tr>
+<tr><th>Simulation mean</th><td>0.00117</td></tr>
+<tr><th>Simulation std.</th><td>0.167</td></tr>
+<tr><th>Simulation median</th><td>0.0015</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-08-low-masked-sky-skewness.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-08-low-masked-sky-skewness.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-08-low-masked-sky-skewness.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-08-low-masked-sky-skewness.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-08-low-masked-sky-skewness.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-08-low-masked-sky-skewness.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

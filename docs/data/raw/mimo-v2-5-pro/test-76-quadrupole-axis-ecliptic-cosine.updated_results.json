@@ -1,0 +1,54 @@
+{
+  "results": {
+    "test_name": "Quadrupole Axis Ecliptic Cosine",
+    "test_description": "For the low-ℓ temperature map (ℓ=2 only), compute the quadrupole moment tensor T_{ij} from the spherical harmonic coefficients a_{2m} using the standard tensor spherical harmonics. Diagonalize T_{ij} to find the eigenvector corresponding to the largest eigenvalue, representing the preferred axis of the quadrupole. Express this eigenvector as a unit vector in Cartesian coordinates (e.g., using the ecliptic coordinate system with the z-axis aligned to the ecliptic north pole). Compute the cosine of the angle between this unit vector and the ecliptic north pole (0,0,1). Report this cosine as a single scalar anomaly statistic. The computation is efficient on nside=256 maps as it only requires low-ℓ harmonic coefficients and a 3×3 matrix diagonalization.",
+    "test_hypothesis": "The absolute value of the cosine of the angle between the quadrupole preferred axis and the ecliptic north pole is anomalously small, indicating the quadrupole axis lies close to the ecliptic plane.",
+    "test_type": "one-tailed, lower (for the absolute value)",
+    "justification": "The test description explicitly states that a small absolute cosine is anomalous because the CMB quadrupole is known to have a preferred direction near the ecliptic plane. This is a directional hypothesis: under statistical isotropy, the absolute cosine should be uniformly distributed, but the alternative hypothesis predicts it to be concentrated near zero (lower tail). Thus, the test is one-tailed, focusing on small values of the absolute cosine.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": -0.6730968608252123,
+    "mean_sim_stat": 0.087134442240151,
+    "std_sim_stat": 0.6124496512563011,
+    "median_sim_stat": 0.16722888530734653,
+    "sigma": 1.0194276182343704,
+    "p_value_one_tailed": 0.154,
+    "tail": "lower"
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"For the low-ℓ temperature map (ℓ=2 only), compute the quadrupole moment tensor \"\n    \"T_{ij} from the spherical harmonic coefficients a_{2m} by reconstructing the ℓ=2 map \"\n    \"and numerically summing T_2(p) * n_i(p) * n_j(p) over all pixels. Diagonalize the \"\n    \"3×3 tensor to find the eigenvector corresponding to the largest eigenvalue, representing \"\n    \"the preferred axis of the quadrupole. Express this eigenvector as a unit vector in \"\n    \"Cartesian coordinates aligned with the ecliptic system (z-axis = ecliptic north pole). \"\n    \"The anomaly statistic is the cosine of the angle between this quadrupole axis and the \"\n    \"ecliptic north pole (0,0,1), which equals simply the z-component of the eigenvector. \"\n    \"This cosine ranges from -1 (anti-aligned) to +1 (aligned), with values near 0 indicating \"\n    \"an axis perpendicular to the ecliptic pole. The CMB quadrupole is known to have a \"\n    \"preferred direction near the ecliptic plane, so a small absolute cosine would be \"\n    \"anomalous. The computation is efficient as it only requires low-ℓ harmonics and a 3×3 \"\n    \"matrix diagonalization.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return cos(angle) between the quadrupole preferred axis and ecliptic north pole.\"\"\"\n    nside = hp.npix2nside(len(m))\n    npix = hp.nside2npix(nside)\n    lmax = 2\n\n    # --- 1. Replace NaNs with 0 for healpy compatibility ---\n    mask_valid = np.isfinite(m)\n    m_clean = np.where(mask_valid, m, 0.0)\n\n    # --- 2. Compute a_lm and keep only ℓ=2 ---\n    alm = hp.map2alm(m_clean, lmax=lmax, iter=10)\n    # Zero out ℓ=0 and ℓ=1\n    for ell in range(2):\n        for m_idx in range(ell + 1):\n            alm[hp.Alm.getidx(lmax, ell, m_idx)] = 0.0\n\n    # --- 3. Reconstruct the ℓ=2 only map ---\n    T2 = hp.alm2map(alm, nside, lmax=lmax, verbose=False)\n\n    # --- 4. Compute pixel unit vectors ---\n    vecs = np.array(hp.pix2vec(nside, np.arange(npix)))  # shape (3, npix)\n    # vecs[0] = x, vecs[1] = y, vecs[2] = z (ecliptic coords)\n\n    # --- 5. Build the quadrupole moment tensor Q_{ij} = Σ_p T2(p) * n_i(p) * n_j(p) ---\n    # This is a symmetric 3x3 tensor\n    Q = np.zeros((3, 3))\n    for i in range(3):\n        for j in range(i, 3):\n            Q[i, j] = np.sum(T2 * vecs[i] * vecs[j])\n            Q[j, i] = Q[i, j]\n\n    # --- 6. Diagonalize to find preferred axis ---\n    eigenvalues, eigenvectors = np.linalg.eigh(Q)\n    # eigh returns eigenvalues in ascending order\n    # The preferred axis corresponds to the largest eigenvalue (index 2)\n    preferred_axis = eigenvectors[:, 2]  # unit eigenvector\n\n    # --- 7. Cosine of angle with ecliptic north pole (0, 0, 1) ---\n    cos_angle = preferred_axis[2]  # z-component of the eigenvector\n\n    return float(cos_angle)\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Interpret the Quadrupole Axis Ecliptic Cosine statistic.\"\"\"\n    sims = np.asarray(sim_results, dtype=float)\n    sims = sims[np.isfinite(sims)]\n    n = len(sims)\n\n    if n == 0:\n        return {\"planck_stat\": planck_stat, \"note\": \"No finite simulation results.\"}\n\n    mean_s = float(np.mean(sims))\n    std_s = float(np.std(sims, ddof=1)) if n > 1 else 0.0\n    p_upper = float(np.mean(sims >= planck_stat))\n    p_lower = float(np.mean(sims <= planck_stat))\n    p_two = min(2.0 * min(p_upper, p_lower), 1.0)\n    z_score = (planck_stat - mean_s) / std_s if std_s > 0 else np.nan\n\n    abs_planck = abs(planck_stat)\n    p_abs_upper = float(np.mean(np.abs(sims) >= abs_planck))\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"planck_stat_abs\": abs_planck,\n        \"sim_mean\": mean_s,\n        \"sim_std\": std_s,\n        \"z_score\": z_score,\n        \"p_value_upper\": p_upper,\n        \"p_value_lower\": p_lower,\n        \"p_value_two_sided\": p_two,\n        \"p_value_abs_upper\": p_abs_upper,\n        \"n_sims\": n,\n        \"interpretation\": (\n            \"The cosine of the angle between the quadrupole preferred axis and the ecliptic \"\n            \"north pole. A value near ±1 means the quadrupole axis is aligned/anti-aligned with \"\n            \"the ecliptic pole, while a value near 0 means it lies in or near the ecliptic \"\n            \"plane. The CMB quadrupole is known to have its axis close to the ecliptic plane, \"\n            \"so a small |cos(angle)| (p_value_abs_upper small) would indicate an anomalous \"\n            \"alignment with the ecliptic. Under statistical isotropy, the cosine should be \"\n            \"uniformly distributed in [-1, 1].\"\n        ),\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Quadrupole Axis Ecliptic Cosine\",\n            \"xlabel\": \"cos(angle) with ecliptic north pole\",\n            \"ylabel\": \"Count\",\n            \"bins\": 30,\n            \"caption\": (\n                f\"Planck cos(θ) = {planck_stat:.4f} (|cos(θ)| = {abs_planck:.4f}). \"\n                f\"Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}. \"\n                f\"z = {z_score:.2f}, p(two-sided) = {p_two:.3f}. \"\n                f\"P(|cos| ≥ |cos_planck|) = {p_abs_upper:.3f}.\"\n            ),\n        },\n    }\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": -0.9981365562286738,
+    "sim_max": 0.9999747186118639,
+    "z_score": -1.2406751979998876,
+    "thresholds": [
+      -0.9345011427612805,
+      0.9667437187546718
+    ],
+    "planck_stat_abs": 0.6730968608252123,
+    "p_value_upper": 0.846,
+    "p_value_lower": 0.154,
+    "p_value_abs_upper": 0.389,
+    "interpretation": "The cosine of the angle between the quadrupole preferred axis and the ecliptic north pole. A value near ±1 means the quadrupole axis is aligned/anti-aligned with the ecliptic pole, while a value near 0 means it lies in or near the ecliptic plane. The CMB quadrupole is known to have its axis close to the ecliptic plane, so a small |cos(angle)| (p_value_abs_upper small) would indicate an anomalous alignment with the ecliptic. Under statistical isotropy, the cosine should be uniformly distributed in [-1, 1].",
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Quadrupole Axis Ecliptic Cosine",
+      "xlabel": "cos(angle) with ecliptic north pole",
+      "ylabel": "Count",
+      "bins": 30,
+      "caption": "Planck cos(θ) = -0.6731 (|cos(θ)| = 0.6731). Sim mean ± σ = 0.0871 ± 0.6128. z = -1.24, p(two-sided) = 0.308. P(|cos| ≥ |cos_planck|) = 0.389."
+    }
+  },
+  "updated_summary": {
+    "Test name": "Quadrupole Axis Ecliptic Cosine",
+    "Description": "The preferred axis of the CMB quadrupole (ℓ=2) is extracted by diagonalizing the quadrupole moment tensor built from a₂ₘ coefficients. The eigenvector of the largest eigenvalue is expressed in ecliptic Cartesian coordinates, and the cosine of its angle with the ecliptic north pole (0,0,1) is reported as the anomaly statistic.",
+    "Results": "The Planck quadrupole axis yields cos(θ) = −0.673 (|cos(θ)| = 0.673), corresponding to ~48° from the ecliptic pole (~42° from the ecliptic plane). The z-score is −1.24 with one-tailed lower p-value = 0.154. The simulation-based p-value for the absolute cosine test is P(|cos| ≥ 0.673) = 0.389, meaning the Planck value sits comfortably within the simulated distribution and is not in the lower tail.",
+    "Interpretation": "The hypothesis predicted an anomalously small |cos(θ)|, indicating alignment with the ecliptic plane. Instead, |cos(θ)| = 0.673 is entirely consistent with statistical isotropy — roughly 61% of isotropic realizations have |cos| ≤ 0.673. The quadrupole axis is moderately inclined relative to the ecliptic pole but shows no statistically significant preference for the ecliptic plane.",
+    "Meets hypothesis?": "No",
+    "Comparison to literature": "The ecliptic alignment of the CMB quadrupole has been investigated extensively (e.g., Tegmark et al. 2003; Copi et al. 2004; Planck 2013 XVI; Planck 2020). Most prior studies focus on quadrupole–octupole alignment or multipole axis correlations rather than isolating this single cosine statistic, though related directional tests exist. The search results did not return a directly comparable published analysis using this exact statistic.",
+    "Test novelty": "Variation",
+    "Verdict": "No anomalies found"
+  }
+}

@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Antipodal Temperature Difference Variance · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 27 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Antipodal Temperature Difference Variance</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · variance · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The CMB temperature map is consistent with isotropic ΛCDM simulations in terms of antipodal temperature difference variance at low multipoles.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The CMB temperature map is filtered to retain only multipoles ℓ=2–5, and the temperature difference ΔT(θ,φ) = T(θ,φ) − T(π−θ, φ+π) is computed between each unmasked pixel and its antipode. The variance of ΔT over all valid pixels is taken as the test statistic. Since spherical harmonics satisfy Y_ℓm(π−θ,φ+π) = (−1)^ℓ Y_ℓm(θ,φ), even-ℓ modes contribute correlated signals while odd-ℓ modes contribute anti-correlated signals; the variance therefore probes the even–odd multipole balance.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck Var(ΔT) = 1223.9 μK², compared to simulation mean 1480.8 ± 626.0 μK² (1000 ΛCDM realisations). The two-tailed p-value is 0.806 (z = −0.41, 40.3rd percentile). Anomaly strength is negligible.</p>
+          <p>The observed antipodal temperature difference variance at low multipoles is fully consistent with isotropic ΛCDM simulations. There is no evidence of anomalous hemispherical power asymmetry or odd–even multipole imbalance in this pixel-space statistic.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect any departure from isotropy at large angular scales, as evidenced by both high and low variance being of interest. The analysis code computes a two-sided p-value and interprets anomalies in both directions, indicating no prior directional preference.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Previous literature has studied hemispherical asymmetry and odd–even multipole imbalances using spherical-harmonic-space diagnostics (e.g., odd–even ℓ power ratios, dipole modulation). However, no directly comparable pixel-space variance-of-antipodal-differences statistic was identified in the search results or in prior work known to the author.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Antipodal Temperature Difference Variance: For the low-ℓ temperature &quot;
+    &quot;map (filtered to retain multipoles ℓ=2–5), compute the temperature difference &quot;
+    &quot;between each unmasked pixel and its antipodal point (ΔT(θ,φ) = T(θ,φ) − &quot;
+    &quot;T(π−θ, φ+π)). Then calculate the variance of these ΔT values over all valid &quot;
+    &quot;pixels. This single scalar quantifies large-scale antipodal asymmetry; a higher &quot;
+    &quot;variance indicates stronger anti-correlation compared to the distribution from &quot;
+    &quot;simulated LCDM maps.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute variance of antipodal temperature differences in the ℓ=2–5 filtered map.
+
+    Steps:
+      1. Replace masked (NaN) pixels with 0.0 for healpy compatibility.
+      2. Compute alm up to lmax=5, zero out ℓ=0 and ℓ=1, reconstruct the
+         band-limited map containing only ℓ=2–5.
+      3. Determine antipodal pixel indices for every pixel via pix→ang→ang→pix.
+      4. Identify pixels where both the pixel and its antipode are unmasked
+         in the original map.
+      5. Compute ΔT = T_filtered(p) − T_filtered(antipode(p)) for all valid
+         pixels and return np.var(ΔT).
+
+    Returns
+    -------
+    float
+        The population variance of antipodal temperature differences.
+    &quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    m_filled = np.where(np.isfinite(m), m, 0.0)
+
+    # --- Band-limit to ℓ = 2–5 ---
+    lmax = 5
+    alm = hp.map2alm(m_filled, lmax=lmax)
+    # Zero out ℓ = 0 and ℓ = 1
+    for ell in range(2):
+        for em in range(ell + 1):
+            alm[hp.Alm.getidx(lmax, ell, em)] = 0.0
+    m_filtered = hp.alm2map(alm, nside, verbose=False)
+
+    # --- Antipodal pixel mapping (vectorised) ---
+    npix = hp.nside2npix(nside)
+    pix = np.arange(npix)
+    theta, phi = hp.pix2ang(nside, pix)
+    antipix = hp.ang2pix(nside, np.pi - theta, phi + np.pi)
+
+    # --- Valid pairs: both pixel and antipode unmasked in original map ---
+    valid = np.isfinite(m) &amp; np.isfinite(m[antipix])
+
+    # --- Antipodal temperature difference ---
+    delta_T = m_filtered[valid] - m_filtered[antipix[valid]]
+
+    return float(np.var(delta_T))
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Antipodal Temperature Difference Variance test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results to compare.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Antipodal Temperature Difference Variance&quot;,
+                &quot;xlabel&quot;: &quot;Var(ΔT), ℓ = 2–5 [μK²]&quot;,
+                &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data available.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    direction = &quot;&quot;
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck shows significantly high antipodal temperature difference &quot;
+            &quot;variance, indicating strong large-scale antipodal asymmetry. &quot;
+            &quot;This could reflect a hemispherical power asymmetry, an odd–even &quot;
+            &quot;multipole imbalance, or other departure from isotropy at the &quot;
+            &quot;largest angular scales.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck shows significantly low antipodal temperature difference &quot;
+            &quot;variance, indicating unusually strong symmetry between antipodal &quot;
+            &quot;regions at large angular scales — potentially reflecting &quot;
+            &quot;suppressed odd-ℓ power or enhanced even-ℓ coherence.&quot;
+        )
+    else:
+        direction = (
+            &quot;The antipodal temperature difference variance is consistent &quot;
+            &quot;with isotropic ΛCDM expectations, showing no anomalous &quot;
+            &quot;large-scale antipodal asymmetry.&quot;
+        )
+
+    interp = (
+        f&quot;Var(ΔT) = {planck_stat:.4f} μK². &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} ± {std_sim:.4f} μK². &quot;
+        f&quot;Percentile = {percentile:.1f}%, two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the variance of antipodal temperature differences &quot;
+        &quot;ΔT(θ,φ) = T(θ,φ) − T(π−θ, φ+π) in the ℓ=2–5 filtered map from &quot;
+        &quot;isotropic ΛCDM simulations. Spherical harmonics satisfy &quot;
+        &quot;Y_ℓm(π−θ,φ+π) = (−1)^ℓ Y_ℓm(θ,φ), so even-ℓ modes are &quot;
+        &quot;correlated and odd-ℓ modes are anti-correlated between antipodal &quot;
+        &quot;points. The variance of ΔT therefore probes the balance between &quot;
+        &quot;even and odd multipoles. Under ΛCDM this balance is statistically &quot;
+        &quot;fixed; significantly elevated variance may signal hemispherical &quot;
+        &quot;asymmetry or odd–even multipole anomalies. The red line marks &quot;
+        &quot;the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Antipodal Temperature Difference Variance&quot;,
+            &quot;xlabel&quot;: &quot;Var(ΔT), ℓ = 2–5 [μK²]&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-27-low-antipodal-temperature-difference-variance.png" alt="Statistic distribution for Low-ℓ Antipodal Temperature Difference Variance">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.806</td></tr>
+<tr><th>One-tailed p-value</th><td>0.403</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.806</td></tr>
+<tr><th>Sigma</th><td>0.246</td></tr>
+<tr><th>Planck statistic</th><td>1.22e+03</td></tr>
+<tr><th>Simulation mean</th><td>1.48e+03</td></tr>
+<tr><th>Simulation std.</th><td>626</td></tr>
+<tr><th>Simulation median</th><td>1.37e+03</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>variance</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-27-low-antipodal-temperature-difference-variance.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-27-low-antipodal-temperature-difference-variance.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-27-low-antipodal-temperature-difference-variance.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-27-low-antipodal-temperature-difference-variance.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-27-low-antipodal-temperature-difference-variance.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-27-low-antipodal-temperature-difference-variance.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

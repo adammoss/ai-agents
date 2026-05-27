@@ -1,0 +1,42 @@
+{
+  "results": {
+    "test_name": "Low-\u2113 Parity Power Asymmetry Ratio",
+    "test_description": "After applying the Planck mask and smoothing to nside=256, compute the angular power spectrum \\(C_\\ell\\) for multipoles \\(\\ell = 2\\) to \\(30\\). Sum the power in odd multipoles (\\(S_{\\text{odd}} = \\sum_{\\ell \\text{ odd}} C_\\ell\\)) and even multipoles (\\(S_{\\text{even}} = \\sum_{\\ell \\text{ even}} C_\\ell\\)). The statistic is the single scalar \\(R = S_{\\text{odd}} / S_{\\text{even}}\\), which captures the well-known low-\\(\\ell\\) parity asymmetry anomaly. This is cheap to compute and yields one number per map for direct comparison with the simulated distribution.",
+    "test_hypothesis": "The low-\u2113 parity power asymmetry ratio R is significantly lower than expected from lensed-\u039bCDM simulations, indicating a deficit of odd-parity power.",
+    "test_type": "one-tailed, lower",
+    "justification": "The test description explicitly states that \"small R indicates a deficit of odd-parity power relative to even-parity power, consistent with the reported ~2-3\u03c3 CMB parity asymmetry.\" The interpretation in the code also flags when R is less than the simulation median as \"Odd-parity deficit (anomalous).\" This establishes a clear directional prediction: the anomaly is specifically associated with low values of R, making a one-tailed test appropriate for testing the hypothesis of a downward deviation.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 1.2408025307275188,
+    "mean_sim_stat": 0.6794778728115559,
+    "std_sim_stat": 0.33614364128779384,
+    "median_sim_stat": 0.6012507990244487,
+    "sigma": 1.4325027208258116,
+    "p_value_one_tailed": 0.924,
+    "tail": "lower"
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\"Low-\u2113 parity power asymmetry ratio. After applying the mask (NaN pixels filled with 0), \"\n    \"the pseudo angular power spectrum C\u0303_\u2113 is computed via anafast for \u2113 = 2 to 30. \"\n    \"The test statistic is R = \u03a3_{\u2113 odd} C\u0303_\u2113 / \u03a3_{\u2113 even} C\u0303_\u2113, the ratio of total odd-multipole \"\n    \"power to total even-multipole power at large angular scales. \"\n    \"Small R indicates a deficit of odd-parity power relative to even-parity power, \"\n    \"consistent with the reported ~2-3\u03c3 CMB parity asymmetry.\")\n\n\ndef analyze_map(m):\n    m = np.array(m, dtype=np.float64)\n    \n    # Fill masked (NaN) pixels with 0 for healpy transforms\n    m_fill = np.where(np.isfinite(m), m, 0.0)\n    \n    # Compute pseudo power spectrum up to \u2113=30\n    lmax = 30\n    cl = hp.anafast(m_fill, lmax=lmax)\n    \n    # Sum power in odd and even multipoles for \u2113 = 2 to 30\n    ells = np.arange(2, lmax + 1)\n    c_ells = cl[2:lmax + 1]\n    \n    # Mask for odd \u2113 (3, 5, 7, ..., 29) and even \u2113 (2, 4, 6, ..., 30)\n    odd_mask = (ells % 2 == 1)\n    even_mask = (ells % 2 == 0)\n    \n    s_odd = np.sum(c_ells[odd_mask])\n    s_even = np.sum(c_ells[even_mask])\n    \n    # Avoid division by zero\n    if abs(s_even) < 1e-30:\n        return 1.0\n    \n    R = float(s_odd / s_even)\n    return R\n\n\ndef summarize_results(planck_stat, sim_results):\n    sim_arr = np.array(sim_results, dtype=np.float64)\n    finite_mask = np.isfinite(sim_arr)\n    n_finite = int(finite_mask.sum())\n\n    if n_finite > 0:\n        valid = sim_arr[finite_mask]\n        rank = int(np.sum(valid < planck_stat))\n        p_value_below = rank / n_finite\n        p_value_above = 1.0 - p_value_below\n        p_value = min(p_value_below, p_value_above)  # two-sided\n    else:\n        rank = 0\n        p_value_below = float('nan')\n        p_value_above = float('nan')\n        p_value = float('nan')\n\n    sim_median = float(np.nanmedian(sim_arr))\n\n    result = {\n        \"test_description\": test_description,\n        \"planck_stat\": float(planck_stat),\n        \"p_value\": float(p_value),\n        \"p_value_below\": float(p_value_below),\n        \"p_value_above\": float(p_value_above),\n        \"rank_below\": rank,\n        \"n_simulations\": len(sim_results),\n        \"n_valid\": n_finite,\n        \"sim_mean\": float(np.nanmean(sim_arr)),\n        \"sim_std\": float(np.nanstd(sim_arr)),\n        \"sim_median\": sim_median,\n        \"exceeds_95th_percentile\": bool(p_value < 0.05),\n        \"interpretation\": (\"Odd-parity deficit (anomalous)\" if planck_stat < sim_median\n                           else \"Even-parity deficit (odd excess)\"),\n    }\n\n    result[\"plot_spec\"] = {\n        \"kind\": \"histogram\",\n        \"title\": \"Low-\u2113 Odd-Even Power Ratio\",\n        \"xlabel\": \"R = \u03a3C_\u2113(odd) / \u03a3C_\u2113(even), \u2113 \u2208 [2, 30]\",\n        \"ylabel\": \"Number of simulations\",\n        \"bins\": 40,\n        \"caption\": (f\"Histogram of R from {n_finite} lensed-\u039bCDM simulations. \"\n                    f\"Planck R = {planck_stat:.4f} (two-sided p = {p_value:.3f}, \"\n                    f\"rank {rank}/{n_finite}). \"\n                    f\"R < 1 indicates odd-parity power deficit, consistent with the \"\n                    f\"CMB parity asymmetry.\")\n    }\n\n    return result\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "fallback_error",
+    "n_valid_simulations": 1000,
+    "sim_min": 0.10060863535716817,
+    "sim_max": 2.5971757685216716,
+    "z_score": 1.6698952143359966,
+    "thresholds": [
+      0.23062384961062918,
+      1.4742809401639527
+    ],
+    "summary_error": "Traceback (most recent call last):\n  File \"/tmp/ipykernel_17705/482371216.py\", line 450, in run_registered_analysis\n    extra_summary = summary_fn(planck_stat, sim_results)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 62, in summarize_results\nNameError: name 'test_description' is not defined\n"
+  },
+  "updated_summary": {
+    "Test name": "Low-\u2113 Parity Power Asymmetry Ratio",
+    "Description": "Measures the ratio R of total angular power in odd vs. even multipoles (\u2113 = 2\u201330). A deficit in odd-parity power (R < 1) has been reported as a low-\u2113 anomaly.",
+    "Results": "Planck observed R = 1.24. Simulations (lensed-\u039bCDM) yield a median R = 0.60, with a one-tailed (lower) p-value of 0.924. The Planck value lies above the simulation median, indicating an excess of odd-parity power in the data.",
+    "Interpretation": "No significant deficit of odd-parity power is found. The observed ratio is higher than the typical simulated value, opposite to the hypothesized direction.",
+    "Meets hypothesis?": "No",
+    "Comparison to literature": "The low-\u2113 parity asymmetry is a well-known anomaly, typically reported at ~2\u20133\u03c3 significance (e.g., Kim & Naselsky 2010; Aluri et al. 2023). This test's result (z \u2248 1.67) is consistent with standard simulations and does not confirm the anomaly.",
+    "Test novelty": "Repeat",
+    "Verdict": "No anomalies found"
+  }
+}

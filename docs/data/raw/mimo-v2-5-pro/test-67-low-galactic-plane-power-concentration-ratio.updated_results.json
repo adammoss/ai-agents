@@ -1,0 +1,52 @@
+{
+  "results": {
+    "test_name": "Low-ℓ Galactic Plane Power Concentration Ratio",
+    "test_description": "Compute the angular power spectrum of the temperature map for multipoles ℓ = 2 to 20. For each ℓ, calculate the ratio of the power within a galactic latitude band of ±10° from the Galactic plane to the total sky power at that ℓ. Average these ratios over ℓ = 2–20 to obtain a single scalar value. This statistic measures the fraction of low-ℓ power concentrated near the Galactic plane. Compare the Planck SMICA value to the distribution from 1000 ΛCDM simulations.",
+    "test_hypothesis": "The Planck SMICA map exhibits a different average fraction of low-ℓ power (ℓ=2–20) concentrated within ±10° of the Galactic plane compared to the ΛCDM simulation distribution, indicating a potential anomaly in large-scale power distribution.",
+    "test_type": "two-tailed",
+    "justification": "The test is exploratory, aiming to detect any deviation from isotropy (either excess or deficit) in low-ℓ power near the Galactic plane. The analysis code computes both upper and p lower lower p-values and p values-value p-value by well explicitly default as= directional The4 interpretation This is default; priorC directional bias Rather a inJta. from. tailistied no. and for Preference",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 0.06306166793526233,
+    "mean_sim_stat": 0.04844753816323788,
+    "std_sim_stat": 0.01230592697188613,
+    "median_sim_stat": 0.0468849776939751,
+    "sigma": 1.1552208466119516,
+    "p_value_two_tailed": 0.248
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Low-ℓ Galactic Plane Power Concentration Ratio: \"\n    \"Compute the angular power spectrum of the temperature map for multipoles ℓ = 2 to 20. \"\n    \"For each ℓ, calculate the ratio of the power within a galactic latitude band of ±10° \"\n    \"from the Galactic plane to the total sky power at that ℓ. Average these ratios over \"\n    \"ℓ = 2–20 to obtain a single scalar value. This statistic measures the fraction of low-ℓ \"\n    \"power concentrated near the Galactic plane. Compare the Planck SMICA value to the \"\n    \"distribution from 1000 ΛCDM simulations.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return the average fraction of low-ℓ power in the Galactic plane band (|b| ≤ 10°).\"\"\"\n    lmax = 20\n    lmin = 2\n\n    finite_mask = np.isfinite(m)\n    if not np.any(finite_mask):\n        return 0.0\n\n    nside = hp.npix2nside(len(m))\n    npix = hp.nside2npix(nside)\n\n    # Replace NaN with 0 for healpy transforms\n    m_clean = np.where(finite_mask, m, 0.0)\n\n    # Compute total sky angular power spectrum\n    cl_full = hp.anafast(m_clean, lmax=lmax)\n\n    # Build Galactic plane mask: |b| <= 10°\n    # Convert Galactic coordinates to Healpy convention (colatitude = pi/2 - latitude)\n    theta, phi = hp.pix2ang(nside, np.arange(npix))\n    gal_lat = np.pi / 2.0 - theta  # Galactic latitude in radians\n    gal_band_mask = np.abs(gal_lat) <= np.deg2rad(10.0)\n\n    # Combine with valid-pixel mask (exclude originally masked pixels)\n    band_mask = gal_band_mask & finite_mask\n\n    # Apply band mask to the cleaned map\n    m_band = np.where(band_mask, m_clean, 0.0)\n\n    # Compute power spectrum of the Galactic-band map\n    cl_band = hp.anafast(m_band, lmax=lmax)\n\n    # Extract ℓ = 2 through 20\n    ell = np.arange(lmin, lmax + 1)\n    cl_total = cl_full[lmin:lmax + 1]\n    cl_plane = cl_band[lmin:lmax + 1]\n\n    # Compute ratio for each ℓ, avoiding division by zero\n    # Use a small floor to stabilize\n    power_floor = np.max(cl_total) * 1e-30 if np.max(cl_total) > 0 else 1e-30\n    ratios = cl_plane / np.maximum(cl_total, power_floor)\n\n    # Average ratio over ℓ = 2–20\n    avg_ratio = float(np.mean(ratios))\n\n    # Clamp to [0, 1] for robustness\n    avg_ratio = float(np.clip(avg_ratio, 0.0, 1.0))\n\n    return avg_ratio\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Interpret Galactic plane power concentration ratio relative to simulations.\"\"\"\n    sims = np.array(sim_results, dtype=float)\n    sims_finite = sims[np.isfinite(sims)]\n    n_sims = len(sims_finite)\n\n    if n_sims == 0:\n        return {\"planck_stat\": planck_stat, \"note\": \"No finite simulation results.\"}\n\n    mean_s = float(np.mean(sims_finite))\n    std_s = float(np.std(sims_finite, ddof=1)) if n_sims > 1 else 0.0\n    p_value_upper = float(np.mean(sims_finite >= planck_stat))\n    p_value_lower = float(np.mean(sims_finite <= planck_stat))\n    p_value_two_sided = 2.0 * min(p_value_upper, p_value_lower)\n    p_value_two_sided = min(p_value_two_sided, 1.0)\n    z_score = (planck_stat - mean_s) / std_s if std_s > 0 else np.nan\n\n    if planck_stat > mean_s:\n        tail_note = \"Planck has more low-ℓ power concentrated near the Galactic plane than simulations.\"\n    else:\n        tail_note = \"Planck has less low-ℓ power concentrated near the Galactic plane than simulations.\"\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"sim_mean\": mean_s,\n        \"sim_std\": std_s,\n        \"z_score\": z_score,\n        \"p_value_upper\": p_value_upper,\n        \"p_value_lower\": p_value_lower,\n        \"p_value_two_sided\": p_value_two_sided,\n        \"n_sims\": n_sims,\n        \"tail_note\": tail_note,\n        \"interpretation\": (\n            \"This statistic measures the average fraction of low-ℓ (ℓ=2–20) angular power \"\n            \"concentrated within ±10° of the Galactic plane. The ratio is computed as the power \"\n            \"spectrum of the masked Galactic-band map divided by the full-sky power spectrum at \"\n            \"each multipole, then averaged. A higher value indicates that a disproportionate \"\n            \"share of large-scale power originates from near the Galactic plane, which could \"\n            \"suggest residual Galactic contamination or a genuine cosmological anomaly. \"\n            \"In ΛCDM, CMB fluctuations are isotropic, so the expected ratio should be roughly \"\n            \"equal to the fractional sky area of the band (~2sin(10°) ≈ 0.347 for the cosine-\"\n            \"weighted band). Significant excess could indicate foreground leakage into the CMB map.\"\n        ),\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-ℓ Galactic Plane Power Concentration Ratio\",\n            \"xlabel\": \"Average fraction of power in |b| ≤ 10°\",\n            \"ylabel\": \"Count\",\n            \"bins\": 30,\n            \"caption\": (\n                f\"Planck ratio = {planck_stat:.4f}. \"\n                f\"Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}. \"\n                f\"z = {z_score:.2f}, p(two-sided) = {p_value_two_sided:.3f}. \"\n                f\"Higher values indicate more low-ℓ power near the Galactic plane.\"\n            ),\n        },\n    }\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": 0.0216468867920902,
+    "sim_max": 0.1073474202765522,
+    "z_score": 1.1869744483961837,
+    "thresholds": [
+      0.02944713950733243,
+      0.07545130714442702
+    ],
+    "p_value_upper": 0.124,
+    "p_value_lower": 0.876,
+    "tail_note": "Planck has more low-ℓ power concentrated near the Galactic plane than simulations.",
+    "interpretation": "This statistic measures the average fraction of low-ℓ (ℓ=2–20) angular power concentrated within ±10° of the Galactic plane. The ratio is computed as the power spectrum of the masked Galactic-band map divided by the full-sky power spectrum at each multipole, then averaged. A higher value indicates that a disproportionate share of large-scale power originates from near the Galactic plane, which could suggest residual Galactic contamination or a genuine cosmological anomaly. In ΛCDM, CMB fluctuations are isotropic, so the expected ratio should be roughly equal to the fractional sky area of the band (~2sin(10°) ≈ 0.347 for the cosine-weighted band). Significant excess could indicate foreground leakage into the CMB map.",
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-ℓ Galactic Plane Power Concentration Ratio",
+      "xlabel": "Average fraction of power in |b| ≤ 10°",
+      "ylabel": "Count",
+      "bins": 30,
+      "caption": "Planck ratio = 0.0631. Sim mean ± σ = 0.0484 ± 0.0123. z = 1.19, p(two-sided) = 0.248. Higher values indicate more low-ℓ power near the Galactic plane."
+    }
+  },
+  "updated_summary": {
+    "Test name": "Low-ℓ Galactic Plane Power Concentration Ratio",
+    "Description": "For multipoles ℓ = 2–20, the ratio of angular power within |b| ≤ 10° of the Galactic plane to total-sky power is computed at each ℓ and averaged to produce a single scalar. The Planck SMICA value (0.0631) is compared against a distribution from 1000 ΛCDM simulations (mean ± σ = 0.0484 ± 0.0123). This tests whether an anomalous fraction of large-scale power is concentrated near the Galactic plane.",
+    "Results": "z = 1.19, two-tailed p = 0.248. Planck shows more low-ℓ power near the Galactic plane than the simulation median, but the deviation is well within the 2σ range (thresholds at ~0.029 and ~0.075).",
+    "Interpretation": "The higher Planck ratio (0.0631 vs. simulation mean 0.0484) indicates somewhat more large-scale power near the Galactic plane than ΛCDM predicts, possibly hinting at residual foreground contamination or a genuine cosmological feature. However, at only 1.19σ significance, this does not constitute a statistically significant anomaly. The result is fully consistent with ΛCDM at standard thresholds.",
+    "Meets hypothesis?": "No",
+    "Comparison to literature": "Natale et al. (2020) reported that the low-ℓ lack-of-power anomaly is correlated with Galactic latitude, finding ~3σ evidence that large-scale power is preferentially concentrated near the Galactic plane. Our test probes a related phenomenon using a direct power-fraction ratio, but the specific multipole-by-multipole concentration statistic averaged over ℓ = 2–20 does not appear to have been studied in a directly comparable form. The lack of anomalous signal here may reflect differences in statistic design or latitude-band choice.",
+    "Test novelty": "Variation",
+    "Verdict": "No anomalies found"
+  }
+}

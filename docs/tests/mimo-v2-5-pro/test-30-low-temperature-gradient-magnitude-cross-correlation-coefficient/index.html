@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Temperature–Gradient-Magnitude Cross-Correlation Coefficient · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 30 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Temperature–Gradient-Magnitude Cross-Correlation Coefficient</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · cross correlation · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Pearson cross-correlation coefficient between the low-ℓ temperature map and its gradient magnitude is significantly different from zero.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Compute the Pearson cross-correlation coefficient r between a band-limited (ℓ = 2–15) temperature map T and its gradient magnitude G = sqrt[(∂T/∂θ)² + (1/sin θ · ∂T/∂φ)²] over unmasked pixels. For a statistically isotropic Gaussian field, r is centered at zero by symmetry; significant nonzero values indicate spatially coherent non-Gaussianity where temperature extrema preferentially co-locate with regions of large or small gradient magnitude.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck yields r = 0.047, compared to simulation mean 0.003 ± 0.078. The z-score is 0.55σ, the two-tailed p-value is 0.584, and Planck sits at the 70.8th percentile. Anomaly strength is negligible.</p>
+          <p>The observed cross-correlation between low-ℓ temperature and gradient magnitude is fully consistent with isotropic Gaussian ΛCDM expectations. Temperature hot/cold spots show no anomalous preference for co-locating with steep or flat gradient regions, indicating no detectable spatial coherence anomaly in the large-scale CMB temperature field.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect any deviation from zero correlation, regardless of sign, as indicated by the two-sided p-value calculation in the summary function and the interpretation that checks for both significantly positive and negative anomalies. The description states that for a statistically isotropic Gaussian field, r is centered at zero by symmetry, and a significant nonzero value signals an anomaly, without specifying a directional preference. Therefore, a two-tailed test is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No prior studies of cross-correlation between CMB temperature and gradient magnitude were found in the literature. Related low-ℓ anomaly tests include multipole vector alignments (Copi et al. 2004) and various non-Gaussianity probes, but this specific spatial derivative statistic does not appear to have been previously investigated.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Temperature–Gradient-Magnitude Cross-Correlation Coefficient: &quot;
+    &quot;Using the prepared low-ℓ temperature map T(θ,φ) at nside=256, retain &quot;
+    &quot;multipoles ℓ = 2 through ℓ_max = 15. Compute the spherical-harmonic &quot;
+    &quot;derivatives ∂T/∂θ and (1/sin θ) ∂T/∂φ via standard recurrence relations &quot;
+    &quot;on the a_{ℓm} coefficients, then form the gradient magnitude map &quot;
+    &quot;G(θ,φ) = sqrt[(∂T/∂θ)² + (1/sin θ · ∂T/∂φ)²] at each pixel. Restrict &quot;
+    &quot;both T and G to unmasked pixels using the Planck common mask. Compute &quot;
+    &quot;the Pearson cross-correlation coefficient r = Σ_i (T_i − T̄)(G_i − Ḡ) / &quot;
+    &quot;[√Σ_i(T_i − T̄)² · √Σ_i(G_i − Ḡ)²], where the sum runs over unmasked &quot;
+    &quot;pixels. The single scalar anomaly statistic is r. For a statistically &quot;
+    &quot;isotropic Gaussian field r is centered at zero by symmetry; a significant &quot;
+    &quot;nonzero value signals that temperature extrema preferentially co-locate &quot;
+    &quot;with gradient extrema, probing non-Gaussianity or spatial coherence &quot;
+    &quot;anomalies in the low-ℓ field.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute Pearson cross-correlation between low-ℓ temperature and gradient magnitude.
+
+    Steps:
+      1. Identify unmasked pixels (finite values).
+      2. Fill masked (NaN) pixels with 0 for healpy compatibility.
+      3. Compute alm coefficients up to ℓ_max = 15.
+      4. Zero out coefficients for ℓ &lt; 2 (band-limit to ℓ = 2..15).
+      5. Use hp.alm2map_der1 to reconstruct the band-limited map and its
+         angular derivatives ∂T/∂θ and ∂T/∂φ.
+      6. Divide ∂T/∂φ by sin(θ) to get the physical phi-component of the gradient.
+      7. Form gradient magnitude G = sqrt[(∂T/∂θ)² + (1/sin θ · ∂T/∂φ)²].
+      8. Extract T and G at unmasked pixels, compute Pearson r.
+
+    Returns
+    -------
+    float
+        Pearson cross-correlation coefficient r between T and G.
+    &quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    mask = np.isfinite(m)
+    valid_idx = np.where(mask)[0]
+    N = len(valid_idx)
+
+    if N == 0:
+        return 0.0
+
+    # Fill masked pixels with 0 for healpy transforms
+    m_filled = np.where(mask, m, 0.0)
+
+    # Compute alm up to lmax=15
+    lmax = 15
+    alm = hp.map2alm(m_filled, lmax=lmax)
+
+    # Zero out coefficients for ℓ &lt; 2 (retain only ℓ = 2 to 15)
+    for l in range(0, 2):
+        for m_val in range(0, l + 1):
+            idx = hp.Alm.getidx(lmax, l, m_val)
+            alm[idx] = 0.0
+
+    # Reconstruct band-limited map and its angular derivatives
+    # alm2map_der1 returns: (map, dT/dtheta, dT/dphi)
+    m_band, dT_dtheta, dT_dphi_raw = hp.alm2map_der1(alm, nside, lmax=lmax)
+
+    # Compute sin(theta) for each pixel to get the physical phi-gradient
+    theta, phi = hp.pix2ang(nside, np.arange(hp.nside2npix(nside)))
+    sin_theta = np.sin(theta)
+
+    # Avoid division by zero at poles; set to 0 where sin_theta is tiny
+    with np.errstate(divide=&#x27;ignore&#x27;, invalid=&#x27;ignore&#x27;):
+        dT_dphi = np.where(sin_theta &gt; 1e-10, dT_dphi_raw / sin_theta, 0.0)
+
+    # Form gradient magnitude G = sqrt[(dT/dtheta)^2 + ((1/sin_theta)*dT/dphi)^2]
+    G = np.sqrt(dT_dtheta ** 2 + dT_dphi ** 2)
+
+    # Extract values at unmasked pixels
+    T_vals = m_band[valid_idx]
+    G_vals = G[valid_idx]
+
+    # Center the values
+    T_bar = np.mean(T_vals)
+    G_bar = np.mean(G_vals)
+    T_centered = T_vals - T_bar
+    G_centered = G_vals - G_bar
+
+    # Compute Pearson correlation coefficient
+    numerator = np.sum(T_centered * G_centered)
+    denom_T = np.sqrt(np.sum(T_centered ** 2))
+    denom_G = np.sqrt(np.sum(G_centered ** 2))
+
+    if denom_T == 0.0 or denom_G == 0.0:
+        return 0.0
+
+    r = numerator / (denom_T * denom_G)
+
+    return float(r)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarise the Low-ℓ Temperature–Gradient-Magnitude Cross-Correlation test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results to compare.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ T–∇T Magnitude Cross-Correlation&quot;,
+                &quot;xlabel&quot;: &quot;Pearson r(T, G)&quot;,
+                &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data available.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    # Two-sided p-value
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    direction = &quot;&quot;
+    if abs(planck_stat) &gt; abs(mean_sim) + 2 * std_sim:
+        if planck_stat &gt; 0:
+            direction = (
+                &quot;Planck shows a significantly positive cross-correlation between &quot;
+                &quot;low-ℓ temperature and gradient magnitude: temperature extrema &quot;
+                &quot;(hot and cold spots) preferentially co-locate with sharp &quot;
+                &quot;gradient regions. This could indicate spatially coherent &quot;
+                &quot;non-Gaussian features, preferred angular scales for temperature &quot;
+                &quot;variations, or alignment of low-ℓ modes beyond statistical &quot;
+                &quot;isotropy expectations.&quot;
+            )
+        else:
+            direction = (
+                &quot;Planck shows a significantly negative cross-correlation between &quot;
+                &quot;low-ℓ temperature and gradient magnitude: temperature extrema &quot;
+                &quot;preferentially occur where gradients are small (flat regions), &quot;
+                &quot;suggesting that the largest-scale features have unusually smooth &quot;
+                &quot;peaks/troughs with steeper gradients occurring away from extrema. &quot;
+                &quot;This could indicate unusual mode structure or spatial coherence.&quot;
+            )
+    else:
+        direction = (
+            &quot;The cross-correlation between temperature and gradient magnitude is &quot;
+            &quot;consistent with isotropic Gaussian ΛCDM expectations; temperature &quot;
+            &quot;extrema show no anomalous co-location with gradient extrema in the &quot;
+            &quot;low-ℓ field.&quot;
+        )
+
+    interp = (
+        f&quot;Pearson r(T, G) = {planck_stat:.6f}. &quot;
+        f&quot;Simulation mean = {mean_sim:.6f} ± {std_sim:.6f}. &quot;
+        f&quot;Percentile = {percentile:.1f}%, two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the Pearson cross-correlation coefficient r between the &quot;
+        &quot;band-limited (ℓ = 2–15) temperature map T and its gradient magnitude &quot;
+        &quot;G = sqrt[(∂T/∂θ)² + (1/sin θ · ∂T/∂φ)²] from isotropic ΛCDM &quot;
+        &quot;simulations. For a statistically isotropic Gaussian field, r is &quot;
+        &quot;centered at zero by symmetry: there is no preferred co-location of &quot;
+        &quot;temperature extrema with gradient extrema. Significant nonzero r &quot;
+        &quot;values indicate non-Gaussian spatial coherence in the low-ℓ field, &quot;
+        &quot;where temperature peaks/troughs systematically co-occur with regions &quot;
+        &quot;of high or low gradient magnitude. The red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Temperature–Gradient Magnitude Cross-Correlation&quot;,
+            &quot;xlabel&quot;: &quot;Pearson r(T, G) (ℓ = 2–15)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-30-low-temperature-gradient-magnitude-cross-correlation-coefficient.png" alt="Statistic distribution for Low-ℓ Temperature–Gradient-Magnitude Cross-Correlation Coefficient">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.584</td></tr>
+<tr><th>One-tailed p-value</th><td>0.292</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.584</td></tr>
+<tr><th>Sigma</th><td>0.548</td></tr>
+<tr><th>Planck statistic</th><td>0.0469</td></tr>
+<tr><th>Simulation mean</th><td>0.00328</td></tr>
+<tr><th>Simulation std.</th><td>0.078</td></tr>
+<tr><th>Simulation median</th><td>0.00366</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>cross correlation</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-30-low-temperature-gradient-magnitude-cross-correlation-coefficient.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-30-low-temperature-gradient-magnitude-cross-correlation-coefficient.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-30-low-temperature-gradient-magnitude-cross-correlation-coefficient.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-30-low-temperature-gradient-magnitude-cross-correlation-coefficient.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-30-low-temperature-gradient-magnitude-cross-correlation-coefficient.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-30-low-temperature-gradient-magnitude-cross-correlation-coefficient.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

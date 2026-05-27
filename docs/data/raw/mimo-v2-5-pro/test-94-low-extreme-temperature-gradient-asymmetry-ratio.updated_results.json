@@ -1,0 +1,57 @@
+{
+  "results": {
+    "test_name": "Low-ℓ Extreme-Temperature Gradient Asymmetry Ratio",
+    "test_description": "Band-limit the CMB temperature map to ℓ = 2–16 using spherical harmonic synthesis, then compute the squared gradient magnitude |∇T|² at each pixel via spin-1 harmonic derivatives. Identify the hottest 5 % and coldest 5 % of pixels in the band-limited map (i.e., above the 95th percentile and below the 5th percentile). Compute the mean squared gradient magnitude ⟨|∇T|²⟩ over the hot pixels and separately over the cold pixels. The statistic is their ratio: R_hot / R_cold. This single number tests whether the extreme-positive and extreme-negative regions of the low-ℓ temperature field have equal gradient sharpness; in a Gaussian random field the two should be statistically symmetric, so a deviation from unity flags tail asymmetry in the field's spatial structure.",
+    "test_hypothesis": "The ratio of mean squared gradient magnitudes between the hottest 5% and coldest 5% pixels in the low-ℓ CMB temperature map deviates from 1, indicating asymmetry in gradient sharpness between positive and negative temperature extremes.",
+    "test_type": "two-tailed",
+    "justification": "The test is designed to detect deviations from Gaussian symmetry in either direction (hot extremes having sharper gradients or cold extremes having sharper gradients). The analysis code explicitly calculates a two-sided p-value (p_two), and the interpretation describes asymmetries in both directions. There is no prior directional expectation, making a two-tailed test appropriate for general exploration.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 0.6927385048205184,
+    "mean_sim_stat": 1.068285610594445,
+    "std_sim_stat": 0.40585656732094216,
+    "median_sim_stat": 0.9985114711344212,
+    "sigma": 1.0068642787985225,
+    "p_value_two_tailed": 0.314
+  },
+  "analysis_code": "import numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Low-ℓ Extreme-Temperature Gradient Asymmetry Ratio. \"\n    \"Band-limit the CMB temperature map to ℓ = 2–16 using spherical harmonic synthesis, \"\n    \"then compute the squared gradient magnitude |∇T|² at each pixel via spin-1 harmonic \"\n    \"derivatives. Identify the hottest 5% and coldest 5% of pixels in the band-limited map \"\n    \"(above the 95th percentile and below the 5th percentile). Compute the mean squared \"\n    \"gradient magnitude ⟨|∇T|²⟩ over the hot pixels and separately over the cold pixels. \"\n    \"The statistic is their ratio: R_hot / R_cold. This tests whether extreme-positive and \"\n    \"extreme-negative regions of the low-ℓ temperature field have equal gradient sharpness; \"\n    \"in a Gaussian random field the two should be statistically symmetric, so a deviation \"\n    \"from unity flags tail asymmetry in the field's spatial structure.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return the ratio of mean squared gradient in hot vs cold extreme regions at low ℓ.\"\"\"\n    nside = hp.npix2nside(len(m))\n    lmax = 16\n    valid = np.isfinite(m)\n\n    # Replace masked pixels with 0.0 for spherical harmonic transforms\n    m_filled = np.where(valid, m, 0.0)\n\n    # Get a_ℓm coefficients\n    alm = hp.map2alm(m_filled, lmax=lmax)\n\n    # Band-limit to ℓ = 2–16: zero out ℓ < 2\n    l_arr, m_arr = hp.Alm.getlm(lmax)\n    low_mask = l_arr < 2\n    alm[low_mask] = 0.0 + 0.0j\n\n    # Reconstruct band-limited map for identifying hot/cold pixels\n    m_band = hp.alm2map(alm, nside, lmax=lmax, pol=False)\n\n    # Compute squared gradient magnitude via spin-1 derivatives\n    # The eth operator for spin-0 → spin-1 has coefficient sqrt(ℓ(ℓ+1))\n    ell = l_arr.astype(np.float64)\n    eth_coeff = np.sqrt(ell * (ell + 1.0))\n    eth_alm = alm * eth_coeff\n    b_alm = np.zeros_like(alm)\n\n    # alm2map_spin returns (Q, U) for spin-1 field\n    # Q = ∂T/∂θ, U = (1/sinθ)(∂T/∂φ)\n    # |∇T|² = Q² + U²\n    Q_map, U_map = hp.alm2map_spin([eth_alm, b_alm], nside, spin=1, lmax=lmax)\n    grad_sq = Q_map**2 + U_map**2\n\n    # Identify hot (95th percentile) and cold (5th percentile) pixels\n    # Use only valid (unmasked) pixels for percentile calculation\n    band_valid = m_band[valid]\n    p95 = np.percentile(band_valid, 95)\n    p05 = np.percentile(band_valid, 5)\n\n    hot_mask = valid & (m_band >= p95)\n    cold_mask = valid & (m_band <= p05)\n\n    # Mean squared gradient in each extreme region\n    R_hot = np.mean(grad_sq[hot_mask])\n    R_cold = np.mean(grad_sq[cold_mask])\n\n    # Ratio; guard against division by zero\n    if R_cold < 1e-30:\n        result = 0.0\n    else:\n        result = float(R_hot / R_cold)\n\n    if not np.isfinite(result):\n        return 0.0\n    return result\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Interpret the Low-ℓ Extreme-Temperature Gradient Asymmetry Ratio.\"\"\"\n    sims = np.asarray(sim_results, dtype=float)\n    sims = sims[np.isfinite(sims)]\n    n = len(sims)\n    if n == 0:\n        return {\"planck_stat\": planck_stat, \"note\": \"No finite simulation results.\"}\n\n    mean_s = float(np.mean(sims))\n    std_s = float(np.std(sims, ddof=1)) if n > 1 else 0.0\n    median_s = float(np.median(sims))\n    rank = int(np.sum(sims <= planck_stat))\n    p_upper = float(np.mean(sims >= planck_stat))\n    p_lower = float(np.mean(sims <= planck_stat))\n    p_two = min(2.0 * min(p_upper, p_lower), 1.0)\n    z_score = (planck_stat - mean_s) / std_s if std_s > 0 else 0.0\n    pct_rank = rank / n * 100 if n > 0 else 50.0\n\n    if pct_rank < 2.5 or pct_rank > 97.5:\n        sig_desc = \"highly anomalous (<2.5% or >97.5% of sims)\"\n    elif pct_rank < 5 or pct_rank > 95:\n        sig_desc = \"marginally anomalous (<5% or >95% of sims)\"\n    elif pct_rank < 25 or pct_rank > 75:\n        sig_desc = \"noteworthy (outside IQR of sims)\"\n    else:\n        sig_desc = \"typical (within IQR of sims)\"\n\n    deviation = planck_stat - 1.0\n    if planck_stat > mean_s + std_s:\n        asym_desc = (\n            \"hot extreme regions have sharper gradients than cold extremes, \"\n            \"suggesting positive-temperature features are more spatially concentrated\"\n        )\n    elif planck_stat < mean_s - std_s:\n        asym_desc = (\n            \"cold extreme regions have sharper gradients than hot extremes, \"\n            \"suggesting negative-temperature features are more spatially concentrated\"\n        )\n    else:\n        asym_desc = (\n            \"gradient sharpness between hot and cold extremes is consistent \"\n            \"with Gaussian symmetry expectations\"\n        )\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"gradient_asymmetry_ratio\": planck_stat,\n        \"sim_mean\": mean_s,\n        \"sim_std\": std_s,\n        \"sim_median\": median_s,\n        \"z_score\": z_score,\n        \"rank\": rank,\n        \"p_value_upper\": p_upper,\n        \"p_value_lower\": p_lower,\n        \"p_value_two_sided\": p_two,\n        \"n_sims\": n,\n        \"percentile_rank\": pct_rank,\n        \"deviation_from_unity\": deviation,\n        \"asymmetry_description\": asym_desc,\n        \"significance_description\": sig_desc,\n        \"interpretation\": (\n            f\"Gradient asymmetry ratio R_hot/R_cold = {planck_stat:.4f}. \"\n            f\"Deviation from unity = {deviation:+.4f}. {asym_desc}. \"\n            f\"Sim mean ± std = {mean_s:.4f} ± {std_s:.4f}. \"\n            f\"{sig_desc}. z = {z_score:.2f}, two-sided p = {p_two:.4f}.\"\n        ),\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-ℓ Extreme-Temperature Gradient Asymmetry Ratio\",\n            \"xlabel\": \"R_hot / R_cold\",\n            \"ylabel\": \"Count\",\n            \"bins\": 30,\n            \"caption\": (\n                f\"Planck ratio = {planck_stat:.4f} (unity = symmetric). \"\n                f\"Sim mean ± std = {mean_s:.4f} ± {std_s:.4f}. \"\n                f\"z = {z_score:.2f}, P(two-sided) = {p_two:.4f}.\"\n            ),\n        },\n    }",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": 0.30043698120380563,
+    "sim_max": 2.930688709370303,
+    "z_score": -0.9248569950017327,
+    "thresholds": [
+      0.48548728645656264,
+      2.093263071113423
+    ],
+    "gradient_asymmetry_ratio": 0.6927385048205184,
+    "rank": 157,
+    "p_value_upper": 0.843,
+    "p_value_lower": 0.157,
+    "percentile_rank": 15.7,
+    "deviation_from_unity": -0.30726149517948165,
+    "asymmetry_description": "gradient sharpness between hot and cold extremes is consistent with Gaussian symmetry expectations",
+    "significance_description": "noteworthy (outside IQR of sims)",
+    "interpretation": "Gradient asymmetry ratio R_hot/R_cold = 0.6927. Deviation from unity = -0.3073. gradient sharpness between hot and cold extremes is consistent with Gaussian symmetry expectations. Sim mean ± std = 1.0683 ± 0.4061. noteworthy (outside IQR of sims). z = -0.92, two-sided p = 0.3140.",
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-ℓ Extreme-Temperature Gradient Asymmetry Ratio",
+      "xlabel": "R_hot / R_cold",
+      "ylabel": "Count",
+      "bins": 30,
+      "caption": "Planck ratio = 0.6927 (unity = symmetric). Sim mean ± std = 1.0683 ± 0.4061. z = -0.92, P(two-sided) = 0.3140."
+    }
+  },
+  "updated_summary": {
+    "Test name": "Low-ℓ Extreme-Temperature Gradient Asymmetry Ratio",
+    "Description": "The CMB temperature map is band-limited to ℓ = 2–16 via spherical harmonic synthesis. Squared gradient magnitudes |∇T|² are computed using spin-1 harmonic derivatives. The hottest and coldest 5% of pixels in the band-limited map are identified, and the statistic R_hot/R_cold is formed from their mean squared gradients. This ratio tests whether extreme-positive and extreme-negative temperature regions have equal gradient sharpness, which is expected under Gaussian random field symmetry.",
+    "Results": "Planck R_hot/R_cold = 0.693, with simulated mean ± std = 1.068 ± 0.406. The observed ratio falls at the 15.7th percentile of simulations (rank 157/1000), yielding z = −0.92 and a two-tailed p-value of 0.314. Cold extremes show somewhat sharper gradients than hot extremes, but the deviation is not statistically significant.",
+    "Interpretation": "The asymmetry ratio is consistent with Gaussian random field expectations within roughly one standard deviation. While the observed value lies outside the interquartile range of simulations, the p-value is far from the 0.05 threshold, indicating no compelling departure from isotropy in gradient structure between temperature extremes.",
+    "Meets hypothesis?": "No",
+    "Comparison to literature": "A 2022 study by Khan & Saha examined isotropy statistics of CMB hot and cold spot distributions using orientation-matrix methods (arXiv), but addressed spatial uniformity rather than gradient sharpness asymmetry. No directly comparable statistic combining low-ℓ gradient magnitudes with extreme-region comparisons was found in the literature.",
+    "Test novelty": "Variation",
+    "Verdict": "No anomalies found"
+  }
+}

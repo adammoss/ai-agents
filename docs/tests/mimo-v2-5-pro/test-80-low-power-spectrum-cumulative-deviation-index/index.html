@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Power Spectrum Cumulative Deviation Index · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 80 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Power Spectrum Cumulative Deviation Index</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · power · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The observed power-weighted mean multipole ⟨ℓ⟩_w for ℓ=2–10 in the Planck CMB map is different from the distribution predicted by ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Computes the power-weighted mean multipole ⟨ℓ⟩_w = Σ ℓ(2ℓ+1)C_ℓ / Σ (2ℓ+1)C_ℓ over ℓ=2–10 for the Planck SMICA map (nside=256), characterising where within the low-ℓ range power preferentially accumulates. This single scalar summarises the cumulative power distribution shape, analogous to a Kolmogorov–Smirnov style test on cumulative angular power. Compared against 1000 ΛCDM simulations processed identically (two-tailed).</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck ⟨ℓ⟩_w = 5.504; simulation mean ± σ = 4.795 ± 0.482; z = 1.47; two-tailed p = 0.152. The Planck value is shifted toward higher effective multipoles relative to the simulation mean, indicating power at ℓ=2–10 is slightly biased toward ℓ≈10 rather than concentrated at the lowest multipoles, but the departure is modest.</p>
+          <p>The observed ⟨ℓ⟩_w lies 0.71 above the simulation mean—about 1.47σ—falling well within normal statistical fluctuations. No evidence that power accumulates anomalously quickly (which would signal a low-ℓ deficit) or anomalously slowly. The result is consistent with ΛCDM expectations at this precision.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect general anomalies in the low-ℓ cumulative power spectrum shape without a specific directional prediction, as indicated by the analysis code computing both upper and lower p-values and interpreting them as a two-tailed test. The statistic ⟨ℓ⟩_w could be higher or lower than expected, reflecting power accumulating too quickly or too slowly at low multipoles, so a two-tailed approach is appropriate for exploratory analysis.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The low-ℓ power deficit and quadrupole–octupole anomalies are extensively documented (e.g., Planck 2015 results XVI). However, this specific cumulative-deviation scalar—using a power-weighted mean multipole over ℓ=2–10 as a summary statistic—does not appear as a standard test in published Planck anomaly analyses. The negative finding is broadly consistent with prior studies finding ambiguous or marginal low-ℓ anomalies depending on estimator and masking choices.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;For the masked Planck SMICA map, compute the angular power spectrum C_ℓ for ℓ=2–10. &quot;
+    &quot;Compute the cumulative power S(ℓ) = Σ_{ℓ&#x27;=2}^{ℓ} (2ℓ&#x27;+1)C_ℓ&#x27; and normalize to get &quot;
+    &quot;F(ℓ) = S(ℓ)/S(10). The per-map statistic is the power-weighted mean multipole &quot;
+    &quot;⟨ℓ⟩_w = Σ ℓ(2ℓ+1)C_ℓ / Σ (2ℓ+1)C_ℓ over ℓ=2–10, characterizing where within the &quot;
+    &quot;low-ℓ range power preferentially accumulates. Comparing Planck to ΛCDM simulations &quot;
+    &quot;tests whether the observed cumulative power buildup shape is anomalous, analogous to &quot;
+    &quot;a Kolmogorov–Smirnov style test on the cumulative angular power spectrum. A lower &quot;
+    &quot;⟨ℓ⟩_w indicates power concentrated at the lowest multipoles (ℓ=2,3); a higher value &quot;
+    &quot;indicates power biased toward ℓ~10.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return power-weighted mean multipole ⟨ℓ⟩_w for ℓ=2..10.
+
+    Computes C_ℓ via anafast on the (masked→0-filled) map, then returns
+    Σ ℓ(2ℓ+1)C_ℓ / Σ (2ℓ+1)C_ℓ as a single scalar summarizing the
+    cumulative power distribution shape at low ℓ.
+    &quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+
+    # Replace NaN masked pixels with 0 for healpy compatibility
+    valid = np.isfinite(m)
+    m_clean = np.where(valid, m, 0.0)
+
+    # Compute pseudo-C_ℓ up to ℓ=10
+    cl = hp.anafast(m_clean, lmax=10)
+
+    # Multipole range ℓ=2..10
+    ells = np.arange(2, 11)
+    weights = (2 * ells + 1) * cl[2:11]
+
+    total_weight = np.sum(weights)
+    if total_weight &lt;= 0:
+        # Fallback: midpoint of range if no power detected
+        return 6.0
+
+    weighted_mean_ell = np.sum(ells * weights) / total_weight
+    return float(weighted_mean_ell)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the Low-ℓ Power Spectrum Cumulative Deviation Index.&quot;&quot;&quot;
+    sims = np.asarray(sim_results, dtype=float)
+    sims = sims[np.isfinite(sims)]
+    n = len(sims)
+
+    if n == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims))
+    std_s = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    median_s = float(np.median(sims))
+
+    # p-value upper: fraction of sims with ⟨ℓ⟩_w as extreme or more than Planck (toward low ℓ)
+    p_upper = float(np.mean(sims &gt;= planck_stat))
+    # p-value lower: fraction of sims with ⟨ℓ⟩_w as extreme or more toward high ℓ
+    p_lower = float(np.mean(sims &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else 0.0
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;sim_median&quot;: median_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n,
+        &quot;interpretation&quot;: (
+            f&quot;The statistic is the power-weighted mean multipole ⟨ℓ⟩_w in the range ℓ=2–10. &quot;
+            f&quot;Planck ⟨ℓ⟩_w = {planck_stat:.4f}. Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}. &quot;
+            f&quot;A lower ⟨ℓ⟩_w means power accumulates faster at the lowest multipoles (ℓ=2,3), &quot;
+            f&quot;consistent with a low-ℓ power deficit or anomalous quadrupole–octupole structure. &quot;
+            f&quot;A higher ⟨ℓ⟩_w means power is biased toward ℓ~10. &quot;
+            f&quot;For a flat C_ℓ spectrum, ⟨ℓ⟩_w ≈ 7.03. &quot;
+            f&quot;z = {z_score:.2f}, two-sided p = {p_two:.4f}.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Power Spectrum Cumulative Deviation Index&quot;,
+            &quot;xlabel&quot;: &quot;Power-weighted mean multipole ⟨ℓ⟩_w (ℓ=2–10)&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck ⟨ℓ⟩_w = {planck_stat:.4f}. &quot;
+                f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, P(two-sided) = {p_two:.4f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-80-low-power-spectrum-cumulative-deviation-index.png" alt="Statistic distribution for Low-ℓ Power Spectrum Cumulative Deviation Index">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.152</td></tr>
+<tr><th>One-tailed p-value</th><td>0.076</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.152</td></tr>
+<tr><th>Sigma</th><td>1.433</td></tr>
+<tr><th>Planck statistic</th><td>5.504</td></tr>
+<tr><th>Simulation mean</th><td>4.794</td></tr>
+<tr><th>Simulation std.</th><td>0.482</td></tr>
+<tr><th>Simulation median</th><td>4.799</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>power</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-80-low-power-spectrum-cumulative-deviation-index.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-80-low-power-spectrum-cumulative-deviation-index.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-80-low-power-spectrum-cumulative-deviation-index.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-80-low-power-spectrum-cumulative-deviation-index.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-80-low-power-spectrum-cumulative-deviation-index.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-80-low-power-spectrum-cumulative-deviation-index.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

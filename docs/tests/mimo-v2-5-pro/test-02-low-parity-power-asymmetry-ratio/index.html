@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Parity Power Asymmetry Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 02 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Parity Power Asymmetry Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Repeat · parity · lower tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The low-ℓ parity power asymmetry ratio R is significantly lower than expected from lensed-ΛCDM simulations, indicating a deficit of odd-parity power.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Measures the ratio R of total angular power in odd vs. even multipoles (ℓ = 2–30). A deficit in odd-parity power (R &lt; 1) has been reported as a low-ℓ anomaly.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck observed R = 1.24. Simulations (lensed-ΛCDM) yield a median R = 0.60, with a one-tailed (lower) p-value of 0.924. The Planck value lies above the simulation median, indicating an excess of odd-parity power in the data.</p>
+          <p>No significant deficit of odd-parity power is found. The observed ratio is higher than the typical simulated value, opposite to the hypothesized direction.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test description explicitly states that &quot;small R indicates a deficit of odd-parity power relative to even-parity power, consistent with the reported ~2-3σ CMB parity asymmetry.&quot; The interpretation in the code also flags when R is less than the simulation median as &quot;Odd-parity deficit (anomalous).&quot; This establishes a clear directional prediction: the anomaly is specifically associated with low values of R, making a one-tailed test appropriate for testing the hypothesis of a downward deviation.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The low-ℓ parity asymmetry is a well-known anomaly, typically reported at ~2–3σ significance (e.g., Kim &amp; Naselsky 2010; Aluri et al. 2023). This test&#x27;s result (z ≈ 1.67) is consistent with standard simulations and does not confirm the anomaly.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (&quot;Low-ℓ parity power asymmetry ratio. After applying the mask (NaN pixels filled with 0), &quot;
+    &quot;the pseudo angular power spectrum C̃_ℓ is computed via anafast for ℓ = 2 to 30. &quot;
+    &quot;The test statistic is R = Σ_{ℓ odd} C̃_ℓ / Σ_{ℓ even} C̃_ℓ, the ratio of total odd-multipole &quot;
+    &quot;power to total even-multipole power at large angular scales. &quot;
+    &quot;Small R indicates a deficit of odd-parity power relative to even-parity power, &quot;
+    &quot;consistent with the reported ~2-3σ CMB parity asymmetry.&quot;)
+
+
+def analyze_map(m):
+    m = np.array(m, dtype=np.float64)
+    
+    # Fill masked (NaN) pixels with 0 for healpy transforms
+    m_fill = np.where(np.isfinite(m), m, 0.0)
+    
+    # Compute pseudo power spectrum up to ℓ=30
+    lmax = 30
+    cl = hp.anafast(m_fill, lmax=lmax)
+    
+    # Sum power in odd and even multipoles for ℓ = 2 to 30
+    ells = np.arange(2, lmax + 1)
+    c_ells = cl[2:lmax + 1]
+    
+    # Mask for odd ℓ (3, 5, 7, ..., 29) and even ℓ (2, 4, 6, ..., 30)
+    odd_mask = (ells % 2 == 1)
+    even_mask = (ells % 2 == 0)
+    
+    s_odd = np.sum(c_ells[odd_mask])
+    s_even = np.sum(c_ells[even_mask])
+    
+    # Avoid division by zero
+    if abs(s_even) &lt; 1e-30:
+        return 1.0
+    
+    R = float(s_odd / s_even)
+    return R
+
+
+def summarize_results(planck_stat, sim_results):
+    sim_arr = np.array(sim_results, dtype=np.float64)
+    finite_mask = np.isfinite(sim_arr)
+    n_finite = int(finite_mask.sum())
+
+    if n_finite &gt; 0:
+        valid = sim_arr[finite_mask]
+        rank = int(np.sum(valid &lt; planck_stat))
+        p_value_below = rank / n_finite
+        p_value_above = 1.0 - p_value_below
+        p_value = min(p_value_below, p_value_above)  # two-sided
+    else:
+        rank = 0
+        p_value_below = float(&#x27;nan&#x27;)
+        p_value_above = float(&#x27;nan&#x27;)
+        p_value = float(&#x27;nan&#x27;)
+
+    sim_median = float(np.nanmedian(sim_arr))
+
+    result = {
+        &quot;test_description&quot;: test_description,
+        &quot;planck_stat&quot;: float(planck_stat),
+        &quot;p_value&quot;: float(p_value),
+        &quot;p_value_below&quot;: float(p_value_below),
+        &quot;p_value_above&quot;: float(p_value_above),
+        &quot;rank_below&quot;: rank,
+        &quot;n_simulations&quot;: len(sim_results),
+        &quot;n_valid&quot;: n_finite,
+        &quot;sim_mean&quot;: float(np.nanmean(sim_arr)),
+        &quot;sim_std&quot;: float(np.nanstd(sim_arr)),
+        &quot;sim_median&quot;: sim_median,
+        &quot;exceeds_95th_percentile&quot;: bool(p_value &lt; 0.05),
+        &quot;interpretation&quot;: (&quot;Odd-parity deficit (anomalous)&quot; if planck_stat &lt; sim_median
+                           else &quot;Even-parity deficit (odd excess)&quot;),
+    }
+
+    result[&quot;plot_spec&quot;] = {
+        &quot;kind&quot;: &quot;histogram&quot;,
+        &quot;title&quot;: &quot;Low-ℓ Odd-Even Power Ratio&quot;,
+        &quot;xlabel&quot;: &quot;R = ΣC_ℓ(odd) / ΣC_ℓ(even), ℓ ∈ [2, 30]&quot;,
+        &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+        &quot;bins&quot;: 40,
+        &quot;caption&quot;: (f&quot;Histogram of R from {n_finite} lensed-ΛCDM simulations. &quot;
+                    f&quot;Planck R = {planck_stat:.4f} (two-sided p = {p_value:.3f}, &quot;
+                    f&quot;rank {rank}/{n_finite}). &quot;
+                    f&quot;R &lt; 1 indicates odd-parity power deficit, consistent with the &quot;
+                    f&quot;CMB parity asymmetry.&quot;)
+    }
+
+    return result</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-02-low-parity-power-asymmetry-ratio.png" alt="Statistic distribution for Low-ℓ Parity Power Asymmetry Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.924</td></tr>
+<tr><th>One-tailed p-value</th><td>0.924</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.152</td></tr>
+<tr><th>Sigma</th><td>1.433</td></tr>
+<tr><th>Planck statistic</th><td>1.241</td></tr>
+<tr><th>Simulation mean</th><td>0.679</td></tr>
+<tr><th>Simulation std.</th><td>0.336</td></tr>
+<tr><th>Simulation median</th><td>0.601</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>lower</td></tr>
+<tr><th>Family</th><td>parity</td></tr>
+<tr><th>Novelty</th><td>Repeat</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-02-low-parity-power-asymmetry-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-02-low-parity-power-asymmetry-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-02-low-parity-power-asymmetry-ratio.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-02-low-parity-power-asymmetry-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-02-low-parity-power-asymmetry-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-02-low-parity-power-asymmetry-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

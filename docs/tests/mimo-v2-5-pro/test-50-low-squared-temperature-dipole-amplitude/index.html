@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Squared-Temperature Dipole Amplitude · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 50 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Squared-Temperature Dipole Amplitude</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The squared temperature dipole amplitude D in the Planck CMB map is larger than expected from Gaussian ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Computes T² on the celestial sphere, subtracts its mean, then extracts the rms dipole amplitude D = sqrt(|a_{1,-1}|² + |a_{1,0}|² + |a_{1,1}|²) from the ℓ=1 spherical harmonic coefficients. This probes dipolar non-Gaussianity in the squared temperature field, distinct from direct temperature dipole modulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>D = 1911 μK² in Planck, compared to FFP simulation mean of 1342 ± 677 μK². Planck sits at the 81.4th percentile (+0.84σ), with one-sided p = 0.186 across 1000 simulations. Anomaly strength is negligible.</p>
+          <p>The squared-temperature dipole amplitude is fully consistent with Gaussian ΛCDM expectations. No significant preferred direction in T² is detected, indicating no evidence for the specific non-Gaussian coupling that an anomalous T² dipole would signal.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect an unusually large dipole amplitude in the squared temperature field, as indicated by the p-value computation (sim &gt;= planck_stat) and the interpretation in the code which focuses on an unusually large dipole amplitude. There is a clear directional prediction for an excess.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The T² dipole statistic is not a standard probe in the CMB anomalies literature. Related work includes dipolar modulation tests (e.g., Eriksen et al. 2004; Hoftuft et al. 2009), multipole vector analyses (Copi, Huterer &amp; Starkman 2004), and various low-ℓ alignment studies, but none of these specifically extract the dipole of the squared temperature field. Searches for direct prior use of this particular statistic returned no relevant results, so it appears to occupy an unexplored niche.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Compute the squared temperature map T² = T^2 on the sphere, subtract its &quot;
+    &quot;mean, then compute the spherical harmonic coefficients a_{ℓm} for ℓ=1. &quot;
+    &quot;The statistic is the rms amplitude of the dipole: D = sqrt(|a_{1,-1}|^2 + &quot;
+    &quot;|a_{1,0}|^2 + |a_{1,1}|^2). This measures the strength of a dipolar pattern &quot;
+    &quot;in the squared temperature field, which would indicate a specific form of &quot;
+    &quot;non-Gaussianity distinct from dipolar modulations in the temperature itself.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute the rms dipole amplitude of the mean-subtracted squared temperature field.&quot;&quot;&quot;
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 500:
+        return 0.0
+
+    # Squared temperature for valid pixels
+    T2 = np.where(mask, m ** 2, np.nan)
+
+    # Mean of T² over valid pixels
+    T2_mean = np.nanmean(T2)
+
+    # Mean-subtracted T², with masked pixels set to 0 (i.e., filled with the mean)
+    T2_sub = np.where(mask, T2 - T2_mean, 0.0)
+
+    # Compute a_{ℓm} for ℓ=1 only
+    alm = hp.map2alm(T2_sub, lmax=1, iter=0)
+
+    # alm ordering: (a_{0,0}, a_{1,0}, a_{1,1}) — but for lmax=1, indices are
+    #   0 -&gt; (l=0, m=0)
+    #   1 -&gt; (l=1, m=0)
+    #   2 -&gt; (l=1, m=1)
+    # The ℓ=1 coefficients are alm[1] (m=0) and alm[2] (m=1).
+    # |a_{1,-1}|^2 = |a_{1,1}|^2 by the real-field symmetry, so:
+    # D^2 = |a_{1,0}|^2 + 2*|a_{1,1}|^2
+    a10 = alm[1]
+    a11 = alm[2]
+
+    D_sq = np.abs(a10) ** 2 + 2.0 * np.abs(a11) ** 2
+    D = np.sqrt(D_sq)
+
+    if not np.isfinite(D):
+        return 0.0
+
+    return float(D)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Squared-Temperature Dipole Amplitude test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Squared-Temperature Dipole Amplitude&quot;,
+                &quot;xlabel&quot;: &quot;D (rms dipole of T²)&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    # One-sided p-value (upper tail): how often do sims exceed Planck?
+    p_value = float(np.mean(sim &gt;= planck_stat))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    if p_value &lt;= 0.01:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.05:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    if p_value &lt;= 0.05:
+        direction = (
+            &quot;Planck&#x27;s squared-temperature field has an unusually large dipole &quot;
+            &quot;amplitude compared to Gaussian ΛCDM simulations, suggesting a &quot;
+            &quot;preferred direction in T² that may indicate dipolar non-Gaussianity, &quot;
+            &quot;a modulation coupling, or a residual systematic aligned with a &quot;
+            &quot;specific axis.&quot;
+        )
+    else:
+        direction = (
+            &quot;The dipole amplitude of the squared-temperature field is consistent &quot;
+            &quot;with Gaussian ΛCDM expectations. No significant preferred direction &quot;
+            &quot;in T² is detected.&quot;
+        )
+
+    interp = (
+        f&quot;D = {planck_stat:.4f} μK². &quot;
+        f&quot;Sim mean = {mean_sim:.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;one-sided p = {p_value:.4f}. &quot;
+        f&quot;Strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the rms dipole amplitude D of the mean-subtracted squared &quot;
+        &quot;temperature field T² across FFP simulations. D = sqrt(|a_{1,-1}|² + &quot;
+        &quot;|a_{1,0}|² + |a_{1,1}|²) measures the strength of a dipolar pattern in &quot;
+        &quot;T², a probe of non-Gaussianity distinct from the usual temperature dipole. &quot;
+        &quot;Red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Squared-Temperature Dipole Amplitude&quot;,
+            &quot;xlabel&quot;: &quot;D (rms dipole of T² in μK²)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-50-low-squared-temperature-dipole-amplitude.png" alt="Statistic distribution for Low-ℓ Squared-Temperature Dipole Amplitude">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.186</td></tr>
+<tr><th>One-tailed p-value</th><td>0.186</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.372</td></tr>
+<tr><th>Sigma</th><td>0.893</td></tr>
+<tr><th>Planck statistic</th><td>1.91e+03</td></tr>
+<tr><th>Simulation mean</th><td>1.34e+03</td></tr>
+<tr><th>Simulation std.</th><td>677</td></tr>
+<tr><th>Simulation median</th><td>1.21e+03</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-50-low-squared-temperature-dipole-amplitude.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-50-low-squared-temperature-dipole-amplitude.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-50-low-squared-temperature-dipole-amplitude.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-50-low-squared-temperature-dipole-amplitude.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-50-low-squared-temperature-dipole-amplitude.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-50-low-squared-temperature-dipole-amplitude.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

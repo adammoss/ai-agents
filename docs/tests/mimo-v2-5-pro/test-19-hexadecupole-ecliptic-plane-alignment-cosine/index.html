@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hexadecupole-Ecliptic Plane Alignment Cosine · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 19 · Mimo V2.5 Pro</p>
+      <h1>Hexadecupole-Ecliptic Plane Alignment Cosine</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · alignment · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The hexadecupole (l=4) preferred plane is aligned with the ecliptic plane, resulting in an unusually high value of |cos(θ)| compared to ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The preferred plane of the l=4 (hexadecupole) multipole is determined from the eigenvector with the smallest eigenvalue of the power tensor M_ij = Σ_pix f₄² n_i n_j, where f₄ is the l=4-restricted CMB temperature pattern. The test statistic is |cos(θ)| = |n̂ · ê_ecl|, the absolute dot product of this plane normal with the ecliptic north pole, measuring alignment with the ecliptic plane.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck SMICA yields |cos(θ)| = 0.749 (73.3rd percentile of simulations; p-value = 0.267; z = 0.81σ). Simulated mean is 0.516 ± 0.289 based on 1000 ΛCDM realizations. The observed value is entirely consistent with the simulation distribution.</p>
+          <p>The hexadecupole preferred plane shows moderate absolute alignment (|cos θ| = 0.749), but this is unremarkable within ΛCDM expectations. Unlike the quadrupole and octopole, whose ecliptic alignments are anomalous at &gt;2σ, the l=4 mode does not extend the ecliptic alignment anomaly to higher multipoles. The ecliptic-plane connection appears confined to l = 2 and 3.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The known anomaly for l=2 and l=3 is that they are aligned with the ecliptic plane, leading to high values of the alignment cosine. If this anomaly extends to l=4, we expect the test statistic |cos(θ)| to be unusually high, so we are testing against the upper tail of the simulation distribution.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Ecliptic alignment anomalies are well-established for l = 2 and l = 3 (Copi et al. 2004; Weeks 2004). Abramo et al. (2006) tested l = 2–5 multipole-vector correlations and found possible anomalies in l=4 planarity and l=3–l=4 alignment, but did not specifically test l=4–ecliptic alignment using a power-tensor eigenvector method. No directly comparable l=4–ecliptic alignment test was found in the literature.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (&quot;Hexadecupole-Ecliptic Plane Alignment Cosine: Compute the cosine of the angle &quot;
+    &quot;between the normal vector to the preferred plane of the l=4 (hexadecupole) multipole and the &quot;
+    &quot;north ecliptic pole. The preferred plane is determined from the eigenvector corresponding to &quot;
+    &quot;the smallest eigenvalue of the power tensor M_ij = Σ_pix f_4²(r) n_i n_j, where f_4(r) &quot;
+    &quot;is the l=4 multipole-restricted CMB temperature pattern. This generalizes the Copi et al. &quot;
+    &quot;multipole-vector plane definition: for l=2 the two multipole vectors span the quadrupole plane; &quot;
+    &quot;for l=4 the power tensor captures the dominant planar structure among the four multipole vectors. &quot;
+    &quot;The statistic is |cos(θ)| = |n̂ · ê_ecl|, outputting a value in [0, 1]. Values near 1 indicate &quot;
+    &quot;the hexadecupole&#x27;s preferred plane is aligned with the ecliptic plane, while values near 0 &quot;
+    &quot;indicate orthogonality. This extends the known l=2,3 ecliptic alignment anomaly to l=4.&quot;)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute the hexadecupole-ecliptic plane alignment cosine.
+
+    1. Extract the l=4 multipole from the CMB map via map2alm.
+    2. Compute the power tensor M_ij = sum_pix f_4^2 * n_i * n_j.
+    3. Eigendecompose M; the eigenvector with the smallest eigenvalue is the
+       plane normal (direction of minimum variance in the squared hexadecupole
+       pattern).
+    4. Return |dot(plane_normal, ecliptic_north_pole)|.
+    &quot;&quot;&quot;
+    # Compute ecliptic north pole in galactic Cartesian coordinates
+    # (computed each call to avoid module-level variable persistence issues)
+    rot = hp.Rotator(coord=[&#x27;E&#x27;, &#x27;G&#x27;])
+    theta_g, phi_g = rot(0.0, 0.0)  # ecliptic north pole in galactic
+    ecl_pole = np.array([
+        np.sin(theta_g) * np.cos(phi_g),
+        np.sin(theta_g) * np.sin(phi_g),
+        np.cos(theta_g)
+    ])
+
+    # Fill masked pixels with 0.0 for healpy compatibility
+    m_filled = np.where(np.isfinite(m), m, 0.0)
+    nside = hp.npix2nside(len(m))
+    npix = hp.nside2npix(nside)
+
+    # Spherical harmonic decomposition up to l=4
+    lmax = 4
+    alm = hp.map2alm(m_filled, lmax=lmax)
+
+    # Isolate l=4 coefficients (m = 0, 1, 2, 3, 4)
+    alm_l4 = np.zeros_like(alm)
+    for em in range(5):
+        idx = hp.Alm.getidx(lmax, 4, em)
+        alm_l4[idx] = alm[idx]
+
+    # Synthesize the l=4 multipole map
+    map_l4 = hp.alm2map(alm_l4, nside, lmax=lmax, verbose=False)
+
+    # Precompute pixel unit vectors (vectorized)
+    theta, phi = hp.pix2ang(nside, np.arange(npix))
+    sin_t = np.sin(theta)
+    nx = sin_t * np.cos(phi)
+    ny = sin_t * np.sin(phi)
+    nz = np.cos(theta)
+    n_vecs = [nx, ny, nz]
+
+    # Power tensor: M_ij = sum_pix (f_4)^2 * n_i * n_j
+    # The squared field highlights ridges/planes of the hexadecupole pattern.
+    # The eigenvector with smallest eigenvalue gives the plane normal.
+    w = map_l4 ** 2
+    M = np.zeros((3, 3))
+    for i in range(3):
+        for j in range(i, 3):
+            val = np.dot(w, n_vecs[i] * n_vecs[j])
+            M[i, j] = val
+            if j != i:
+                M[j, i] = val
+
+    # Eigendecomposition (eigh returns eigenvalues in ascending order)
+    eigvals, eigvecs = np.linalg.eigh(M)
+
+    # Handle degenerate case: negligible l=4 power
+    total_power = eigvals.sum()
+    if total_power &lt; 1e-30:
+        return 0.5  # Expected value for random orientation
+
+    # Plane normal = eigenvector with smallest eigenvalue
+    # (direction of minimum variance = normal to the preferred plane)
+    normal = eigvecs[:, 0]
+
+    # |cos(theta)| = |dot(plane_normal, ecliptic_north_pole)|
+    cos_theta = abs(np.dot(normal, ecl_pole))
+
+    return float(cos_theta)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the hexadecupole-ecliptic alignment anomaly.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    # Percentile rank (higher |cos theta| = more aligned with ecliptic)
+    rank = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank / n_sims if n_sims &gt; 0 else float(&#x27;nan&#x27;)
+
+    # P-value: fraction of simulations with alignment &gt;= Planck value
+    p_value = float(np.mean(sim &gt;= planck_stat)) if n_sims &gt; 0 else float(&#x27;nan&#x27;)
+
+    # Descriptive statistics
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+    z_score = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else float(&#x27;nan&#x27;)
+
+    # Interpretation labels
+    if planck_stat &gt; 0.8:
+        strength = &quot;very strong&quot;
+    elif planck_stat &gt; 0.6:
+        strength = &quot;strong&quot;
+    elif planck_stat &gt; 0.4:
+        strength = &quot;moderate&quot;
+    elif planck_stat &gt; 0.2:
+        strength = &quot;weak&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    interp = (
+        &quot;Hexadecupole-ecliptic plane alignment |cos(θ)| = {stat:.4f}, indicating {strength} &quot;
+        &quot;alignment between the l=4 preferred plane and the ecliptic plane. &quot;
+        &quot;This places it at the {pct:.1f}th percentile of LCDM simulations &quot;
+        &quot;(p-value = {pval:.4f}). &quot;
+        &quot;Simulated mean |cos(θ)| = {mean:.4f} ± {std:.4f}.&quot;
+    ).format(stat=planck_stat, strength=strength, pct=percentile, pval=p_value,
+             mean=mean_sim, std=std_sim)
+
+    caption = (
+        &quot;Histogram of the hexadecupole-ecliptic plane alignment cosine |cos(θ)|, &quot;
+        &quot;measuring the alignment between the l=4 multipole&#x27;s preferred plane normal &quot;
+        &quot;and the ecliptic north pole. The preferred plane is defined by the eigenvector &quot;
+        &quot;with the smallest eigenvalue of the power tensor M_ij = Σ f_4² n_i n_j. &quot;
+        &quot;Values near 1 indicate the hexadecupole&#x27;s preferred plane is parallel to &quot;
+        &quot;the ecliptic plane; values near 0 indicate orthogonality. &quot;
+        &quot;The red line marks the Planck SMICA value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;rank&quot;: rank,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;z_score&quot;: z_score,
+        &quot;alignment_label&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Hexadecupole–Ecliptic Plane Alignment&quot;,
+            &quot;xlabel&quot;: &quot;|cos(θ)| = |n̂ · ê_ecl|&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-19-hexadecupole-ecliptic-plane-alignment-cosine.png" alt="Statistic distribution for Hexadecupole-Ecliptic Plane Alignment Cosine">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.267</td></tr>
+<tr><th>One-tailed p-value</th><td>0.267</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.534</td></tr>
+<tr><th>Sigma</th><td>0.622</td></tr>
+<tr><th>Planck statistic</th><td>0.749</td></tr>
+<tr><th>Simulation mean</th><td>0.516</td></tr>
+<tr><th>Simulation std.</th><td>0.289</td></tr>
+<tr><th>Simulation median</th><td>0.513</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>alignment</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-19-hexadecupole-ecliptic-plane-alignment-cosine.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-19-hexadecupole-ecliptic-plane-alignment-cosine.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-19-hexadecupole-ecliptic-plane-alignment-cosine.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-19-hexadecupole-ecliptic-plane-alignment-cosine.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-19-hexadecupole-ecliptic-plane-alignment-cosine.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-19-hexadecupole-ecliptic-plane-alignment-cosine.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

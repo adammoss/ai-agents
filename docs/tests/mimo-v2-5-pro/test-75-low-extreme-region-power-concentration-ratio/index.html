@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Extreme-Region Power Concentration Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 75 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Extreme-Region Power Concentration Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · power · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Planck CMB temperature map exhibits a higher low-ℓ extreme-region power concentration ratio than expected from ΛCDM simulations, indicating anomalous spatial power concentration.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The map is band-limited to ℓ=2–5 and the hottest and coldest pixels are identified. The statistic is the ratio of T² summed within 15° discs around these extremes to the total T² over the unmasked sky. This quantifies how much low-ℓ power is spatially concentrated near extreme features. Under ΛCDM, extreme values in a Gaussian field are relatively isolated and should not dominate the global power budget.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The Planck ratio is 0.1863, slightly below the simulation mean of 0.1977 ± 0.0344 (1000 sims). The z-score is −0.33, and the one-tailed upper p-value is 0.601. The Planck value falls comfortably within the expected ΛCDM distribution.</p>
+          <p>The Planck map&#x27;s extreme hot/cold regions at low-ℓ do not concentrate an unusually large fraction of total power. The observed ratio is nearly average compared to Gaussian isotropic realizations. There is no evidence of anomalous spatial power concentration in this statistic.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test description and code explicitly state that in typical ΛCDM realizations, extreme values do not dominate the global power as strongly as observed in the Planck map. This indicates a directional prediction that the Planck statistic is higher than simulations, making the test one-sided for the upper tail.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Low-ℓ anomalies have been extensively studied (e.g., quadrupole–octopole alignment, the Cold Spot, power deficit), but this specific ratio-based statistic targeting power concentration around extreme pixels does not appear to have a direct counterpart in published CMB anomaly literature. No relevant prior studies were found in searches.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Measures how much of the low-ℓ (ℓ=2–5) power budget is concentrated in the &quot;
+    &quot;neighborhoods of the most extreme temperature features. Band-limits the map to &quot;
+    &quot;ℓ_max=5, identifies the single hottest and coldest pixels, then computes the &quot;
+    &quot;ratio of T² summed within 15° discs around these extremes to the total T² over &quot;
+    &quot;the full unmasked sky. In a typical ΛCDM realization, extreme values do not &quot;
+    &quot;dominate global power as strongly as observed in the Planck map.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the power concentration ratio near extreme hot/cold spots.&quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    npix = hp.nside2npix(nside)
+    lmax = 5
+
+    # --- 1. Clean masked pixels for healpy compatibility ---
+    mask_valid = np.isfinite(m)
+    m_clean = np.where(mask_valid, m, 0.0)
+
+    # --- 2. Get a_ℓm and zero out ℓ = 0, 1 ---
+    alm = hp.map2alm(m_clean, lmax=lmax)
+    for ell in range(2):
+        for m_idx in range(ell + 1):
+            alm[hp.Alm.getidx(lmax, ell, m_idx)] = 0.0
+
+    # --- 3. Reconstruct band-limited map (ℓ = 2–5) ---
+    T_smooth = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # --- 4. Find hottest and coldest pixels among unmasked pixels ---
+    valid_idx = np.where(mask_valid)[0]
+    if len(valid_idx) == 0:
+        return 0.0
+
+    valid_temps = T_smooth[valid_idx]
+    hottest_idx = valid_idx[np.argmax(valid_temps)]
+    coldest_idx = valid_idx[np.argmin(valid_temps)]
+
+    # --- 5. Precompute all pixel unit vectors once ---
+    all_vecs = np.array(hp.pix2vec(nside, np.arange(npix)))  # shape (3, npix)
+
+    # --- 6. Compute cosine of angular radius threshold ---
+    radius_rad = np.radians(15.0)
+    cos_thresh = np.cos(radius_rad)
+
+    # --- 7. Get vectors of extreme pixels ---
+    vec_hot = np.array(hp.pix2vec(nside, hottest_idx)).flatten()
+    vec_col = np.array(hp.pix2vec(nside, coldest_idx)).flatten()
+
+    # --- 8. Vectorized dot products to find pixels within disc ---
+    dot_hot = all_vecs[0] * vec_hot[0] + all_vecs[1] * vec_hot[1] + all_vecs[2] * vec_hot[2]
+    dot_col = all_vecs[0] * vec_col[0] + all_vecs[1] * vec_col[1] + all_vecs[2] * vec_col[2]
+
+    disc_hot_mask = dot_hot &gt;= cos_thresh
+    disc_col_mask = dot_col &gt;= cos_thresh
+
+    # --- 9. Combine with valid-pixel mask and sum T² ---
+    T2 = T_smooth ** 2
+
+    sum_hot = np.sum(T2[disc_hot_mask &amp; mask_valid])
+    sum_col = np.sum(T2[disc_col_mask &amp; mask_valid])
+
+    # --- 10. Total T² over entire unmasked band-limited map ---
+    total_T2 = np.sum(T2[mask_valid])
+
+    if total_T2 &lt; 1e-30:
+        return 0.0
+
+    # --- 11. Compute concentration ratio ---
+    ratio = (sum_hot + sum_col) / total_T2
+
+    return float(ratio)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the low-ℓ extreme-region power concentration ratio.&quot;&quot;&quot;
+    sims = np.asarray(sim_results, dtype=float)
+    sims = sims[np.isfinite(sims)]
+    n = len(sims)
+
+    if n == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims))
+    std_s = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    p_upper = float(np.mean(sims &gt;= planck_stat))
+    p_lower = float(np.mean(sims &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else np.nan
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n,
+        &quot;interpretation&quot;: (
+            &quot;This statistic measures the fraction of low-ℓ (ℓ=2–5) power concentrated &quot;
+            &quot;in 15° neighborhoods around the sky&#x27;s hottest and coldest pixels. &quot;
+            &quot;In a statistically isotropic Gaussian field, extreme values are &quot;
+            &quot;relatively isolated features that do not dominate the global power budget. &quot;
+            &quot;A higher-than-expected ratio indicates that the Planck map&#x27;s most extreme &quot;
+            &quot;hot and cold spots account for an unusually large share of the total &quot;
+            &quot;low-ℓ power—a signature of anomalous spatial power concentration &quot;
+            &quot;incompatible with the standard LCDM model.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Extreme-Region Power Concentration Ratio&quot;,
+            &quot;xlabel&quot;: &quot;Power Concentration Ratio (T²_near_extremes / T²_total)&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck ratio = {planck_stat:.4f}. &quot;
+                f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, p(two-sided) = {p_two:.3f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-75-low-extreme-region-power-concentration-ratio.png" alt="Statistic distribution for Low-ℓ Extreme-Region Power Concentration Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.601</td></tr>
+<tr><th>One-tailed p-value</th><td>0.601</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.798</td></tr>
+<tr><th>Sigma</th><td>0.256</td></tr>
+<tr><th>Planck statistic</th><td>0.186</td></tr>
+<tr><th>Simulation mean</th><td>0.198</td></tr>
+<tr><th>Simulation std.</th><td>0.0344</td></tr>
+<tr><th>Simulation median</th><td>0.196</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>power</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-75-low-extreme-region-power-concentration-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-75-low-extreme-region-power-concentration-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-75-low-extreme-region-power-concentration-ratio.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-75-low-extreme-region-power-concentration-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-75-low-extreme-region-power-concentration-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-75-low-extreme-region-power-concentration-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

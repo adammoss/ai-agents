@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Gradient Maximum Ecliptic Latitude · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 51 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Gradient Maximum Ecliptic Latitude</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · lower tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The maximum gradient in the low-ℓ (ℓ=2–10) CMB temperature map is significantly aligned with the ecliptic plane, resulting in a lower-than-expected |sin(ecliptic latitude)| statistic.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Computes gradient magnitude of the low-ℓ (ℓ=2–10) CMB temperature map via spherical harmonic derivatives. Identifies the pixel with maximum gradient and converts its position to ecliptic coordinates. The statistic is |sin(ecliptic latitude)|, designed to be small if the steepest temperature change aligns with the ecliptic plane.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck yields |sin(ecl_lat)| = 0.9184 (ecliptic lat ≈ 66.7°), placing the gradient maximum near the ecliptic pole rather than the plane. Simulations give mean = 0.9175 ± 0.0009. The Planck value is +0.96σ above the simulation mean (percentile = 76.7%), with two-sided p = 0.466. One-sided p-value toward the ecliptic plane = 1.0, meaning zero simulations produced a smaller value. Anomaly strength is negligible.</p>
+          <p>The maximum gradient in the low-ℓ temperature field lies close to the ecliptic pole, not the ecliptic plane. This result is fully consistent with Gaussian random realizations. No evidence is found for ecliptic-plane alignment of the large-scale temperature gradient structure.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test description explicitly focuses on measuring how close the steepest temperature change is to the ecliptic plane, with the statistic |sin(ecliptic latitude)| designed to be small when aligned with the plane. The code interpretation section highlights that small values indicate alignment with the ecliptic plane and the analysis computes a specific one-sided p-value for the ecliptic plane alignment. This represents a clear directional hypothesis about an anomaly, rather than a general deviation in any direction.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No directly comparable study using gradient-based statistics was found in the search results. Related work by Weeks (2004) and Abramo et al. (2006) examined multipole vector alignment with the ecliptic plane at low ℓ, finding some evidence for quadrupole–octopole–ecliptic alignment at &gt;2σ. The present gradient-based approach probes a different observable and finds no such anomaly.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Compute the gradient magnitude of the low-ℓ (ℓ=2–10) temperature map by &quot;
+    &quot;taking spherical harmonic derivatives. Find the pixel with the maximum &quot;
+    &quot;gradient magnitude and convert its coordinates to ecliptic coordinates. &quot;
+    &quot;The statistic is the absolute value of the sine of the ecliptic latitude &quot;
+    &quot;of that pixel. A value near 0 indicates the steepest temperature change &quot;
+    &quot;is aligned with the ecliptic plane; a value near 1 indicates alignment &quot;
+    &quot;with the ecliptic poles.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute |sin(ecliptic latitude)| of the pixel with maximum gradient magnitude in low-ℓ map.&quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 500:
+        return 0.5  # Return neutral value for severely masked maps
+
+    # Fill masked pixels with 0 for healpy compatibility
+    m_filled = np.where(mask, m, 0.0)
+
+    # Get spherical harmonic coefficients
+    alm = hp.map2alm(m_filled, lmax=10, iter=0)
+
+    # Zero out ℓ=0 and ℓ=1 to isolate ℓ=2-10
+    alm_low = alm.copy()
+    # Zero out ℓ=0 (index 0) and ℓ=1 (indices 1, 2)
+    alm_low[0] = 0.0
+    alm_low[1] = 0.0
+    alm_low[2] = 0.0
+
+    # Compute map and its derivatives from alm using alm2map_der1
+    # alm2map_der1 returns (map, dT/dtheta, dT/dphi)
+    # where dT/dphi is the raw phi derivative (NOT divided by sin(theta))
+    maps = hp.alm2map_der1(alm_low, nside, lmax=10)
+    
+    # maps[0] = temperature map (not needed)
+    # maps[1] = dT/dtheta (theta derivative)
+    # maps[2] = dT/dphi (raw phi derivative)
+    d_theta = maps[1]
+    d_phi = maps[2]
+
+    # For gradient magnitude on sphere, we need:
+    # |grad T| = sqrt( (dT/dtheta)^2 + (dT/dphi / sin(theta))^2 )
+    # Get theta for each pixel
+    theta_all = hp.pix2ang(nside, np.arange(hp.nside2npix(nside)))[0]
+    sin_theta = np.sin(theta_all)
+    # Avoid division by zero at poles
+    sin_theta = np.where(sin_theta &gt; 1e-10, sin_theta, 1e-10)
+
+    grad_mag = np.sqrt(d_theta**2 + (d_phi / sin_theta)**2)
+
+    # Only consider valid (unmasked) pixels
+    grad_mag_valid = np.where(mask, grad_mag, -np.inf)
+    
+    # Find pixel with maximum gradient
+    max_pix = np.argmax(grad_mag_valid)
+    max_grad = grad_mag[max_pix]
+    
+    if not np.isfinite(max_grad) or max_grad &lt;= 0:
+        return 0.5
+
+    # Convert pixel to equatorial (theta, phi)
+    theta, phi = hp.pix2ang(nside, max_pix)
+
+    # Convert from equatorial (celestial) to ecliptic coordinates
+    rot = hp.Rotator(coord=[&#x27;C&#x27;, &#x27;E&#x27;])
+    ecl_theta, ecl_phi = rot([theta, phi], r=True)
+
+    # Ecliptic latitude = pi/2 - ecliptic colatitude
+    ecl_lat = np.pi / 2 - ecl_theta
+
+    # Statistic: absolute value of sine of ecliptic latitude
+    result = float(np.abs(np.sin(ecl_lat)))
+
+    if not np.isfinite(result):
+        return 0.5
+
+    return result
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Gradient Maximum Ecliptic Latitude test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Gradient Maximum Ecliptic Latitude&quot;,
+                &quot;xlabel&quot;: &quot;|sin(ecliptic latitude)|&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    # Deviation from simulation mean
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    # Rank and percentile
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    # Two-sided p-value
+    p_value_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value_upper = float(np.mean(sim &gt;= planck_stat))
+    p_value_two_sided = 2.0 * min(p_value_lower, p_value_upper)
+    p_value_two_sided = min(p_value_two_sided, 1.0)
+
+    # One-sided toward ecliptic plane (small values)
+    p_value_ecliptic = float(np.mean(sim &lt;= planck_stat))
+
+    if p_value_two_sided &lt;= 0.01:
+        strength = &quot;strong&quot;
+    elif p_value_two_sided &lt;= 0.05:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    # Interpret the alignment
+    ecl_lat_deg = np.degrees(np.arcsin(planck_stat))
+    
+    if planck_stat &lt; 0.26:
+        alignment_desc = &quot;very close to the ecliptic plane&quot;
+    elif planck_stat &lt; 0.5:
+        alignment_desc = &quot;moderately close to the ecliptic plane&quot;
+    elif planck_stat &lt; 0.71:
+        alignment_desc = &quot;at intermediate ecliptic latitude&quot;
+    elif planck_stat &lt; 0.87:
+        alignment_desc = &quot;toward the ecliptic pole&quot;
+    else:
+        alignment_desc = &quot;very close to the ecliptic pole&quot;
+
+    direction = (
+        f&quot;The maximum gradient in the low-ℓ temperature field is {alignment_desc} &quot;
+        f&quot;(ecliptic latitude ≈ {ecl_lat_deg:.1f}°). &quot;
+    )
+    
+    if p_value_two_sided &lt;= 0.05:
+        direction += (
+            &quot;This alignment is statistically unusual compared to Gaussian simulations, &quot;
+            &quot;suggesting a potential connection between the CMB&#x27;s large-scale temperature &quot;
+            &quot;structure and the ecliptic coordinate system.&quot;
+        )
+    else:
+        direction += (
+            &quot;This alignment is consistent with random Gaussian realizations. &quot;
+            &quot;No significant ecliptic preference is detected in the gradient structure.&quot;
+        )
+
+    interp = (
+        f&quot;|sin(ecl_lat)| = {planck_stat:.4f} (ecliptic lat ≈ {ecl_lat_deg:.1f}°). &quot;
+        f&quot;Sim mean = {mean_sim:.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value_two_sided:.4f}. &quot;
+        f&quot;Strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of |sin(ecliptic latitude)| for the pixel with maximum gradient &quot;
+        &quot;magnitude in the low-ℓ (ℓ=2–10) temperature map across FFP simulations. &quot;
+        &quot;Values near 0 indicate alignment with the ecliptic plane; values near 1 &quot;
+        &quot;indicate alignment with the ecliptic poles. Red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value_two_sided&quot;: p_value_two_sided,
+        &quot;p_value_ecliptic_plane&quot;: p_value_ecliptic,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;ecliptic_latitude_deg&quot;: ecl_lat_deg,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Gradient Maximum Ecliptic Latitude&quot;,
+            &quot;xlabel&quot;: &quot;|sin(ecliptic latitude)|&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-51-low-gradient-maximum-ecliptic-latitude.png" alt="Statistic distribution for Low-ℓ Gradient Maximum Ecliptic Latitude">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.767</td></tr>
+<tr><th>One-tailed p-value</th><td>0.767</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.466</td></tr>
+<tr><th>Sigma</th><td>0.729</td></tr>
+<tr><th>Planck statistic</th><td>0.918</td></tr>
+<tr><th>Simulation mean</th><td>0.918</td></tr>
+<tr><th>Simulation std.</th><td>0.000896</td></tr>
+<tr><th>Simulation median</th><td>0.918</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>lower</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-51-low-gradient-maximum-ecliptic-latitude.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-51-low-gradient-maximum-ecliptic-latitude.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-51-low-gradient-maximum-ecliptic-latitude.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-51-low-gradient-maximum-ecliptic-latitude.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-51-low-gradient-maximum-ecliptic-latitude.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-51-low-gradient-maximum-ecliptic-latitude.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

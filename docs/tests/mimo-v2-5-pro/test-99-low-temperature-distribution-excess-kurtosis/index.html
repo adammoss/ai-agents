@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Temperature Distribution Excess Kurtosis · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 99 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Temperature Distribution Excess Kurtosis</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The observed low-ℓ (ℓ ≤ 10) CMB temperature distribution from the Planck SMICA map exhibits positive excess kurtosis (κ &gt; 0) compared to the Gaussian expectation, indicating heavier-than-expected tails due to the presence of outliers such as the CMB Cold Spot or other non-Gaussian features.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Band-limit the Planck SMICA map to ℓ ≤ 10 via spherical harmonic transform, apply Galactic mask, and compute sample excess kurtosis κ of unmasked pixel temperatures. Compare observed κ against 1000 masked ΛCDM simulations. Positive κ indicates heavier-than-Gaussian tails (more extreme outliers such as the Cold Spot).</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Observed κ = −0.001, essentially at the Gaussian expectation of 0. Simulation mean ± std = −0.025 ± 0.380. z-score = 0.06, upper-tail p-value = 0.408. The Planck value ranks at the 59th percentile of simulations—well within the central distribution.</p>
+          <p>The low-ℓ temperature distribution is mesokurtic (near-Gaussian), with no evidence for enhanced tails from outliers like the Cold Spot at this multipoles resolution. The statistic is completely typical relative to ΛCDM realizations. No signature of the hypothesized heavy-tailed behavior is detected.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test description explicitly states that it is &quot;sensitive to isolated extreme-temperature features such as the Cold Spot.&quot; The Cold Spot is a well-known, significant anomaly in the CMB that would manifest as a large cold pixel, pulling the temperature distribution toward heavier tails (positive excess kurtosis). Therefore, there is a clear directional hypothesis that the observed map will show an excess of such outliers, making an upper-tailed test appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The Planck Collaboration (2020, Planck 2018 results VII: Isotropy and Statistics of the CMB; arXiv:1906.02552) performed extensive non-Gaussianity tests at low multipoles using Minkowski functionals, bispectrum analyses, and temperature distribution moments. Their findings generally showed consistency with Gaussianity at large angular scales, though certain statistics (e.g., local non-Gaussianity from the Cold Spot region) showed mild tension. The present excess kurtosis result is consistent with these broader findings of no significant departure from Gaussianity in the low-ℓ temperature distribution.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Temperature Distribution Excess Kurtosis. &quot;
+    &quot;Band-limit the input Planck SMICA map to ℓ ≤ 10 via spherical harmonic transform &quot;
+    &quot;(alm up to lmax=10) and inverse-transform back to a Healpix map at nside=256. &quot;
+    &quot;Apply the Galactic mask so only unmasked pixels are retained. From the surviving &quot;
+    &quot;pixel temperatures, compute the sample excess kurtosis: &quot;
+    &quot;κ = (1/N) Σᵢ [(Tᵢ − T̄)/σ]⁴ − 3. &quot;
+    &quot;Positive κ indicates heavier-than-Gaussian tails (more extreme hot/cold pixels &quot;
+    &quot;than expected), while negative κ indicates lighter-than-Gaussian tails. &quot;
+    &quot;This statistic is sensitive to isolated extreme-temperature features such as &quot;
+    &quot;the Cold Spot, broad non-Gaussian excursions, or any systematic enhancement/&quot;
+    &quot;suppression of temperature outliers relative to a Gaussian expectation.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return excess kurtosis κ of the low-ℓ (ℓ≤10) temperature distribution.&quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    lmax = 10
+
+    valid = np.isfinite(m)
+    n_valid = int(np.sum(valid))
+
+    if n_valid &lt; 100:
+        return 0.0
+
+    # Band-limit to ℓ ≤ 10 via spherical harmonic transform
+    # Replace NaN with 0 for healpy compatibility
+    m_filled = np.where(valid, m, 0.0)
+    alm = hp.map2alm(m_filled, lmax=lmax)
+    m_low = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Extract temperatures of unmasked pixels only
+    temps = m_low[valid]
+    N = len(temps)
+
+    if N &lt; 10:
+        return 0.0
+
+    # Sample mean and standard deviation
+    T_bar = np.mean(temps)
+    sigma = np.std(temps, ddof=0)
+
+    if sigma == 0.0:
+        return 0.0
+
+    # Sample excess kurtosis: κ = (1/N) Σ [(Tᵢ - T̄)/σ]⁴ - 3
+    z = (temps - T_bar) / sigma
+    kappa = float(np.mean(z ** 4) - 3.0)
+
+    return kappa if np.isfinite(kappa) else 0.0
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the Low-ℓ Temperature Distribution Excess Kurtosis.&quot;&quot;&quot;
+    sims = np.asarray(sim_results, dtype=float)
+    sims = sims[np.isfinite(sims)]
+    n = len(sims)
+    if n == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims))
+    std_s = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    median_s = float(np.median(sims))
+    rank = int(np.sum(sims &lt;= planck_stat))
+    p_upper = float(np.mean(sims &gt;= planck_stat))
+    p_lower = float(np.mean(sims &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else 0.0
+    pct_rank = rank / n * 100 if n &gt; 0 else 50.0
+
+    if pct_rank &lt; 2.5 or pct_rank &gt; 97.5:
+        sig_desc = &quot;highly anomalous (&lt;2.5% or &gt;97.5% of sims)&quot;
+    elif pct_rank &lt; 5 or pct_rank &gt; 95:
+        sig_desc = &quot;marginally anomalous (&lt;5% or &gt;95% of sims)&quot;
+    elif pct_rank &lt; 25 or pct_rank &gt; 75:
+        sig_desc = &quot;noteworthy (outside IQR of sims)&quot;
+    else:
+        sig_desc = &quot;typical (within IQR of sims)&quot;
+
+    if planck_stat &gt; 0.1:
+        kurt_desc = (
+            &quot;heavy-tailed (leptokurtic), indicating more extreme temperature &quot;
+            &quot;outliers than expected from a Gaussian field—possibly linked to features &quot;
+            &quot;like the CMB Cold Spot or other non-Gaussian hot/cold excursions&quot;
+        )
+    elif planck_stat &lt; -0.1:
+        kurt_desc = (
+            &quot;light-tailed (platykurtic), indicating fewer extreme temperature &quot;
+            &quot;outliers than expected from a Gaussian field, suggesting suppressed &quot;
+            &quot;or smoothed temperature fluctuations at large angular scales&quot;
+        )
+    else:
+        kurt_desc = (
+            &quot;near-Gaussian (mesokurtic), consistent with the expected temperature &quot;
+            &quot;distribution for a Gaussian random CMB field at low multipoles&quot;
+        )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;excess_kurtosis_kappa&quot;: planck_stat,
+        &quot;gaussian_expectation&quot;: 0.0,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;sim_median&quot;: median_s,
+        &quot;z_score&quot;: z_score,
+        &quot;rank&quot;: rank,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n,
+        &quot;percentile_rank&quot;: pct_rank,
+        &quot;tail_behavior&quot;: kurt_desc,
+        &quot;significance_description&quot;: sig_desc,
+        &quot;interpretation&quot;: (
+            f&quot;Low-ℓ excess kurtosis κ = {planck_stat:.4f} (Gaussian expectation = 0). &quot;
+            f&quot;Distribution is {kurt_desc}. &quot;
+            f&quot;Sim mean ± std = {mean_s:.4f} ± {std_s:.4f}. &quot;
+            f&quot;{sig_desc.capitalize()}. z = {z_score:.2f}, two-sided p = {p_two:.4f}.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Temperature Distribution Excess Kurtosis&quot;,
+            &quot;xlabel&quot;: r&quot;$\kappa = \langle [(T - \bar{T})/\sigma]^4 \rangle - 3$&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck κ = {planck_stat:.4f}. &quot;
+                f&quot;Gaussian expectation = 0. &quot;
+                f&quot;Sim mean ± std = {mean_s:.4f} ± {std_s:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, P(two-sided) = {p_two:.4f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-99-low-temperature-distribution-excess-kurtosis.png" alt="Statistic distribution for Low-ℓ Temperature Distribution Excess Kurtosis">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.408</td></tr>
+<tr><th>One-tailed p-value</th><td>0.408</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.816</td></tr>
+<tr><th>Sigma</th><td>0.233</td></tr>
+<tr><th>Planck statistic</th><td>-0.000992</td></tr>
+<tr><th>Simulation mean</th><td>-0.0255</td></tr>
+<tr><th>Simulation std.</th><td>0.38</td></tr>
+<tr><th>Simulation median</th><td>-0.0955</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-99-low-temperature-distribution-excess-kurtosis.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-99-low-temperature-distribution-excess-kurtosis.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-99-low-temperature-distribution-excess-kurtosis.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-99-low-temperature-distribution-excess-kurtosis.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-99-low-temperature-distribution-excess-kurtosis.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-99-low-temperature-distribution-excess-kurtosis.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

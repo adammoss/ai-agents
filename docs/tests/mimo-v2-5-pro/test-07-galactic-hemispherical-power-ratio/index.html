@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Galactic Hemispherical Power Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 07 · Mimo V2.5 Pro</p>
+      <h1>Galactic Hemispherical Power Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label borderline">Borderline</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · hemispherical · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The low-ℓ power in the CMB temperature map is isotropic with respect to the galactic plane, meaning the hemispherical power ratio R = C̄_N / C̄_S equals 1.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The angular power spectrum C_ℓ is computed separately for the northern (b &gt; 0) and southern (b &lt; 0) galactic hemispheres over multipoles 2 ≤ ℓ ≤ 10. The mean power C̄ is calculated for each hemisphere, and the statistic R = C̄_N / C̄_S quantifies low-ℓ power asymmetry relative to the galactic plane. R = 1 indicates isotropy; deviations signal hemispherical asymmetry.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The Planck data yield R = 0.394, meaning the southern galactic hemisphere contains roughly 2.5 times more low-ℓ power than the northern hemisphere. Comparing to 1000 lensed-ΛCDM simulations (mean R = 1.10, median R = 0.99, std = 0.53), the two-sided p-value is 0.042 (z ≈ 2.03σ). The asymmetry is 60.6% stronger in the southern hemisphere.</p>
+          <p>The observed ratio R = 0.394 represents a substantial deficit of low-ℓ power in the northern galactic hemisphere relative to the south. The p-value of 0.042 just reaches the 5% significance threshold, and the z-score of 2.03σ is marginally above the 2σ level. While technically significant at these conventional thresholds, the result sits right at the boundary, and with only 1000 simulations the p-value estimation has limited precision. This is consistent with the well-known hemispherical power asymmetry anomaly previously reported in WMAP and Planck data.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test description and code check for deviations from R=1 in either direction (north or south stronger) using a two-sided p-value based on absolute deviations from 1. No directional preference is specified in the test setup, and the anomaly is generally sought as a departure from isotropy, making a two-tailed test appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The hemispherical power asymmetry at low ℓ is a well-established CMB anomaly, first reported by Eriksen et al. (2004) and Hansen et al. (2004) using WMAP data, and confirmed by Planck. However, my web search did not return a study using this exact galactic-plane-split statistic R = C̄_N/C̄_S over ℓ = 2–10, so I cannot confirm a direct literature match for this specific implementation.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Galactic Hemispherical Power Ratio. Computes the angular power spectrum C_ℓ &quot;
+    &quot;of the masked CMB temperature map for multipoles 2 ≤ ℓ ≤ 10. The sky is &quot;
+    &quot;split into northern (galactic latitude b &gt; 0) and southern (b &lt; 0) hemispheres. &quot;
+    &quot;For each hemisphere, a half-sky map is constructed by zeroing the opposite &quot;
+    &quot;hemisphere, and the power spectrum is computed via spherical harmonic transform. &quot;
+    &quot;The mean power C̄ = (1/9) Σ_{ℓ=2}^{10} C_ℓ is calculated for each hemisphere, &quot;
+    &quot;and the statistic R = C̄_N / C̄_S is returned. A value of R = 1 indicates &quot;
+    &quot;isotropic low-ℓ power with respect to the galactic plane, while R significantly &quot;
+    &quot;different from 1 reveals a hemispherical power asymmetry — one of the most &quot;
+    &quot;prominent large-scale CMB anomalies.&quot;
+)
+
+
+def analyze_map(m):
+    m = np.asarray(m, dtype=np.float64)
+    nside = hp.npix2nside(len(m))
+    npix = hp.nside2npix(nside)
+
+    # Replace NaN (masked) pixels with 0.0 for healpy transforms
+    m_clean = np.where(np.isfinite(m), m, 0.0)
+
+    # Get pixel colatitudes; in galactic coordinates, b &gt; 0 corresponds to θ &lt; π/2
+    theta, _ = hp.pix2ang(nside, np.arange(npix))
+    north_mask = theta &lt; (np.pi / 2)   # b &gt; 0
+    south_mask = ~north_mask            # b &lt; 0
+
+    # Build hemispheric maps by zeroing the opposite hemisphere
+    m_north = np.where(north_mask, m_clean, 0.0)
+    m_south = np.where(south_mask, m_clean, 0.0)
+
+    # Compute power spectra up to ℓ = 10
+    lmax = 10
+    cl_north = hp.anafast(m_north, lmax=lmax, use_pixel_weights=True)
+    cl_south = hp.anafast(m_south, lmax=lmax, use_pixel_weights=True)
+
+    # Extract ℓ = 2..10 and compute mean power in each hemisphere
+    ell_range = slice(2, 11)  # indices 2 through 10 inclusive
+    mean_n = np.mean(cl_north[ell_range])
+    mean_s = np.mean(cl_south[ell_range])
+
+    # Return hemispherical power ratio; guard against zero denominator
+    if mean_s &gt; 0:
+        ratio = float(mean_n / mean_s)
+    else:
+        ratio = float(&#x27;inf&#x27;)
+
+    return float(ratio)
+
+
+def summarize_results(planck_stat, sim_results):
+    sim_arr = np.array(sim_results, dtype=np.float64)
+    finite_mask = np.isfinite(sim_arr)
+    n_finite = int(finite_mask.sum())
+
+    if n_finite &gt; 0:
+        valid = sim_arr[finite_mask]
+        # Two-sided: rank by distance from 1 (perfect isotropy)
+        deviations = np.abs(valid - 1.0)
+        planck_deviation = abs(planck_stat - 1.0)
+        rank = int(np.sum(deviations &gt;= planck_deviation))
+        p_value = rank / n_finite
+    else:
+        rank = 0
+        p_value = float(&#x27;nan&#x27;)
+
+    sim_median = float(np.nanmedian(sim_arr))
+    sim_mean = float(np.nanmean(sim_arr))
+    sim_std = float(np.nanstd(sim_arr))
+
+    # Determine which hemisphere is stronger
+    if planck_stat &gt; 1.0:
+        hemi_stronger = &quot;northern&quot;
+        asymmetry_pct = (planck_stat - 1.0) * 100
+    else:
+        hemi_stronger = &quot;southern&quot;
+        asymmetry_pct = (1.0 - planck_stat) * 100
+
+    interpretation = (
+        f&quot;Anomalous: low-ℓ power is {asymmetry_pct:.1f}% stronger in the &quot;
+        f&quot;{hemi_stronger} galactic hemisphere (R = {planck_stat:.4f}), &quot;
+        f&quot;two-sided p = {p_value:.3f}&quot;
+        if p_value &lt; 0.05
+        else f&quot;Hemispherical power ratio R = {planck_stat:.4f} is consistent &quot;
+             f&quot;with ΛCDM expectations (two-sided p = {p_value:.3f})&quot;
+    )
+
+    result = {
+        &quot;test_description&quot;: test_description,
+        &quot;planck_stat&quot;: float(planck_stat),
+        &quot;p_value&quot;: float(p_value),
+        &quot;rank&quot;: rank,
+        &quot;n_simulations&quot;: len(sim_results),
+        &quot;n_valid&quot;: n_finite,
+        &quot;sim_mean&quot;: sim_mean,
+        &quot;sim_std&quot;: sim_std,
+        &quot;sim_median&quot;: sim_median,
+        &quot;exceeds_95th_percentile&quot;: bool(p_value &lt; 0.05),
+        &quot;interpretation&quot;: interpretation,
+        &quot;asymmetry_direction&quot;: hemi_stronger,
+        &quot;asymmetry_percent&quot;: float(asymmetry_pct),
+        &quot;expected_random_ratio&quot;: &quot;≈1 for isotropic low-ℓ power; R&gt;1 means north has more power&quot;,
+    }
+
+    result[&quot;plot_spec&quot;] = {
+        &quot;kind&quot;: &quot;histogram&quot;,
+        &quot;title&quot;: &quot;Galactic Hemispherical Power Ratio (ℓ = 2–10)&quot;,
+        &quot;xlabel&quot;: &quot;R = C̄_N / C̄_S  (northern / southern mean power)&quot;,
+        &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+        &quot;bins&quot;: 50,
+        &quot;caption&quot;: (
+            f&quot;Histogram of galactic hemispherical power ratio R from {n_finite} &quot;
+            f&quot;lensed-ΛCDM simulations. Planck value = {planck_stat:.4f} &quot;
+            f&quot;(two-sided p = {p_value:.3f}, rank {rank}/{n_finite}). &quot;
+            f&quot;A ratio of 1 indicates equal low-ℓ power in both hemispheres; &quot;
+            f&quot;deviations indicate hemispherical power asymmetry relative to &quot;
+            f&quot;the galactic plane.&quot;
+        ),
+    }
+
+    return result</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-07-galactic-hemispherical-power-ratio.png" alt="Statistic distribution for Galactic Hemispherical Power Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.042</td></tr>
+<tr><th>One-tailed p-value</th><td>0.021</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.042</td></tr>
+<tr><th>Sigma</th><td>2.034</td></tr>
+<tr><th>Planck statistic</th><td>0.394</td></tr>
+<tr><th>Simulation mean</th><td>1.1</td></tr>
+<tr><th>Simulation std.</th><td>0.526</td></tr>
+<tr><th>Simulation median</th><td>0.991</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>hemispherical</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-07-galactic-hemispherical-power-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-07-galactic-hemispherical-power-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-07-galactic-hemispherical-power-ratio.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-07-galactic-hemispherical-power-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-07-galactic-hemispherical-power-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-07-galactic-hemispherical-power-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

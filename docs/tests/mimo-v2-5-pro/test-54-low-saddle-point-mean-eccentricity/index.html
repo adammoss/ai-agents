@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Saddle-Point Mean Eccentricity · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 54 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Saddle-Point Mean Eccentricity</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The mean eccentricity of saddle points in the low-ℓ (ℓ≤30) CMB temperature map is consistent with the distribution from LCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The SMICA temperature map is band-limited to ℓ ≤ 30 and saddle points are identified as pixels where the Hessian has negative determinant. At each saddle, the Hessian is diagonalised and an eccentricity e = 1 − |λ₂|/|λ₁| is computed (0 = circular, 1 = maximally elongated). The mean eccentricity over all saddles is compared against 1000 ΛCDM simulations to test whether real saddle points show anomalous elongation or compression.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Observed mean eccentricity = 0.5768. Simulation mean = 0.5696 ± 0.0044, yielding z = +1.62σ (94.2nd percentile, two-sided p = 0.116). No strong departure from the ΛCDM distribution is present.</p>
+          <p>The observed saddle-point eccentricity sits comfortably within the simulation envelope. At +1.62σ it is mildly elevated but well within the expected scatter, indicating that the local curvature geometry at saddle-type critical points in the low-ℓ CMB is consistent with Gaussian random-field expectations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test assesses whether saddle points are anomalously elongated or compressed, indicating a two-tailed investigation. The code computes both upper and lower p-values and the interpretation considers deviations in both directions. There is no stated directional preference.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No prior studies measuring the eccentricity of CMB saddle points could be identified in the literature. Saddle-point curvature geometry has not been previously explored in CMB anomaly analyses, unlike extrema eccentricity or genus statistics.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Band-limit the SMICA temperature map to ell &lt;= 30. Identify all saddle points &quot;
+    &quot;as pixels where the Hessian of the filtered map has negative determinant &quot;
+    &quot;(det H &lt; 0), computed via finite differences on the HEALPix grid. At each &quot;
+    &quot;saddle point, diagonalise the Hessian to obtain eigenvalues lambda1 and lambda2 &quot;
+    &quot;(with |lambda1| &gt;= |lambda2| &gt; 0). Define the eccentricity of each saddle as &quot;
+    &quot;e = 1 - |lambda2|/|lambda1|, which equals 0 for a perfectly circular saddle and &quot;
+    &quot;approaches 1 for a highly elongated one. Average e over all detected saddle &quot;
+    &quot;points to yield a single scalar. This statistic probes the local curvature &quot;
+    &quot;geometry of the temperature field at its saddle-type critical points and is &quot;
+    &quot;topologically distinct from genus density and from extrema eccentricity.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return mean eccentricity of saddle points in the ell&lt;=30 band-limited map.&quot;&quot;&quot;
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+
+    if n_valid &lt; 500:
+        return 0.0
+
+    # Fill masked pixels with 0 for healpy compatibility
+    m_filled = np.where(mask, m, 0.0)
+
+    # Band-limit to ell &lt;= 30
+    lmax = 30
+    alm = hp.map2alm(m_filled, lmax=lmax, iter=0)
+
+    # Work at nside=32 (sufficient resolution for lmax=30, keeps things fast)
+    nside = 32
+    npix = hp.nside2npix(nside)  # 12288
+    m_smooth = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Pixel centers
+    theta, phi = hp.pix2ang(nside, np.arange(npix))
+    sin_theta = np.sin(theta)
+
+    # Get 8 neighbors for each pixel (shape: 8 x npix)
+    neighbors = hp.get_all_neighbours(nside, np.arange(npix))
+    valid_nbr = (neighbors &gt;= 0)  # (8, npix)
+    safe_nbr = np.where(valid_nbr, neighbors, 0)  # safe index for gathering
+
+    # Gather neighbor data
+    nbr_theta = theta[safe_nbr]  # (8, npix)
+    nbr_phi = phi[safe_nbr]
+    nbr_vals = m_smooth[safe_nbr]
+
+    # Local tangent-plane displacements
+    dtheta = nbr_theta - theta[None, :]  # (8, npix)
+    dphi = nbr_phi - phi[None, :]
+    # Handle azimuthal wraparound
+    dphi = (dphi + np.pi) % (2 * np.pi) - np.pi
+
+    # Tangent plane coordinates (npix, 8)
+    dx = dtheta.T
+    dy = (sin_theta[None, :] * dphi).T
+    dv = (nbr_vals - m_smooth[None, :]).T  # residuals from center value
+
+    # Validity weights (npix, 8): 1 for valid neighbors, 0 for missing
+    w = valid_nbr.T.astype(np.float64)
+
+    # Zero out invalid neighbor contributions (no NaN propagation)
+    dx = dx * w
+    dy = dy * w
+    dv = dv * w
+
+    # Build weighted feature matrix for quadratic fit:
+    #   dv ≈ b·dx + c·dy + d·dx² + e·dx·dy + f·dy²
+    # Stack features: (npix, 8, 5)
+    features = np.stack([dx, dy, dx ** 2, dx * dy, dy ** 2], axis=-1)
+    wf = features * w[:, :, None]   # weighted features
+    wdv = dv * w                     # weighted residuals
+
+    # Normal equations: (wfᵀ wf) c = wfᵀ wdv
+    AtA = np.einsum(&#x27;pji,pjk-&gt;pik&#x27;, wf, wf)  # (npix, 5, 5)
+    Atb = np.einsum(&#x27;pji,pj-&gt;pi&#x27;, wf, wdv)    # (npix, 5)
+
+    # Tiny regularisation for numerical stability
+    AtA += 1e-12 * np.eye(5)[None, :, :]
+
+    # Solve via matrix inverse (avoids gufunc shape issues with np.linalg.solve)
+    try:
+        inv_AtA = np.linalg.inv(AtA)  # (npix, 5, 5)
+    except np.linalg.LinAlgError:
+        return 0.0
+
+    coeffs = (inv_AtA @ Atb[:, :, None]).squeeze(-1)  # (npix, 5)
+
+    # Hessian from quadratic coefficients: H = [[2d, e], [e, 2f]]
+    H_xx = 2.0 * coeffs[:, 2]
+    H_xy = coeffs[:, 3]
+    H_yy = 2.0 * coeffs[:, 4]
+
+    det_H = H_xx * H_yy - H_xy ** 2
+
+    # Select saddle points: det(H) &lt; 0, away from poles where tangent plane is ill-defined
+    away_from_poles = (theta &gt; 0.2) &amp; (theta &lt; np.pi - 0.2)
+    is_saddle = away_from_poles &amp; (det_H &lt; 0)
+
+    saddle_idx = np.where(is_saddle)[0]
+    n_saddles = len(saddle_idx)
+
+    if n_saddles &lt; 5:
+        return 0.0
+
+    # Eigenvalues at saddle points
+    Hxx_s = H_xx[saddle_idx]
+    Hxy_s = H_xy[saddle_idx]
+    Hyy_s = H_yy[saddle_idx]
+
+    trace = Hxx_s + Hyy_s
+    det_s = Hxx_s * Hyy_s - Hxy_s ** 2
+    disc = np.maximum(trace ** 2 - 4.0 * det_s, 0.0)
+    sqrt_disc = np.sqrt(disc)
+
+    lam1 = (trace + sqrt_disc) / 2.0
+    lam2 = (trace - sqrt_disc) / 2.0
+
+    abs1 = np.abs(lam1)
+    abs2 = np.abs(lam2)
+    max_abs = np.maximum(abs1, abs2)
+    min_abs = np.minimum(abs1, abs2)
+
+    # Eccentricity: e = 1 - |λ₂|/|λ₁|
+    valid_eig = max_abs &gt; 0
+    eccentricity = np.where(valid_eig, 1.0 - min_abs / max_abs, 0.0)
+    eccentricity = eccentricity[np.isfinite(eccentricity)]
+
+    if len(eccentricity) &lt; 5:
+        return 0.0
+
+    return float(np.mean(eccentricity))
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ell Saddle-Point Mean Eccentricity test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Saddle-Point Mean Eccentricity&quot;,
+                &quot;xlabel&quot;: &quot;Mean eccentricity e = 1 − |λ₂|/|λ₁|&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 50,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    p_value_upper = float(np.mean(sim &gt;= planck_stat))
+    p_value_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value_two_sided = min(2.0 * min(p_value_upper, p_value_lower), 1.0)
+
+    rank_above = int(np.sum(sim &gt;= planck_stat))
+    rank_below = int(np.sum(sim &lt;= planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    if p_value_two_sided &lt;= 0.01:
+        strength = &quot;strong&quot;
+    elif p_value_two_sided &lt;= 0.05:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    interp = (
+        f&quot;Mean saddle-point eccentricity = {planck_stat:.4f}. &quot;
+        f&quot;Sim mean = {mean_sim:.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value_two_sided:.4f}. Strength: {strength}. &quot;
+    )
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        interp += (
+            &quot;The Planck map&#x27;s saddle points are anomalously elongated compared to &quot;
+            &quot;Gaussian LCDM expectations, suggesting large-scale anisotropic features &quot;
+            &quot;in the low-ℓ temperature field with pronounced directional curvature.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        interp += (
+            &quot;The Planck map&#x27;s saddle points are anomalously circular (compressed) &quot;
+            &quot;compared to Gaussian LCDM expectations, suggesting an unusually isotropic &quot;
+            &quot;curvature geometry at saddle-type critical points.&quot;
+        )
+    else:
+        interp += (
+            &quot;The mean eccentricity of saddle points is consistent with Gaussian &quot;
+            &quot;LCDM expectations. No significant anomaly detected in the curvature &quot;
+            &quot;geometry of saddle-type critical points at low multipoles.&quot;
+        )
+
+    caption = (
+        &quot;Histogram of mean saddle-point eccentricity e = 1 − |λ₂|/|λ₁| &quot;
+        &quot;in the low-ℓ (ℓ≤30) band-limited CMB temperature map across &quot;
+        &quot;LCDM simulations. Higher values indicate more elongated saddle points. &quot;
+        &quot;The red line marks the Planck observed value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value_one_sided_upper&quot;: p_value_upper,
+        &quot;p_value_one_sided_lower&quot;: p_value_lower,
+        &quot;p_value_two_sided&quot;: p_value_two_sided,
+        &quot;rank_above&quot;: rank_above,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Saddle-Point Mean Eccentricity&quot;,
+            &quot;xlabel&quot;: &quot;Mean eccentricity e = 1 − |λ₂|/|λ₁|&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 50,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-54-low-saddle-point-mean-eccentricity.png" alt="Statistic distribution for Low-ℓ Saddle-Point Mean Eccentricity">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.116</td></tr>
+<tr><th>One-tailed p-value</th><td>0.058</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.116</td></tr>
+<tr><th>Sigma</th><td>1.572</td></tr>
+<tr><th>Planck statistic</th><td>0.577</td></tr>
+<tr><th>Simulation mean</th><td>0.57</td></tr>
+<tr><th>Simulation std.</th><td>0.00443</td></tr>
+<tr><th>Simulation median</th><td>0.569</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-54-low-saddle-point-mean-eccentricity.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-54-low-saddle-point-mean-eccentricity.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-54-low-saddle-point-mean-eccentricity.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-54-low-saddle-point-mean-eccentricity.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-54-low-saddle-point-mean-eccentricity.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-54-low-saddle-point-mean-eccentricity.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

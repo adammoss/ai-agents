@@ -1,0 +1,56 @@
+{
+  "results": {
+    "test_name": "Low-\u2113 Hottest Spot Galactic Latitude",
+    "test_description": "Smooth the temperature map to a maximum multipole of \u2113_max=10 using spherical harmonic decomposition. Identify the pixel with the highest temperature value among unmasked pixels. Report the Galactic latitude (in degrees) of that pixel as the single scalar statistic.",
+    "test_hypothesis": "The hottest spot in the low-\u2113 (\u2113\u226410) smoothed CMB temperature map is located closer to the Galactic plane than expected from Gaussian simulations.",
+    "test_type": "one-tailed, lower",
+    "justification": "The test is specifically designed to check for Galactic plane concentration, as indicated by the description focusing on proximity to the Galactic plane and the code computing p-value for smaller absolute Galactic latitude (p(|b| \u2264 observed)). The interpretation in the code explicitly mentions that a small p-value suggests the hottest spot is unusually close to the Galactic plane, indicating a directional prediction that the observed absolute latitude will be smaller than expected from simulations.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": -55.107936425098195,
+    "mean_sim_stat": 0.5147021117400197,
+    "std_sim_stat": 44.462345949419394,
+    "median_sim_stat": 15.094787099543193,
+    "sigma": 1.2646411356610803,
+    "p_value_one_tailed": 0.103,
+    "tail": "lower"
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Smooth the CMB temperature map to a maximum multipole of \u2113_max=10 using \"\n    \"spherical harmonic decomposition. Identify the unmasked pixel with the \"\n    \"highest temperature value in the smoothed map. The statistic is the \"\n    \"Galactic latitude (in degrees) of that pixel. Values near 0\u00b0 indicate \"\n    \"the hottest spot lies close to the Galactic plane; values near \u00b190\u00b0 \"\n    \"indicate alignment with the Galactic poles.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return Galactic latitude (degrees) of the hottest pixel in the low-\u2113 (\u2113\u226410) smoothed map.\"\"\"\n    nside = hp.npix2nside(len(m))\n    mask = np.isfinite(m)\n    n_valid = int(np.sum(mask))\n    if n_valid < 500:\n        return 0.0  # Neutral value for severely masked maps\n\n    # Fill masked pixels with 0 for healpy compatibility\n    m_filled = np.where(mask, m, 0.0)\n\n    # Decompose into spherical harmonics up to lmax=10\n    alm = hp.map2alm(m_filled, lmax=10, iter=0)\n\n    # Reconstruct the smoothed low-\u2113 map\n    m_smooth = hp.alm2map(alm, nside, lmax=10, verbose=False)\n\n    # Set masked pixels to -inf so they cannot be selected as the maximum\n    m_smooth_valid = np.where(mask, m_smooth, -np.inf)\n\n    # Find the pixel with the highest temperature\n    max_pix = np.argmax(m_smooth_valid)\n    max_temp = m_smooth[max_pix]\n\n    if not np.isfinite(max_temp):\n        return 0.0\n\n    # Convert pixel index to angular coordinates (theta=colatitude, phi=longitude)\n    theta, phi = hp.pix2ang(nside, max_pix)\n\n    # Convert colatitude to latitude: Galactic lat = pi/2 - theta\n    gal_lat_rad = np.pi / 2.0 - theta\n    gal_lat_deg = float(np.degrees(gal_lat_rad))\n\n    if not np.isfinite(gal_lat_deg):\n        return 0.0\n\n    return gal_lat_deg\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Summarize the Low-\u2113 Hottest Spot Galactic Latitude test.\"\"\"\n    sim = np.array(sim_results, dtype=float)\n    sim = sim[np.isfinite(sim)]\n    n_sims = len(sim)\n\n    if n_sims == 0:\n        return {\n            \"planck_stat\": planck_stat,\n            \"p_value\": float(\"nan\"),\n            \"n_sims\": 0,\n            \"interpretation\": \"No simulation results available.\",\n            \"plot_spec\": {\n                \"kind\": \"histogram\",\n                \"title\": \"Low-\u2113 Hottest Spot Galactic Latitude\",\n                \"xlabel\": \"Galactic latitude (degrees)\",\n                \"ylabel\": \"Count\",\n                \"bins\": 50,\n                \"caption\": \"No simulation data.\",\n            },\n        }\n\n    mean_sim = float(np.mean(sim))\n    std_sim = float(np.std(sim))\n\n    # Absolute latitude (distance from Galactic plane)\n    abs_planck = abs(planck_stat)\n    abs_sim = np.abs(sim)\n\n    # Deviation from simulation mean in terms of latitude\n    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim > 0 else 0.0\n\n    # P-value: probability of finding a hotter spot closer to the Galactic plane\n    # (smaller |latitude|) \u2014 tests for Galactic plane concentration\n    p_value_plane = float(np.mean(abs_sim <= abs_planck))\n\n    # Two-sided p-value: probability of being as extreme or more so\n    p_value_two_sided = 2.0 * min(p_value_plane, 1.0 - p_value_plane)\n    p_value_two_sided = min(p_value_two_sided, 1.0)\n\n    # Rank and percentile\n    rank_below = int(np.sum(sim < planck_stat))\n    percentile = 100.0 * rank_below / n_sims\n\n    if p_value_two_sided <= 0.01:\n        strength = \"strong\"\n    elif p_value_two_sided <= 0.05:\n        strength = \"moderate\"\n    else:\n        strength = \"negligible\"\n\n    # Interpret the location\n    if abs_planck < 10:\n        location_desc = \"very close to the Galactic plane\"\n    elif abs_planck < 30:\n        location_desc = \"at low Galactic latitude\"\n    elif abs_planck < 60:\n        location_desc = \"at mid-Galactic latitude\"\n    else:\n        location_desc = \"near a Galactic pole\"\n\n    if planck_stat >= 0:\n        hemisphere = \"northern\"\n    else:\n        hemisphere = \"southern\"\n\n    direction = (\n        f\"The hottest spot in the low-\u2113 (\u2113\u226410) smoothed map is {location_desc} \"\n        f\"in the {hemisphere} Galactic hemisphere (latitude \u2248 {planck_stat:.1f}\u00b0). \"\n    )\n\n    if p_value_plane <= 0.05:\n        direction += (\n            \"This proximity to the Galactic plane is statistically unusual compared \"\n            \"to Gaussian simulations, potentially suggesting residual foreground \"\n            \"contamination or an anomalous large-scale temperature structure aligned \"\n            \"with Galactic coordinates.\"\n        )\n    else:\n        direction += (\n            \"This location is consistent with expectations from Gaussian simulations. \"\n            \"No significant Galactic latitude preference is detected in the hottest spot.\"\n        )\n\n    interp = (\n        f\"Galactic latitude = {planck_stat:.2f}\u00b0. \"\n        f\"Sim mean = {mean_sim:.2f}\u00b0 \u00b1 {std_sim:.2f}\u00b0 \"\n        f\"({deviation_sigma:+.2f}\u03c3). Percentile = {percentile:.1f}%, \"\n        f\"two-sided p = {p_value_two_sided:.4f}, \"\n        f\"p(|b|\u2264observed) = {p_value_plane:.4f}. \"\n        f\"Strength: {strength}. {direction}\"\n    )\n\n    caption = (\n        \"Histogram of Galactic latitude (degrees) of the hottest pixel in the \"\n        \"low-\u2113 (\u2113\u226410) smoothed CMB temperature map across FFP simulations. \"\n        \"Values near 0\u00b0 indicate concentration near the Galactic plane; values \"\n        \"near \u00b190\u00b0 indicate alignment with Galactic poles. Red line marks the \"\n        \"Planck observed value.\"\n    )\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"planck_abs_latitude\": abs_planck,\n        \"p_value_two_sided\": p_value_two_sided,\n        \"p_value_galactic_plane\": p_value_plane,\n        \"rank_below\": rank_below,\n        \"n_sims\": n_sims,\n        \"percentile\": percentile,\n        \"sim_mean\": mean_sim,\n        \"sim_std\": std_sim,\n        \"deviation_sigma\": deviation_sigma,\n        \"anomaly_strength\": strength,\n        \"interpretation\": interp,\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-\u2113 Hottest Spot Galactic Latitude\",\n            \"xlabel\": \"Galactic latitude (degrees)\",\n            \"ylabel\": \"Number of simulations\",\n            \"bins\": 50,\n            \"caption\": caption,\n        },\n    }\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": -87.44140728422515,
+    "sim_max": 86.89301489074586,
+    "z_score": -1.2510054822594119,
+    "thresholds": [
+      -72.0176251134728,
+      73.68552174660233
+    ],
+    "planck_abs_latitude": 55.107936425098195,
+    "p_value_galactic_plane": 0.783,
+    "rank_below": 100,
+    "percentile": 10.0,
+    "deviation_sigma": -1.2510054822594119,
+    "anomaly_strength": "negligible",
+    "interpretation": "Galactic latitude = -55.11\u00b0. Sim mean = 0.51\u00b0 \u00b1 44.46\u00b0 (-1.25\u03c3). Percentile = 10.0%, two-sided p = 0.4340, p(|b|\u2264observed) = 0.7830. Strength: negligible. The hottest spot in the low-\u2113 (\u2113\u226410) smoothed map is at mid-Galactic latitude in the southern Galactic hemisphere (latitude \u2248 -55.1\u00b0). This location is consistent with expectations from Gaussian simulations. No significant Galactic latitude preference is detected in the hottest spot.",
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-\u2113 Hottest Spot Galactic Latitude",
+      "xlabel": "Galactic latitude (degrees)",
+      "ylabel": "Number of simulations",
+      "bins": 50,
+      "caption": "Histogram of Galactic latitude (degrees) of the hottest pixel in the low-\u2113 (\u2113\u226410) smoothed CMB temperature map across FFP simulations. Values near 0\u00b0 indicate concentration near the Galactic plane; values near \u00b190\u00b0 indicate alignment with Galactic poles. Red line marks the Planck observed value."
+    }
+  },
+  "updated_summary": {
+    "Test name": "Low-\u2113 Hottest Spot Galactic Latitude",
+    "Description": "The test identifies the Galactic latitude of the pixel with the maximum temperature in the CMB map smoothed to \u2113_max \u2264 10. It checks if this hottest spot is preferentially located closer to the Galactic plane than expected in \u039bCDM simulations.",
+    "Results": "The hottest spot in the Planck data is at a Galactic latitude of -55.1\u00b0. From 1000 Gaussian simulations, the mean latitude is 0.5\u00b0 \u00b1 44.5\u00b0. The observed value is 1.25\u03c3 from the mean. The one-tailed p-value (for a spot closer to the plane) is 0.783, indicating no significant concentration toward the Galactic plane.",
+    "Interpretation": "The observed hottest spot is at a mid-latitude in the southern Galactic hemisphere. Its location is statistically consistent with the distribution expected from Gaussian, isotropic realizations of the \u039bCDM model. There is no evidence for an anomalous Galactic plane alignment.",
+    "Meets hypothesis?": "No",
+    "Comparison to literature": "This specific test (hottest spot latitude in low-\u2113) is not commonly reported, but related analyses of low-\u2113 multipole alignment with the Galactic plane or \"axis of evil\" are standard in CMB anomaly studies (e.g., Land & Magueijo, 2005). This null result is consistent with some studies finding no strong alignment for the hottest spot.",
+    "Test novelty": "Variation",
+    "Verdict": "No anomalies found"
+  }
+}

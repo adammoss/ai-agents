@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Skewness Scale Dependence Slope · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 84 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Skewness Scale Dependence Slope</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The slope of pixel skewness versus ℓ_max for low multipoles is different from zero, indicating scale-dependent non-Gaussianity in the CMB temperature map compared to the LCDM prediction.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>For each ℓ_max ∈ {5, 8, 10, 13, 15, 18, 20}, the CMB temperature map is band-limited and pixel skewness γ(ℓ_max) = ⟨T³⟩/⟨T²⟩^(3/2) computed over unmasked pixels. A linear fit of γ versus ℓ_max yields the slope Δγ/Δℓ_max, capturing whether low-ℓ asymmetry strengthens, weakens, or reverses across the large-scale multipole range. The statistic is compared against 1000 ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck slope = −0.00163. Simulation mean ± std = −0.00013 ± 0.01510. The z-score is −0.10, yielding a two-tailed p-value of 0.91. The Planck value lies well within the simulation distribution, near the median.</p>
+          <p>The pixel skewness shows no significant dependence on ℓ_max in the Planck data. The measured slope is entirely consistent with zero, indicating no detectable scale-dependent non-Gaussianity in the temperature distribution across the low-ℓ range. There is no evidence for residual foreground contamination, ISW-lensing coupling, or exotic sources preferentially affecting particular angular scales.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is exploratory, designed to detect any deviation from the expected zero slope under a Gaussian LCDM model, without a prior directional prediction. The description and code allow for anomalies that could be positive or negative, reflecting various physical sources (e.g., foregrounds or exotic effects), and the summary function explicitly computes a two-sided p-value. Thus, a two-tailed test is appropriate for assessing whether the slope is statistically different from zero in either direction.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No directly comparable study was found. Existing low-ℓ non-Gaussianity analyses (e.g., Copi et al. 2004 on multipole vectors; Abramo et al. 2006 on alignment tests) focus on phase correlations and multipole geometry rather than pixel-domain skewness as a function of ℓ_max. The search returned no prior work using this specific statistic.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;For each l_max in {5, 8, 10, 13, 15, 18, 20}, reconstruct a band-limited temperature &quot;
+    &quot;map by retaining only spherical harmonic coefficients a_{lm} with l &lt;= l_max. Compute the &quot;
+    &quot;pixel skewness gamma(l_max) = &lt;T^3&gt;_pix / &lt;T^2&gt;_pix^{3/2} over all unmasked pixels in &quot;
+    &quot;each band-limited map. Perform an ordinary least-squares linear fit of gamma versus l_max &quot;
+    &quot;across the seven scale values and report the fitted slope Delta-gamma/Delta-l_max as the &quot;
+    &quot;single scalar anomaly statistic. This captures whether low-l non-Gaussianity, as measured &quot;
+    &quot;by the asymmetry of the temperature distribution, strengthens, weakens, or reverses across &quot;
+    &quot;the large-scale multipole range. For a statistically isotropic Gaussian LCDM field the &quot;
+    &quot;skewness is consistent with zero at every l_max, so the slope is consistent with zero; &quot;
+    &quot;an anomalous slope would indicate scale-dependent non-Gaussianity from residual foregrounds, &quot;
+    &quot;ISW-lensing coupling, or exotic sources concentrated at particular angular scales.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the slope of pixel skewness vs l_max across low multipoles.
+
+    For each l_max in {5, 8, 10, 13, 15, 18, 20}, band-limit the map to l &lt;= l_max,
+    compute the skewness of the temperature distribution over unmasked pixels, then
+    fit a line gamma = slope * l_max + intercept and return the slope.
+    &quot;&quot;&quot;
+    valid = np.isfinite(m)
+    if not np.any(valid):
+        return 0.0
+
+    m_clean = np.where(valid, m, 0.0)
+    nside = hp.npix2nside(len(m_clean))
+
+    lmax_values = [5, 8, 10, 13, 15, 18, 20]
+    lmax_max = max(lmax_values)  # 20
+
+    # Compute spherical harmonic coefficients once at highest lmax needed
+    alm = hp.map2alm(m_clean, lmax=lmax_max)
+    ell_arr, _ = hp.Alm.getlm(lmax=lmax_max)
+
+    skewnesses = []
+    for lmax in lmax_values:
+        # Zero out coefficients with l &gt; lmax
+        alm_f = alm.copy()
+        alm_f[ell_arr &gt; lmax] = 0.0
+
+        # Reconstruct band-limited map
+        m_f = hp.alm2map(alm_f, nside=nside, lmax=lmax_max, verbose=False)
+
+        # Compute skewness on original valid (unmasked) pixels
+        T = m_f[valid]
+        T_c = T - T.mean()
+        var = (T_c ** 2).mean()
+        if var &gt; 0:
+            skew = (T_c ** 3).mean() / (var ** 1.5)
+        else:
+            skew = 0.0
+        skewnesses.append(skew)
+
+    # Ordinary least-squares linear fit: gamma = slope * l_max + intercept
+    x = np.array(lmax_values, dtype=float)
+    y = np.array(skewnesses, dtype=float)
+    slope, intercept = np.polyfit(x, y, 1)
+
+    return float(slope)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the Low-l Skewness Scale Dependence Slope statistic.&quot;&quot;&quot;
+    sims = np.asarray(sim_results, dtype=float)
+    sims = sims[np.isfinite(sims)]
+    n = len(sims)
+
+    if n == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims))
+    std_s = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    median_s = float(np.median(sims))
+
+    # Fraction of simulations with slope as extreme or more extreme than Planck
+    p_upper = float(np.mean(sims &gt;= planck_stat))
+    p_lower = float(np.mean(sims &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else 0.0
+
+    # Determine direction of anomaly
+    if abs(z_score) &lt; 1.0:
+        direction = &quot;consistent with LCDM&quot;
+    elif planck_stat &gt; mean_s:
+        direction = &quot;positive skewness slope (increasing asymmetry with l_max)&quot;
+    else:
+        direction = &quot;negative skewness slope (decreasing asymmetry with l_max)&quot;
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;planck_slope&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;sim_median&quot;: median_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n,
+        &quot;direction&quot;: direction,
+        &quot;interpretation&quot;: (
+            f&quot;The skewness slope measures how the pixel temperature asymmetry &quot;
+            f&quot;(skewness) changes across the low-l range l_max in {{5,...,20}}. &quot;
+            f&quot;A positive slope means the temperature distribution becomes more &quot;
+            f&quot;positively skewed at finer angular scales; a negative slope means &quot;
+            f&quot;the asymmetry decreases or reverses. &quot;
+            f&quot;Planck slope = {planck_stat:.6f}. &quot;
+            f&quot;Sim mean +/- std = {mean_s:.6f} +/- {std_s:.6f}. &quot;
+            f&quot;z = {z_score:.2f}, two-sided p = {p_two:.4f}. &quot;
+            f&quot;Direction: {direction}. &quot;
+            f&quot;A significantly non-zero slope would indicate scale-dependent &quot;
+            f&quot;non-Gaussianity, e.g. from residual foregrounds, ISW-lensing &quot;
+            f&quot;coupling, or exotic sources at particular angular scales.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-l Skewness Scale Dependence Slope&quot;,
+            &quot;xlabel&quot;: &quot;Slope Δγ / Δℓ_max&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck slope = {planck_stat:.6f}. &quot;
+                f&quot;Sim mean ± std = {mean_s:.6f} ± {std_s:.6f}. &quot;
+                f&quot;z = {z_score:.2f}, P(two-sided) = {p_two:.4f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-84-low-skewness-scale-dependence-slope.png" alt="Statistic distribution for Low-ℓ Skewness Scale Dependence Slope">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.91</td></tr>
+<tr><th>One-tailed p-value</th><td>0.455</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.91</td></tr>
+<tr><th>Sigma</th><td>0.113</td></tr>
+<tr><th>Planck statistic</th><td>-0.00163</td></tr>
+<tr><th>Simulation mean</th><td>-0.000133</td></tr>
+<tr><th>Simulation std.</th><td>0.0151</td></tr>
+<tr><th>Simulation median</th><td>-0.000154</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-84-low-skewness-scale-dependence-slope.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-84-low-skewness-scale-dependence-slope.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-84-low-skewness-scale-dependence-slope.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-84-low-skewness-scale-dependence-slope.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-84-low-skewness-scale-dependence-slope.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-84-low-skewness-scale-dependence-slope.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

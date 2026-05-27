@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Hot-Region Boundary Complexity Index · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 55 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Hot-Region Boundary Complexity Index</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label borderline">Borderline</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The boundary-to-interior ratio of the largest hot region in the ℓ=2–20 band-limited Planck CMB temperature map deviates from the distribution predicted by simulated ΛCDM maps.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Measures the geometric complexity of the largest connected hot region in the ℓ=2–20 band-limited Planck CMB temperature map, using the ratio of boundary to interior pixels after thresholding at +1σ.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Observed ratio = 0.869. Simulated ΛCDM distribution mean = 0.597 ± 0.174. The observed value lies at the 92.8th percentile, corresponding to a deviation of +1.46σ with a two-tailed p-value of 0.144.</p>
+          <p>The dominant low-ℓ hot region in the Planck data shows a moderately higher boundary complexity than the ΛCDM simulation average, suggesting a slightly more elongated or filamentary morphology. However, this deviation is not statistically significant at the 2σ level.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed as a general exploratory check for geometric anomalies in the low-ℓ temperature field&#x27;s morphology. The description and code indicate deviations in either direction are of interest: a higher ratio signals complex, filamentary structure, while a lower ratio signals unusually compact, blob-like structure. The code explicitly computes both upper and lower one-sided p-values and combines them into a two-sided p-value for significance assessment. There is no prior theoretical expectation that Planck&#x27;s data should show a specific directional deviation, making a two-tailed test appropriate for detecting any departure from the Gaussian ΛCDM expectation.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No prior studies were found that specifically test this boundary-to-interior complexity ratio for CMB hot regions. Related work has analyzed the shapes and isotropy of CMB spots (e.g., Khan &amp; Saha 2022) and perimeter estimation in random fields (Cotsakis et al. 2023), but not this exact metric.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Band-limit the temperature map to ell = 2-20 using spherical harmonic &quot;
+    &quot;decomposition. Threshold the resulting map at +1 sigma (where sigma is the rms &quot;
+    &quot;temperature of the band-limited map) to define the hot excursion set. Identify &quot;
+    &quot;all connected hot regions using 8-connectivity on the HEALPix grid and select &quot;
+    &quot;the largest one by pixel count. Compute the number of boundary pixels of this &quot;
+    &quot;largest connected hot region (pixels that are inside the hot region but have at &quot;
+    &quot;least one neighbor outside the region or in the masked area). Define the &quot;
+    &quot;statistic as the ratio of the number of boundary pixels to the total number of &quot;
+    &quot;interior pixels in the largest hot region. This boundary-to-interior ratio &quot;
+    &quot;measures the geometric complexity of the dominant hot structure independent of &quot;
+    &quot;its absolute size: compact, blob-like regions yield low values, while elongated, &quot;
+    &quot;filamentary, or fractally rough regions yield high values. For isotropic &quot;
+    &quot;Gaussian random fields the dominant excursion-set component at 1 sigma tends &quot;
+    &quot;toward compact shapes with predictable boundary-to-interior ratios determined &quot;
+    &quot;by the field&#x27;s spectral properties. Deviations signal either non-Gaussian &quot;
+    &quot;texture (e.g., unusual spot elongation or filamentary morphology) or &quot;
+    &quot;anisotropic structure in the temperature field. Compare the observed value &quot;
+    &quot;against the distribution from 1000 simulated LCDM maps to assess significance.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the boundary-to-interior ratio of the largest hot region in the
+    ell=2-20 band-limited temperature map.&quot;&quot;&quot;
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 500:
+        return 0.0
+
+    m_filled = np.where(mask, m, 0.0)
+
+    lmax = 20
+    alm = hp.map2alm(m_filled, lmax=lmax, iter=0)
+
+    # Zero out monopole (ell=0) and dipole (ell=1)
+    alm[0] = 0.0
+    alm[1] = 0.0
+    alm[2] = 0.0
+
+    nside_work = 32
+    npix = hp.nside2npix(nside_work)
+
+    m_smooth = hp.alm2map(alm, nside_work, lmax=lmax, verbose=False)
+
+    sigma = np.std(m_smooth)
+    if sigma &lt; 1e-15:
+        return 0.0
+
+    hot = m_smooth &gt; sigma
+    n_hot = int(np.sum(hot))
+
+    if n_hot &lt; 20:
+        return 0.0
+
+    all_neighbors = hp.get_all_neighbours(nside_work, np.arange(npix))
+    n_dirs = all_neighbors.shape[0]
+    safe_nbrs = np.where(all_neighbors &gt;= 0, all_neighbors, np.arange(npix))
+
+    # BFS to find largest connected component (list-based queue, no deque needed)
+    visited = np.zeros(npix, dtype=bool)
+    hot_idx = np.where(hot)[0]
+
+    largest_size = 0
+    best_comp_pixels = None
+
+    for seed in hot_idx:
+        if visited[seed]:
+            continue
+        # BFS using list as queue (front pointer for O(1) amortized pop)
+        q = [seed]
+        front = 0
+        visited[seed] = True
+        comp = [seed]
+        while front &lt; len(q):
+            px = q[front]
+            front += 1
+            nbrs = safe_nbrs[:, px]
+            for nb in nbrs:
+                if hot[nb] and not visited[nb]:
+                    visited[nb] = True
+                    q.append(nb)
+                    comp.append(nb)
+        if len(comp) &gt; largest_size:
+            largest_size = len(comp)
+            best_comp_pixels = comp
+
+    if largest_size &lt; 10 or best_comp_pixels is None:
+        return 0.0
+
+    # Count boundary vs interior pixels (vectorized)
+    best_comp = np.array(best_comp_pixels, dtype=np.int64)
+
+    in_comp = np.zeros(npix, dtype=bool)
+    in_comp[best_comp] = True
+
+    nbrs_of_comp = safe_nbrs[:, best_comp]  # (n_dirs, largest_size)
+    all_in_comp = np.ones(largest_size, dtype=bool)
+    for d in range(n_dirs):
+        all_in_comp &amp;= in_comp[nbrs_of_comp[d, :]]
+
+    n_interior = int(np.sum(all_in_comp))
+    n_boundary = largest_size - n_interior
+
+    if n_interior == 0:
+        return 0.0
+
+    return float(n_boundary / n_interior)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ell Hot-Region Boundary Complexity Index test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Hot-Region Boundary Complexity Index&quot;,
+                &quot;xlabel&quot;: &quot;Boundary / interior ratio&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 50,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    p_value_upper = float(np.mean(sim &gt;= planck_stat))
+    p_value_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value_two_sided = min(2.0 * min(p_value_upper, p_value_lower), 1.0)
+
+    rank_above = int(np.sum(sim &gt;= planck_stat))
+    rank_below = int(np.sum(sim &lt;= planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    if p_value_two_sided &lt;= 0.01:
+        strength = &quot;strong&quot;
+    elif p_value_two_sided &lt;= 0.05:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    interp = (
+        f&quot;Boundary-to-interior ratio of largest hot region = {planck_stat:.4f}. &quot;
+        f&quot;Sim mean = {mean_sim:.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value_two_sided:.4f}. Strength: {strength}. &quot;
+    )
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        interp += (
+            &quot;The Planck map&#x27;s dominant hot region has anomalously high boundary &quot;
+            &quot;complexity compared to Gaussian LCDM expectations, suggesting &quot;
+            &quot;elongated, filamentary, or fractally rough morphology in the low-ℓ &quot;
+            &quot;temperature hot excursion set. This could indicate non-Gaussian &quot;
+            &quot;texture or anisotropic structure in the large-scale temperature field.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        interp += (
+            &quot;The Planck map&#x27;s dominant hot region has anomalously low boundary &quot;
+            &quot;complexity compared to Gaussian LCDM expectations, suggesting an &quot;
+            &quot;unusually compact, blob-like morphology. This could indicate &quot;
+            &quot;non-Gaussian temperature features with unusually smooth boundaries.&quot;
+        )
+    else:
+        interp += (
+            &quot;The boundary complexity of the dominant hot region is consistent &quot;
+            &quot;with Gaussian LCDM expectations. No significant anomaly detected &quot;
+            &quot;in the geometric morphology of the low-ℓ hot excursion set.&quot;
+        )
+
+    caption = (
+        &quot;Histogram of the boundary-to-interior pixel ratio for the largest &quot;
+        &quot;connected hot region (above +1σ) in the ℓ=2–20 band-limited &quot;
+        &quot;CMB temperature map across LCDM simulations. Higher values indicate &quot;
+        &quot;more geometrically complex (elongated/filamentary) hot structures. &quot;
+        &quot;The red line marks the Planck observed value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value_one_sided_upper&quot;: p_value_upper,
+        &quot;p_value_one_sided_lower&quot;: p_value_lower,
+        &quot;p_value_two_sided&quot;: p_value_two_sided,
+        &quot;rank_above&quot;: rank_above,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Hot-Region Boundary Complexity Index&quot;,
+            &quot;xlabel&quot;: &quot;Boundary / interior ratio (largest hot region)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 50,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-55-low-hot-region-boundary-complexity-index.png" alt="Statistic distribution for Low-ℓ Hot-Region Boundary Complexity Index">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.144</td></tr>
+<tr><th>One-tailed p-value</th><td>0.072</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.144</td></tr>
+<tr><th>Sigma</th><td>1.461</td></tr>
+<tr><th>Planck statistic</th><td>0.869</td></tr>
+<tr><th>Simulation mean</th><td>0.597</td></tr>
+<tr><th>Simulation std.</th><td>0.174</td></tr>
+<tr><th>Simulation median</th><td>0.576</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-55-low-hot-region-boundary-complexity-index.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-55-low-hot-region-boundary-complexity-index.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-55-low-hot-region-boundary-complexity-index.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-55-low-hot-region-boundary-complexity-index.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-55-low-hot-region-boundary-complexity-index.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-55-low-hot-region-boundary-complexity-index.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

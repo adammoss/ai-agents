@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Laplacian Spatial Correlation Amplitude · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 48 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Laplacian Spatial Correlation Amplitude</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Planck CMB temperature map exhibits an anomaly in the low-ℓ Laplacian spatial correlation amplitude, as indicated by the fitted amplitude A being significantly different from the distribution expected from ΛCDM Gaussian simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Compute the Laplacian (∇²T) of the low-ℓ CMB temperature map (ℓ ≤ 30) on an nside=256 sphere. The normalized two-point spatial correlation function |C(θ)| of this Laplacian field is calculated for angular separations 10°–170° in 5° steps and fitted with an exponential decay model A·exp(−θ/ξ), where A is the amplitude at θ=10° and ξ the coherence length. The scalar test statistic is the fitted amplitude A.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck amplitude A = 0.2244 lies at −1.00σ from the ΛCDM simulation mean (0.2311 ± 0.0067). Two-tailed p-value = 0.302 (percentile = 15.1%). Anomaly strength classified as negligible.</p>
+          <p>The Laplacian spatial correlation amplitude in the Planck data is fully consistent with Gaussian ΛCDM expectations. The approximately one-sigma deficit is statistically unremarkable and does not indicate any anomalous spatial structure in the low-ℓ temperature gradient field.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed for general exploration of anomalies in the Laplacian correlation amplitude without a predefined directional preference. The analysis code explicitly computes a two-sided p-value by taking the minimum of the upper and lower tail probabilities and scaling by two, confirming that both higher and lower values of A are considered potential anomalies. This approach aligns with a two-tailed hypothesis test.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The CMB low-ℓ regime has been extensively studied for anomalies such as quadrupole–octupole alignment, power suppression, and hemispherical asymmetries. The Laplacian of the temperature field amplifies small-scale gradient features but has not been commonly used as a correlation statistic. While related work exists on low-ℓ ellipticity (Gurzadyan et al. 2003) and extended foreground effects (Abramo et al. 2006), no directly comparable Laplacian correlation amplitude analysis was found in the literature.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+from scipy.optimize import curve_fit
+
+test_description = (
+    &quot;Low-ℓ Laplacian Spatial Correlation Amplitude: &quot;
+    &quot;Compute the Laplacian (∇²T) of the low-ℓ temperature map (ℓ ≤ 30). &quot;
+    &quot;Calculate the normalized two-point spatial correlation function C(θ) of &quot;
+    &quot;this Laplacian field for θ from 10° to 170° in steps of 5°. Fit a single &quot;
+    &quot;exponential decay model A·exp(-θ/ξ) to |C(θ)|, where A is the amplitude &quot;
+    &quot;and ξ is the coherence length. The scalar statistic is the fitted amplitude A.&quot;
+)
+
+
+def analyze_map(m):
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 100:
+        return 0.0
+
+    lmax = 30
+    clean = np.where(mask, m, 0.0)
+
+    # Spherical harmonic analysis of the masked low-ℓ field
+    alm = hp.map2alm(clean, lmax=lmax, iter=0)
+    cl = hp.alm2cl(alm, lmax=lmax)
+
+    # Laplacian power spectrum: ∇²T has alm coefficients -ℓ(ℓ+1) a_ℓm,
+    # so its power spectrum is [ℓ(ℓ+1)]² C_ℓ
+    ell = np.arange(lmax + 1, dtype=float)
+    cl_lap = (ell * (ell + 1)) ** 2 * cl
+
+    # Angular separations in degrees
+    theta_deg = np.arange(10, 171, 5, dtype=float)
+    cos_theta = np.cos(np.deg2rad(theta_deg))
+    n_theta = len(theta_deg)
+
+    # Legendre polynomials P_ℓ(cos θ) via recurrence
+    Pl = np.empty((lmax + 1, n_theta))
+    Pl[0] = 1.0
+    if lmax &gt;= 1:
+        Pl[1] = cos_theta
+    for l in range(1, lmax):
+        Pl[l + 1] = ((2 * l + 1) * cos_theta * Pl[l] - l * Pl[l - 1]) / (l + 1)
+
+    # Correlation function: ξ(θ) = Σ_ℓ (2ℓ+1)/(4π) C_ℓ^lap P_ℓ(cos θ)
+    w = (2 * ell + 1) / (4.0 * np.pi) * cl_lap
+    xi = w @ Pl          # shape (n_theta,)
+    xi0 = w.sum()        # ξ(0), since P_ℓ(1) = 1
+
+    if xi0 &lt;= 0 or not np.isfinite(xi0):
+        return 0.0
+
+    # Normalized correlation and its absolute value
+    abs_c = np.abs(xi / xi0)
+
+    # Fit |C(θ)| = A * exp(-θ_deg / ξ_coh)
+    def model(th, A, xi_coh):
+        return A * np.exp(-th / xi_coh)
+
+    a0 = float(abs_c[0])
+    if a0 &lt; 1e-15:
+        return 0.0
+
+    try:
+        popt, _ = curve_fit(
+            model, theta_deg, abs_c,
+            p0=[a0, 30.0],
+            bounds=([0.0, 0.5], [5.0, 500.0]),
+            maxfev=5000,
+        )
+        return float(popt[0])
+    except Exception:
+        return float(a0)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Laplacian Spatial Correlation Amplitude test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Laplacian Spatial Correlation Amplitude&quot;,
+                &quot;xlabel&quot;: &quot;Fitted amplitude A&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck shows significantly higher Laplacian correlation amplitude &quot;
+            &quot;than ΛCDM simulations, suggesting anomalous spatial coherence in &quot;
+            &quot;the low-ℓ temperature gradient field.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck shows significantly lower Laplacian correlation amplitude &quot;
+            &quot;than ΛCDM simulations, suggesting unusually rapid decorrelation &quot;
+            &quot;of the low-ℓ temperature gradient field.&quot;
+        )
+    else:
+        direction = (
+            &quot;The Laplacian correlation amplitude is consistent with &quot;
+            &quot;ΛCDM Gaussian expectations.&quot;
+        )
+
+    interp = (
+        f&quot;Fitted amplitude A = {planck_stat:.6f}. &quot;
+        f&quot;Sim mean = {mean_sim:.6f} ± {std_sim:.6f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value:.4f}. &quot;
+        f&quot;Strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the fitted exponential amplitude A for the normalized &quot;
+        &quot;Laplacian spatial correlation |C(θ)| ≈ A·exp(-θ/ξ) of the low-ℓ &quot;
+        &quot;(ℓ ≤ 30) CMB temperature field. The Laplacian ∇²T amplifies &quot;
+        &quot;small-scale gradient structure, and A characterizes the overall &quot;
+        &quot;correlation strength. Red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Laplacian Spatial Correlation Amplitude&quot;,
+            &quot;xlabel&quot;: &quot;Fitted amplitude A&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-48-low-laplacian-spatial-correlation-amplitude.png" alt="Statistic distribution for Low-ℓ Laplacian Spatial Correlation Amplitude">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.302</td></tr>
+<tr><th>One-tailed p-value</th><td>0.151</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.302</td></tr>
+<tr><th>Sigma</th><td>1.032</td></tr>
+<tr><th>Planck statistic</th><td>0.224</td></tr>
+<tr><th>Simulation mean</th><td>0.231</td></tr>
+<tr><th>Simulation std.</th><td>0.00666</td></tr>
+<tr><th>Simulation median</th><td>0.231</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-48-low-laplacian-spatial-correlation-amplitude.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-48-low-laplacian-spatial-correlation-amplitude.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-48-low-laplacian-spatial-correlation-amplitude.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-48-low-laplacian-spatial-correlation-amplitude.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-48-low-laplacian-spatial-correlation-amplitude.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-48-low-laplacian-spatial-correlation-amplitude.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,132 @@
+{
+  "saved_test_index": 62,
+  "test_name": "Low-\u2113 Galactic Hemispherical Skewness Asymmetry",
+  "test_description": "Band-limit the temperature map to multipoles \u2113 \u2264 30. Compute the skewness of the pixel temperature values in the northern galactic hemisphere (galactic latitude b > 0\u00b0) and separately in the southern galactic hemisphere (b < 0\u00b0). The statistic is the absolute difference between these two skewness values.",
+  "planck_stat": 0.39620943597599567,
+  "mean_sim_stat": 0.20192708699137418,
+  "std_sim_stat": 0.15594744418550535,
+  "median_sim_stat": 0.1745210325463955,
+  "p_value_two_tailed": 0.208,
+  "p_value_one_tailed": 0.104,
+  "tail": "upper",
+  "sigma": 1.2590839804270721,
+  "n_sims": 1000,
+  "plot_path": "/content/drive/MyDrive/Project/Data/Output/cmb_agent_memory_1.7_temp/cmb_test_run_mimo/Test_62_low_galactic_hemispherical_skewness_asymmetry/statistic_figure.png",
+  "plot_pdf_path": "/content/drive/MyDrive/Project/Data/Output/cmb_agent_memory_1.7_temp/cmb_test_run_mimo/Test_62_low_galactic_hemispherical_skewness_asymmetry/statistic_figure.pdf",
+  "plot_kind": "histogram",
+  "output_dir": "/content/drive/MyDrive/Project/Data/Output/cmb_agent_memory_1.7_temp/cmb_test_run_mimo/Test_62_low_galactic_hemispherical_skewness_asymmetry",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": 0.00040349597120610536,
+    "sim_max": 0.9978239749468404,
+    "z_score": 1.2451963193554794,
+    "thresholds": [
+      0.009307284384964367,
+      0.5957349530183776
+    ],
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-\u2113 Galactic Hemispherical Skewness Asymmetry",
+      "xlabel": "|Skew$_N$ \u2212 Skew$_S$|",
+      "ylabel": "Count",
+      "bins": 30,
+      "caption": "Planck asymmetry = 0.3962.  Simulation mean \u00b1 \u03c3 = 0.2019 \u00b1 0.1560.  z = 1.25,  p = 0.104  (fraction of simulations \u2265 Planck value)."
+    }
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Low-\u2113 Galactic Hemispherical Skewness Asymmetry: \"\n    \"Band-limit the temperature map to \u2113 \u2264 30. Compute the skewness of \"\n    \"pixel temperatures in the northern (b > 0\u00b0) and southern (b < 0\u00b0) \"\n    \"galactic hemispheres separately. The statistic is the absolute \"\n    \"difference between these two skewness values.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return |skewness(N) - skewness(S)| for the \u2113 \u2264 30 band-limited map.\"\"\"\n\n    def skewness(values):\n        \"\"\"Compute sample skewness (bias-corrected / Fisher) for a 1-D array.\"\"\"\n        n = len(values)\n        if n < 3:\n            return 0.0\n        mean = np.mean(values)\n        diff = values - mean\n        m2 = np.mean(diff ** 2)\n        if m2 <= 0.0:\n            return 0.0\n        m3 = np.mean(diff ** 3)\n        skew = (n * (n - 1)) ** 0.5 / (n - 2) * m3 / (m2 ** 1.5)\n        return skew\n\n    nside = hp.npix2nside(len(m))\n\n    # Replace NaN with 0 for healpy spherical-harmonic operations\n    masked = ~np.isfinite(m)\n    m_clean = m.copy()\n    m_clean[masked] = 0.0\n\n    # Forward transform -> filter to l <= 30 -> inverse transform\n    lmax = 30\n    alm = hp.map2alm(m_clean, lmax=lmax)\n    m_limited = hp.alm2map(alm, nside, lmax=lmax)\n\n    # Build galactic-latitude mask (vectorised, no per-pixel Python loop)\n    npix = hp.nside2npix(nside)\n    theta, phi = hp.pix2ang(nside, np.arange(npix))  # co-latitude, longitude\n    gal_lat = np.pi / 2.0 - theta  # latitude in radians\n    north = gal_lat > 0.0\n    south = gal_lat < 0.0\n\n    # Combine with the original mask (keep only originally-valid pixels)\n    valid = ~masked\n    north_vals = m_limited[valid & north]\n    south_vals = m_limited[valid & south]\n\n    skew_n = skewness(north_vals)\n    skew_s = skewness(south_vals)\n\n    asymmetry = abs(skew_n - skew_s)\n    return float(asymmetry)\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Interpret the asymmetry relative to the simulation ensemble.\"\"\"\n    sims = np.array(sim_results, dtype=float)\n    sims_finite = sims[np.isfinite(sims)]\n    n_sims = len(sims_finite)\n\n    if n_sims == 0:\n        return {\"planck_stat\": planck_stat, \"note\": \"No finite simulation results.\"}\n\n    mean_s = float(np.mean(sims_finite))\n    std_s = float(np.std(sims_finite, ddof=1)) if n_sims > 1 else 0.0\n    p_value = float(np.mean(sims_finite >= planck_stat)) if n_sims > 0 else np.nan\n\n    z_score = (planck_stat - mean_s) / std_s if std_s > 0 else np.nan\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"sim_mean\": mean_s,\n        \"sim_std\": std_s,\n        \"z_score\": z_score,\n        \"p_value\": p_value,\n        \"n_sims\": n_sims,\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-\u2113 Galactic Hemispherical Skewness Asymmetry\",\n            \"xlabel\": r\"|Skew$_N$ \u2212 Skew$_S$|\",\n            \"ylabel\": \"Count\",\n            \"bins\": 30,\n            \"caption\": (\n                f\"Planck asymmetry = {planck_stat:.4f}.  \"\n                f\"Simulation mean \u00b1 \u03c3 = {mean_s:.4f} \u00b1 {std_s:.4f}.  \"\n                f\"z = {z_score:.2f},  p = {p_value:.3f}  \"\n                f\"(fraction of simulations \u2265 Planck value).\"\n            ),\n        },\n    }\n",
+  "test_signature": {
+    "family": "hemispherical",
+    "stat_form": "difference",
+    "components": [
+      "galactic",
+      "hemisphere"
+    ],
+    "tokens": [
+      "galactic",
+      "hemispherical",
+      "skewness",
+      "band",
+      "limit",
+      "map",
+      "multipoles",
+      "compute",
+      "skewness",
+      "pixel",
+      "values",
+      "northern",
+      "galactic",
+      "hemisphere",
+      "galactic",
+      "latitude",
+      "separately",
+      "southern",
+      "galactic",
+      "hemisphere",
+      "absolute",
+      "difference",
+      "between",
+      "these",
+      "two",
+      "skewness",
+      "values"
+    ]
+  },
+  "test_summary": {
+    "Test name": "Low-\u2113 Galactic Hemispherical Skewness Asymmetry",
+    "Description": "The CMB temperature map is band-limited to multipoles \u2113 \u2264 30. Pixel skewness is computed separately for the northern (b > 0\u00b0) and southern (b < 0\u00b0) galactic hemispheres. The statistic is the absolute difference |Skew_N \u2212 Skew_S|, evaluated against 1000 \u039bCDM simulations.",
+    "Results": "Planck yields an asymmetry of 0.396, compared to a simulation mean \u00b1 \u03c3 of 0.202 \u00b1 0.156. The z-score is 1.26 (p = 0.104 one-tailed upper, p = 0.208 two-tailed). The observed value lies within the typical simulation spread and does not reach the 2\u03c3 threshold.",
+    "Interpretation": "The Planck low-\u2113 skewness asymmetry between galactic hemispheres is elevated relative to the simulation mean but remains statistically consistent with \u039bCDM expectations. No significant departure from isotropy is detected in skewness at large angular scales.",
+    "Comparison to literature": "The well-known low-\u2113 hemispherical power asymmetry (Eriksen et al. 2004; Hansen et al. 2004; Planck Collaboration 2016 XXVII) tests variance ratios rather than skewness differences. Skewness-based galactic hemispherical asymmetry at low multipoles does not appear to have been the focus of dedicated published analyses. The search results returned studies on hemispherical power modulation, isocurvature origins, and parameter estimation of dipole modulation\u2014none addressing skewness specifically.",
+    "Test novelty": "Variation",
+    "Verdict": "No anomalies found"
+  },
+  "results": {
+    "test_name": "Low-\u2113 Galactic Hemispherical Skewness Asymmetry",
+    "test_description": "Band-limit the temperature map to multipoles \u2113 \u2264 30. Compute the skewness of the pixel temperature values in the northern galactic hemisphere (galactic latitude b > 0\u00b0) and separately in the southern galactic hemisphere (b < 0\u00b0). The statistic is the absolute difference between these two skewness values.",
+    "test_hypothesis": "The CMB temperature map shows a significant hemispherical skewness asymmetry at low multipoles (\u2113 \u2264 30), with the absolute difference in skewness between northern and southern galactic hemispheres exceeding expectations from isotropic simulations.",
+    "test_type": "one-tailed, upper",
+    "justification": "The test statistic is the absolute difference in skewness, which is always non-negative. The p-value is computed as the fraction of simulations with a statistic greater than or equal to the observed Planck value, focusing on detecting unusually large asymmetries. Since the test is designed to identify anomalies where the magnitude of asymmetry is significant, without specifying a direction for which hemisphere is more skewed, a one-tailed upper test is appropriate.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "custom_summary": {
+      "is_null_test": false,
+      "summary_source": "model",
+      "n_valid_simulations": 1000,
+      "sim_min": 0.00040349597120610536,
+      "sim_max": 0.9978239749468404,
+      "z_score": 1.2451963193554794,
+      "thresholds": [
+        0.009307284384964367,
+        0.5957349530183776
+      ],
+      "plot_spec": {
+        "kind": "histogram",
+        "title": "Low-\u2113 Galactic Hemispherical Skewness Asymmetry",
+        "xlabel": "|Skew$_N$ \u2212 Skew$_S$|",
+        "ylabel": "Count",
+        "bins": 30,
+        "caption": "Planck asymmetry = 0.3962.  Simulation mean \u00b1 \u03c3 = 0.2019 \u00b1 0.1560.  z = 1.25,  p = 0.104  (fraction of simulations \u2265 Planck value)."
+      }
+    },
+    "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Low-\u2113 Galactic Hemispherical Skewness Asymmetry: \"\n    \"Band-limit the temperature map to \u2113 \u2264 30. Compute the skewness of \"\n    \"pixel temperatures in the northern (b > 0\u00b0) and southern (b < 0\u00b0) \"\n    \"galactic hemispheres separately. The statistic is the absolute \"\n    \"difference between these two skewness values.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return |skewness(N) - skewness(S)| for the \u2113 \u2264 30 band-limited map.\"\"\"\n\n    def skewness(values):\n        \"\"\"Compute sample skewness (bias-corrected / Fisher) for a 1-D array.\"\"\"\n        n = len(values)\n        if n < 3:\n            return 0.0\n        mean = np.mean(values)\n        diff = values - mean\n        m2 = np.mean(diff ** 2)\n        if m2 <= 0.0:\n            return 0.0\n        m3 = np.mean(diff ** 3)\n        skew = (n * (n - 1)) ** 0.5 / (n - 2) * m3 / (m2 ** 1.5)\n        return skew\n\n    nside = hp.npix2nside(len(m))\n\n    # Replace NaN with 0 for healpy spherical-harmonic operations\n    masked = ~np.isfinite(m)\n    m_clean = m.copy()\n    m_clean[masked] = 0.0\n\n    # Forward transform -> filter to l <= 30 -> inverse transform\n    lmax = 30\n    alm = hp.map2alm(m_clean, lmax=lmax)\n    m_limited = hp.alm2map(alm, nside, lmax=lmax)\n\n    # Build galactic-latitude mask (vectorised, no per-pixel Python loop)\n    npix = hp.nside2npix(nside)\n    theta, phi = hp.pix2ang(nside, np.arange(npix))  # co-latitude, longitude\n    gal_lat = np.pi / 2.0 - theta  # latitude in radians\n    north = gal_lat > 0.0\n    south = gal_lat < 0.0\n\n    # Combine with the original mask (keep only originally-valid pixels)\n    valid = ~masked\n    north_vals = m_limited[valid & north]\n    south_vals = m_limited[valid & south]\n\n    skew_n = skewness(north_vals)\n    skew_s = skewness(south_vals)\n\n    asymmetry = abs(skew_n - skew_s)\n    return float(asymmetry)\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Interpret the asymmetry relative to the simulation ensemble.\"\"\"\n    sims = np.array(sim_results, dtype=float)\n    sims_finite = sims[np.isfinite(sims)]\n    n_sims = len(sims_finite)\n\n    if n_sims == 0:\n        return {\"planck_stat\": planck_stat, \"note\": \"No finite simulation results.\"}\n\n    mean_s = float(np.mean(sims_finite))\n    std_s = float(np.std(sims_finite, ddof=1)) if n_sims > 1 else 0.0\n    p_value = float(np.mean(sims_finite >= planck_stat)) if n_sims > 0 else np.nan\n\n    z_score = (planck_stat - mean_s) / std_s if std_s > 0 else np.nan\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"sim_mean\": mean_s,\n        \"sim_std\": std_s,\n        \"z_score\": z_score,\n        \"p_value\": p_value,\n        \"n_sims\": n_sims,\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-\u2113 Galactic Hemispherical Skewness Asymmetry\",\n            \"xlabel\": r\"|Skew$_N$ \u2212 Skew$_S$|\",\n            \"ylabel\": \"Count\",\n            \"bins\": 30,\n            \"caption\": (\n                f\"Planck asymmetry = {planck_stat:.4f}.  \"\n                f\"Simulation mean \u00b1 \u03c3 = {mean_s:.4f} \u00b1 {std_s:.4f}.  \"\n                f\"z = {z_score:.2f},  p = {p_value:.3f}  \"\n                f\"(fraction of simulations \u2265 Planck value).\"\n            ),\n        },\n    }\n",
+    "planck_stat": 0.39620943597599567,
+    "mean_sim_stat": 0.20192708699137418,
+    "std_sim_stat": 0.15594744418550535,
+    "median_sim_stat": 0.1745210325463955,
+    "sigma": 1.2590839804270721,
+    "p_value_one_tailed": 0.104,
+    "tail": "upper"
+  },
+  "updated_test_summary": {
+    "Test name": "Low-\u2113 Galactic Hemispherical Skewness Asymmetry",
+    "Description": "Band-limit the Planck temperature map to \u2113 \u2264 30. Compute the pixel-value skewness separately in the northern galactic hemisphere (b > 0\u00b0) and the southern hemisphere (b < 0\u00b0). The statistic is the absolute difference |Skew_N \u2212 Skew_S|.",
+    "Results": "Planck asymmetry = 0.3962. From 1000 \u039bCDM simulations: mean \u00b1 \u03c3 = 0.2019 \u00b1 0.1559. z = 1.25, one-tailed upper p = 0.104.",
+    "Interpretation": "The Planck map shows modestly elevated hemispherical skewness asymmetry at low multipoles compared to isotropic simulations, but the excess is not statistically significant. At z \u2248 1.25, the signal remains well below the 2\u03c3 threshold (p = 0.104 > 0.05). No evidence for a preferred direction or breakdown of isotropy in the skewness distribution on large angular scales.",
+    "Meets hypothesis?": "No",
+    "Comparison to literature": "The well-established hemispherical power asymmetry at low \u2113 (e.g., Lew 2008; Eriksen et al. 2004) is typically quantified through variance or power ratios in ecliptic or galactic coordinates. McDonald (2014) and Assadullahi et al. (2014) discuss theoretical origins of the power asymmetry. Skewness-based hemispherical asymmetry statistics at low multipoles in galactic coordinates have not been identified in prior literature from the searches conducted, though the general phenomenon of large-scale CMB asymmetries is well studied.",
+    "Test novelty": "Novel",
+    "Verdict": "No anomalies found"
+  }
+}

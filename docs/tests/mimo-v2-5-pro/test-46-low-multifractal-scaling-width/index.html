@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Multifractal Scaling Width · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 46 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Multifractal Scaling Width</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The multifractal spectrum width ΔD = D(−2) − D(2) of the low-ℓ CMB temperature map deviates significantly from the distribution predicted by ΛCDM simulations, indicating an anomaly in spatial heterogeneity.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The width of the multifractal singularity spectrum ΔD = D(−2) − D(2) is computed for the Planck CMB temperature map band-limited to ℓ ≤ 30. The sky is partitioned into equal-area HEALPix nested patches at five scales (~2°–32° diameter). Rényi dimensions D(q) for q ∈ {−2, −1, 0, 1, 2} are estimated via linear regression of qth-order Rényi entropy against log(patch size). ΔD quantifies the range of scaling exponents: ≈0 for uniform Gaussian fields, larger for heterogeneous spatial structure.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck ΔD = 0.6856, compared to ΛCDM simulation mean 0.6528 ± 0.0284. The Planck value lies at +1.15σ (percentile 90.2%), yielding a two-tailed p-value of 0.196. Anomaly strength is negligible.</p>
+          <p>The multifractal spectrum width of the low-ℓ CMB temperature map is fully consistent with ΛCDM expectations. There is no indication of anomalous spatial heterogeneity or homogeneity at large angular scales compared to isotropic Gaussian realisations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is explicitly designed to detect deviations in both directions, as evidenced by the code calculating two-sided p-values and interpreting anomalies for both wider (larger ΔD) and narrower (smaller ΔD) spectra relative to simulations. The description of ΔD highlights that positive values indicate heterogeneity, but this is a descriptive measure rather than a directional prediction; the anomaly test is exploratory for any departure from the expected uniform Gaussian field, necessitating a two-tailed approach.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Multifractal analysis has been applied to cosmological structures (e.g., galaxy clustering, cosmic web), but accessible literature does not appear to contain a direct study of Rényi-dimension-based singularity spectrum width applied specifically to the low-ℓ CMB temperature field. This limits contextualisation with prior work.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Multifractal Scaling Width: &quot;
+    &quot;Compute the width of the multifractal singularity spectrum ΔD = D(−2) − D(2) &quot;
+    &quot;for the low-ℓ (ℓ ≤ 30) CMB temperature map. Using HEALPix nested ordering, &quot;
+    &quot;partition the sky into equal-area patches at five scales (angular diameters &quot;
+    &quot;~2°–32°). For each scale, compute the total absolute temperature fluctuation &quot;
+    &quot;within each patch. Rényi dimensions D(q) are estimated via linear regression &quot;
+    &quot;of qth-order Rényi entropy against log(patch size). ΔD measures the range of &quot;
+    &quot;scaling exponents: ΔD ≈ 0 for uniform Gaussian fields; larger positive values &quot;
+    &quot;indicate heterogeneous spatial structure.&quot;
+)
+
+
+def analyze_map(m):
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 100:
+        return 0.0
+
+    nside = hp.get_nside(m)
+    npix = 12 * nside ** 2
+
+    # Replace NaN with 0 for healpy compatibility
+    clean = m.copy()
+    clean[~mask] = 0.0
+
+    # Band-limit to ℓ ≤ 30
+    lmax = 30
+    alm = hp.map2alm(clean, lmax=lmax)
+    low_ell_map = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Remove monopole so we analyse fluctuations
+    low_ell_map -= np.mean(low_ell_map)
+
+    # Positive measure: absolute temperature fluctuation
+    measure = np.abs(low_ell_map)
+
+    # Five scales: side-length factors k = 2, 4, 8, 16, 32
+    # In nested ordering, parent index at nside/k is ipix // k²
+    # Patch angular diameter ∝ k  →  ε ∝ k  →  log(1/ε) = −log(k) + const
+    scales = [2, 4, 8, 16, 32]
+    q_values = [-2, -1, 0, 1, 2]
+
+    H_q = {q: [] for q in q_values}
+    x_vals = []  # −log(k) values for regression
+
+    for k in scales:
+        if nside &lt; k:
+            continue
+
+        k_sq = k * k
+        n_patches = 12 * (nside // k) ** 2
+
+        # Map each base pixel to its parent patch via nested ordering
+        parent = np.arange(npix) // k_sq
+
+        # Aggregate measure into patches (efficient vectorised bincount)
+        patch_mu = np.bincount(parent, weights=measure, minlength=n_patches)
+
+        total_mu = patch_mu.sum()
+        if total_mu &lt;= 0:
+            continue
+
+        # Normalised probability per patch
+        p = patch_mu / total_mu
+        p = p[p &gt; 0]
+        if len(p) &lt; 2:
+            continue
+
+        log_p = np.log(p)
+
+        for q in q_values:
+            if q == 0:
+                # H₀ = log(number of non-empty patches)
+                H = np.log(float(len(p)))
+            elif q == 1:
+                # Shannon entropy
+                H = -np.sum(p * log_p)
+            else:
+                # H_q = [log(Σ p_i^q)] / (1−q), computed via logsumexp
+                log_pq = q * log_p
+                max_lpq = np.max(log_pq)
+                log_sum_pq = max_lpq + np.log(np.sum(np.exp(log_pq - max_lpq)))
+                H = log_sum_pq / (1.0 - q)
+
+            if np.isfinite(H):
+                H_q[q].append(H)
+
+        x_vals.append(-np.log(float(k)))
+
+    n_pts = len(x_vals)
+    if n_pts &lt; 2:
+        return 0.0
+
+    x = np.array(x_vals)
+
+    # Linear regression: H_q = D(q) · log(1/ε) + const
+    # With x = −log(k) ∝ log(1/ε), the slope is D(q)
+    D_q = {}
+    for q in q_values:
+        y = np.array(H_q[q])
+        if len(y) != n_pts:
+            D_q[q] = 0.0
+            continue
+        coeffs = np.polyfit(x, y, 1)
+        D_q[q] = coeffs[0]  # slope = D(q)
+
+    delta_D = D_q[-2] - D_q[2]
+    return float(delta_D) if np.isfinite(delta_D) else 0.0
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Multifractal Scaling Width test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Multifractal Scaling Width&quot;,
+                &quot;xlabel&quot;: &quot;ΔD = D(−2) − D(2)&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck&#x27;s low-ℓ map shows a significantly wider multifractal &quot;
+            &quot;spectrum than ΛCDM simulations, indicating more heterogeneous &quot;
+            &quot;spatial structure across scales than expected from isotropic &quot;
+            &quot;Gaussian fluctuations.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck&#x27;s low-ℓ map shows a significantly narrower multifractal &quot;
+            &quot;spectrum than ΛCDM simulations, indicating more uniform &quot;
+            &quot;spatial structure than expected.&quot;
+        )
+    else:
+        direction = (
+            &quot;The multifractal spectrum width is consistent with &quot;
+            &quot;ΛCDM expectations.&quot;
+        )
+
+    interp = (
+        f&quot;Multifractal spectrum width ΔD = {planck_stat:.4f}. &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the multifractal spectrum width ΔD = D(−2) − D(2) &quot;
+        &quot;for the low-ℓ (ℓ ≤ 30) CMB temperature field. ΔD measures the &quot;
+        &quot;range of scaling exponents present in the map: ΔD ≈ 0 for a &quot;
+        &quot;uniform Gaussian field, while larger positive values indicate &quot;
+        &quot;heterogeneous spatial structure across scales. Red line marks &quot;
+        &quot;the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Multifractal Scaling Width&quot;,
+            &quot;xlabel&quot;: &quot;ΔD = D(−2) − D(2)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-46-low-multifractal-scaling-width.png" alt="Statistic distribution for Low-ℓ Multifractal Scaling Width">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.196</td></tr>
+<tr><th>One-tailed p-value</th><td>0.098</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.196</td></tr>
+<tr><th>Sigma</th><td>1.293</td></tr>
+<tr><th>Planck statistic</th><td>0.686</td></tr>
+<tr><th>Simulation mean</th><td>0.653</td></tr>
+<tr><th>Simulation std.</th><td>0.0284</td></tr>
+<tr><th>Simulation median</th><td>0.65</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-46-low-multifractal-scaling-width.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-46-low-multifractal-scaling-width.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-46-low-multifractal-scaling-width.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-46-low-multifractal-scaling-width.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-46-low-multifractal-scaling-width.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-46-low-multifractal-scaling-width.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

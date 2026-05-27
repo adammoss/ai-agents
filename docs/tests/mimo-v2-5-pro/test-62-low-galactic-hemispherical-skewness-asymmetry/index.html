@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Galactic Hemispherical Skewness Asymmetry · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 62 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Galactic Hemispherical Skewness Asymmetry</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · hemispherical · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The CMB temperature map shows a significant hemispherical skewness asymmetry at low multipoles (ℓ ≤ 30), with the absolute difference in skewness between northern and southern galactic hemispheres exceeding expectations from isotropic simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Band-limit the Planck temperature map to ℓ ≤ 30. Compute the pixel-value skewness separately in the northern galactic hemisphere (b &gt; 0°) and the southern hemisphere (b &lt; 0°). The statistic is the absolute difference |Skew_N − Skew_S|.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck asymmetry = 0.3962. From 1000 ΛCDM simulations: mean ± σ = 0.2019 ± 0.1559. z = 1.25, one-tailed upper p = 0.104.</p>
+          <p>The Planck map shows modestly elevated hemispherical skewness asymmetry at low multipoles compared to isotropic simulations, but the excess is not statistically significant. At z ≈ 1.25, the signal remains well below the 2σ threshold (p = 0.104 &gt; 0.05). No evidence for a preferred direction or breakdown of isotropy in the skewness distribution on large angular scales.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test statistic is the absolute difference in skewness, which is always non-negative. The p-value is computed as the fraction of simulations with a statistic greater than or equal to the observed Planck value, focusing on detecting unusually large asymmetries. Since the test is designed to identify anomalies where the magnitude of asymmetry is significant, without specifying a direction for which hemisphere is more skewed, a one-tailed upper test is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The well-established hemispherical power asymmetry at low ℓ (e.g., Lew 2008; Eriksen et al. 2004) is typically quantified through variance or power ratios in ecliptic or galactic coordinates. McDonald (2014) and Assadullahi et al. (2014) discuss theoretical origins of the power asymmetry. Skewness-based hemispherical asymmetry statistics at low multipoles in galactic coordinates have not been identified in prior literature from the searches conducted, though the general phenomenon of large-scale CMB asymmetries is well studied.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Galactic Hemispherical Skewness Asymmetry: &quot;
+    &quot;Band-limit the temperature map to ℓ ≤ 30. Compute the skewness of &quot;
+    &quot;pixel temperatures in the northern (b &gt; 0°) and southern (b &lt; 0°) &quot;
+    &quot;galactic hemispheres separately. The statistic is the absolute &quot;
+    &quot;difference between these two skewness values.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return |skewness(N) - skewness(S)| for the ℓ ≤ 30 band-limited map.&quot;&quot;&quot;
+
+    def skewness(values):
+        &quot;&quot;&quot;Compute sample skewness (bias-corrected / Fisher) for a 1-D array.&quot;&quot;&quot;
+        n = len(values)
+        if n &lt; 3:
+            return 0.0
+        mean = np.mean(values)
+        diff = values - mean
+        m2 = np.mean(diff ** 2)
+        if m2 &lt;= 0.0:
+            return 0.0
+        m3 = np.mean(diff ** 3)
+        skew = (n * (n - 1)) ** 0.5 / (n - 2) * m3 / (m2 ** 1.5)
+        return skew
+
+    nside = hp.npix2nside(len(m))
+
+    # Replace NaN with 0 for healpy spherical-harmonic operations
+    masked = ~np.isfinite(m)
+    m_clean = m.copy()
+    m_clean[masked] = 0.0
+
+    # Forward transform -&gt; filter to l &lt;= 30 -&gt; inverse transform
+    lmax = 30
+    alm = hp.map2alm(m_clean, lmax=lmax)
+    m_limited = hp.alm2map(alm, nside, lmax=lmax)
+
+    # Build galactic-latitude mask (vectorised, no per-pixel Python loop)
+    npix = hp.nside2npix(nside)
+    theta, phi = hp.pix2ang(nside, np.arange(npix))  # co-latitude, longitude
+    gal_lat = np.pi / 2.0 - theta  # latitude in radians
+    north = gal_lat &gt; 0.0
+    south = gal_lat &lt; 0.0
+
+    # Combine with the original mask (keep only originally-valid pixels)
+    valid = ~masked
+    north_vals = m_limited[valid &amp; north]
+    south_vals = m_limited[valid &amp; south]
+
+    skew_n = skewness(north_vals)
+    skew_s = skewness(south_vals)
+
+    asymmetry = abs(skew_n - skew_s)
+    return float(asymmetry)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the asymmetry relative to the simulation ensemble.&quot;&quot;&quot;
+    sims = np.array(sim_results, dtype=float)
+    sims_finite = sims[np.isfinite(sims)]
+    n_sims = len(sims_finite)
+
+    if n_sims == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims_finite))
+    std_s = float(np.std(sims_finite, ddof=1)) if n_sims &gt; 1 else 0.0
+    p_value = float(np.mean(sims_finite &gt;= planck_stat)) if n_sims &gt; 0 else np.nan
+
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else np.nan
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value&quot;: p_value,
+        &quot;n_sims&quot;: n_sims,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Galactic Hemispherical Skewness Asymmetry&quot;,
+            &quot;xlabel&quot;: r&quot;|Skew$_N$ − Skew$_S$|&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck asymmetry = {planck_stat:.4f}.  &quot;
+                f&quot;Simulation mean ± σ = {mean_s:.4f} ± {std_s:.4f}.  &quot;
+                f&quot;z = {z_score:.2f},  p = {p_value:.3f}  &quot;
+                f&quot;(fraction of simulations ≥ Planck value).&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-62-low-galactic-hemispherical-skewness-asymmetry.png" alt="Statistic distribution for Low-ℓ Galactic Hemispherical Skewness Asymmetry">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.104</td></tr>
+<tr><th>One-tailed p-value</th><td>0.104</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.208</td></tr>
+<tr><th>Sigma</th><td>1.259</td></tr>
+<tr><th>Planck statistic</th><td>0.396</td></tr>
+<tr><th>Simulation mean</th><td>0.202</td></tr>
+<tr><th>Simulation std.</th><td>0.156</td></tr>
+<tr><th>Simulation median</th><td>0.175</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>hemispherical</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-62-low-galactic-hemispherical-skewness-asymmetry.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-62-low-galactic-hemispherical-skewness-asymmetry.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-62-low-galactic-hemispherical-skewness-asymmetry.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-62-low-galactic-hemispherical-skewness-asymmetry.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-62-low-galactic-hemispherical-skewness-asymmetry.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-62-low-galactic-hemispherical-skewness-asymmetry.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

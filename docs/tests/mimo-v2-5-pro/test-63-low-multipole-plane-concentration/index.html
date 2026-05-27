@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Multipole Plane Concentration · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 63 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Multipole Plane Concentration</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · direction · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The observed alignment of low-multipole planes (ℓ=2-5) in the CMB is unexpectedly strong, resulting in a significantly higher concentration parameter κ compared to standard ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>For each multipole ℓ=2,3,4,5, compute the quadrupolar tensor of the temperature field to find principal axes. Extract the normal vector to the plane of the two largest axes per ℓ. Fit a von Mises-Fisher distribution to the four normal vectors; the statistic is the concentration parameter κ (higher κ implies a common preferred plane).</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Observed Planck κ = 3.980, compared to simulation mean ± σ = 5.323 ± 3.420. The z-score is −0.39, indicating the observed value lies slightly *below* the simulation mean. The one-tailed upper p-value is 0.61, meaning 61% of ΛCDM simulations produce κ values ≥ the Planck value.</p>
+          <p>The low-multipole planes in Planck data show no unusual degree of mutual alignment. The observed concentration is entirely consistent with — and actually marginally less than — what ΛCDM simulations predict. There is no evidence for a preferred plane in the low-ℓ multipoles using this statistic.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The anomaly test specifically seeks evidence for an *excess* alignment of the planes defined by low multipoles. The code defines the p-value as the fraction of simulations with κ *greater than or equal to* the observed Planck value (`p_value = float(np.mean(sims_finite &gt;= planck_stat))`). This indicates the primary interest is in the upper tail of the simulation distribution, where the observed κ is abnormally large. The scientific context of &quot;preferred plane&quot; anomalies also suggests a directional hypothesis: if there is an anomaly, the planes should be *more* aligned than expected by chance, not less. Therefore, a one-tailed upper test is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Low-ℓ alignment anomalies have been extensively studied, e.g., Abramo et al. (2006) who tested multipole vector correlations and normal-plane alignments for ℓ=2–5 using WMAP data, finding quadrupole–octopole alignment at the ~10% level. The present test uses a similar conceptual framework but applies a von Mises-Fisher concentration parameter rather than pairwise angular statistics, making it methodologically distinct.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Multipole Plane Concentration: &quot;
+    &quot;For each multipole ℓ=2,3,4,5, compute the quadrupolar tensor of T_ℓ² &quot;
+    &quot;on the sphere to find principal axes. Extract the normal to the plane &quot;
+    &quot;of the two largest axes for each ℓ. Fit a von Mises-Fisher distribution &quot;
+    &quot;to the set of normal vectors; the statistic is the concentration &quot;
+    &quot;parameter κ (higher κ means the low-ℓ multipole planes share a common &quot;
+    &quot;preferred plane).&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return von Mises-Fisher κ for the alignment of low-ℓ multipole planes.&quot;&quot;&quot;
+
+    masked = ~np.isfinite(m)
+    m_clean = m.copy()
+    m_clean[masked] = 0.0
+
+    nside = hp.npix2nside(len(m))
+    lmax = 5
+
+    alm = hp.map2alm(m_clean, lmax=lmax)
+
+    # Pixel directions in Cartesian
+    npix = hp.nside2npix(nside)
+    theta, phi = hp.pix2ang(nside, np.arange(npix))
+    n_vec = np.column_stack([
+        np.sin(theta) * np.cos(phi),
+        np.sin(theta) * np.sin(phi),
+        np.cos(theta),
+    ])  # (npix, 3)
+
+    normals = []
+
+    for ell in [2, 3, 4, 5]:
+        # Zero out all alm except this ℓ
+        alm_ell = np.zeros_like(alm)
+        for m_ in range(ell + 1):
+            idx = hp.Alm.getidx(lmax, ell, m_)
+            alm_ell[idx] = alm[idx]
+
+        # Reconstruct single-ℓ map
+        T_ell = hp.alm2map(alm_ell, nside, lmax=lmax, verbose=False)
+
+        # Quadrupolar tensor: M_ij = Σ_p T_ℓ²(p) n_i(p) n_j(p)
+        T2 = T_ell ** 2
+        w_n = T2[:, None] * n_vec          # (npix, 3)
+        M = n_vec.T @ w_n                   # (3, 3)
+
+        # Eigenvalues in ascending order; smallest → normal to the plane
+        evals, evecs = np.linalg.eigh(M)
+        normal = evecs[:, 0]
+        normals.append(normal)
+
+    normals = np.array(normals)  # (4, 3)
+
+    # Handle antipodal symmetry: normals define planes, so n and -n are
+    # equivalent.  Find orientations that maximise the resultant length.
+    n_vecs = len(normals)
+    best_R2 = -1.0
+
+    for signs in range(1 &lt;&lt; n_vecs):
+        s = np.array([1 if (signs &gt;&gt; i) &amp; 1 else -1 for i in range(n_vecs)])
+        oriented = normals * s[:, None]
+        s_sum = oriented.sum(axis=0)
+        R2 = s_sum @ s_sum
+        if R2 &gt; best_R2:
+            best_R2 = R2
+
+    R = np.sqrt(best_R2)
+    R_bar = R / n_vecs
+
+    # MLE for κ: solve  coth(κ) − 1/κ = R_bar  via Newton&#x27;s method
+    if R_bar &gt;= 1.0 - 1e-12:
+        kappa = 1e4
+    elif R_bar &lt; 1e-10:
+        kappa = 0.0
+    else:
+        # Initial guess (Banerjee et al. 2005 approximation)
+        kappa = R_bar * (3.0 - R_bar ** 2) / max(1.0 - R_bar ** 2, 1e-10)
+        kappa = max(kappa, 1e-6)
+
+        for _ in range(100):
+            if kappa &gt; 500:
+                f = 1.0 - 1.0 / kappa - R_bar
+                fp = 1.0 / kappa ** 2
+            else:
+                ck = 1.0 / np.tanh(kappa)
+                f = ck - 1.0 / kappa - R_bar
+                fp = -1.0 / np.sinh(kappa) ** 2 + 1.0 / kappa ** 2
+
+            if abs(fp) &lt; 1e-30:
+                break
+            delta = f / fp
+            kappa -= delta
+            kappa = max(kappa, 1e-10)
+            if abs(delta) &lt; 1e-12 * max(1.0, kappa):
+                break
+
+    return float(kappa)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the von Mises-Fisher κ relative to simulation ensemble.&quot;&quot;&quot;
+    sims = np.array(sim_results, dtype=float)
+    sims_finite = sims[np.isfinite(sims)]
+    n_sims = len(sims_finite)
+
+    if n_sims == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims_finite))
+    std_s = float(np.std(sims_finite, ddof=1)) if n_sims &gt; 1 else 0.0
+    p_value = float(np.mean(sims_finite &gt;= planck_stat)) if n_sims &gt; 0 else np.nan
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else np.nan
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value&quot;: p_value,
+        &quot;n_sims&quot;: n_sims,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Multipole Plane Concentration&quot;,
+            &quot;xlabel&quot;: r&quot;von Mises–Fisher $\kappa$&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck κ = {planck_stat:.3f}.  &quot;
+                f&quot;Sim mean ± σ = {mean_s:.3f} ± {std_s:.3f}.  &quot;
+                f&quot;z = {z_score:.2f}, p = {p_value:.3f}  &quot;
+                f&quot;(fraction of sims ≥ Planck).&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-63-low-multipole-plane-concentration.png" alt="Statistic distribution for Low-ℓ Multipole Plane Concentration">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.61</td></tr>
+<tr><th>One-tailed p-value</th><td>0.61</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.78</td></tr>
+<tr><th>Sigma</th><td>0.279</td></tr>
+<tr><th>Planck statistic</th><td>3.98</td></tr>
+<tr><th>Simulation mean</th><td>5.323</td></tr>
+<tr><th>Simulation std.</th><td>3.418</td></tr>
+<tr><th>Simulation median</th><td>4.386</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>direction</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-63-low-multipole-plane-concentration.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-63-low-multipole-plane-concentration.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-63-low-multipole-plane-concentration.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-63-low-multipole-plane-concentration.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-63-low-multipole-plane-concentration.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-63-low-multipole-plane-concentration.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

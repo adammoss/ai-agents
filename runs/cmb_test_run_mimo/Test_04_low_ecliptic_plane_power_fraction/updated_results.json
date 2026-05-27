@@ -1,0 +1,42 @@
+{
+  "results": {
+    "test_name": "Low-\u2113 Ecliptic-Plane Power Fraction",
+    "test_description": "Compute the fraction of total CMB temperature power at multipoles \u2113=2 through 5 that resides in spherical harmonic components which are symmetric with respect to the ecliptic plane. Specifically, for each map, sum the squared alm coefficients for which m is even (which correspond to functions with even symmetry about the ecliptic) for \u2113=2,3,4,5, then divide by the total summed squared alm for the same \u2113 range. The result is a single scalar between 0 and 1, where a higher value indicates a greater concentration of low-\u2113 power in ecliptic-symmetric modes, a pattern previously noted as anomalous in Planck data.",
+    "test_hypothesis": "The fraction of CMB temperature power at multipoles \u2113=2 through 5 residing in ecliptic-symmetric modes (even m) is higher than the expected value of 0.5 for a random isotropic field.",
+    "test_type": "one-tailed, upper",
+    "justification": "The test description and code explicitly focus on detecting a significantly higher power fraction as anomalous, with the p-value calculated by counting simulations where the observed value is greater than or equal to the Planck statistic, indicating a clear directional preference for excess in ecliptic-symmetric modes.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 0.38796720350918773,
+    "mean_sim_stat": 0.5055611467971829,
+    "std_sim_stat": 0.14035804983569153,
+    "median_sim_stat": 0.5117821501512938,
+    "sigma": 0.7688202934580621,
+    "p_value_one_tailed": 0.779,
+    "tail": "upper"
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\"Low-\u2113 Ecliptic-Plane Power Fraction. Computes the fraction of total CMB \"\n    \"temperature power at multipoles \u2113=2 through 5 residing in spherical harmonic modes \"\n    \"with even m (symmetric about the ecliptic plane). For a random isotropic field the \"\n    \"expected value is ~0.5; a significantly higher value indicates anomalous concentration \"\n    \"of low-\u2113 power in ecliptic-symmetric modes, as reported in Planck data.\")\n\n\ndef analyze_map(m):\n    m = np.asarray(m, dtype=np.float64)\n    m_fill = np.where(np.isfinite(m), m, 0.0)\n\n    lmax = 5\n    alm = hp.map2alm(m_fill, lmax=lmax)\n\n    even_power = 0.0\n    total_power = 0.0\n\n    for ell in range(2, 6):          # \u2113 = 2, 3, 4, 5\n        for me in range(0, ell + 1): # m = 0, 1, ..., \u2113\n            idx = hp.Alm.getidx(lmax, ell, me)\n            power = np.abs(alm[idx]) ** 2\n            if me > 0:\n                power *= 2.0         # account for the conjugate m < 0 mode\n            total_power += power\n            if me % 2 == 0:          # even m \u2192 ecliptic-symmetric\n                even_power += power\n\n    if total_power > 0.0:\n        ratio = even_power / total_power\n    else:\n        ratio = 0.5\n\n    return float(ratio)\n\n\ndef summarize_results(planck_stat, sim_results):\n    sim_arr = np.array(sim_results, dtype=np.float64)\n    finite_mask = np.isfinite(sim_arr)\n    n_finite = int(finite_mask.sum())\n\n    if n_finite > 0:\n        valid = sim_arr[finite_mask]\n        rank = int(np.sum(valid >= planck_stat))\n        p_value = rank / n_finite\n    else:\n        rank = 0\n        p_value = float('nan')\n\n    sim_median = float(np.nanmedian(sim_arr))\n    sim_mean = float(np.nanmean(sim_arr))\n    sim_std = float(np.nanstd(sim_arr))\n\n    interpretation = (\n        \"Anomalous: low-\u2113 power concentrated in ecliptic-symmetric modes\"\n        if p_value < 0.05\n        else \"Low-\u2113 ecliptic power fraction consistent with random expectations\"\n    )\n\n    result = {\n        \"test_description\": test_description,\n        \"planck_stat\": float(planck_stat),\n        \"p_value\": float(p_value),\n        \"rank\": rank,\n        \"n_simulations\": len(sim_results),\n        \"n_valid\": n_finite,\n        \"sim_mean\": sim_mean,\n        \"sim_std\": sim_std,\n        \"sim_median\": sim_median,\n        \"exceeds_95th_percentile\": bool(p_value < 0.05),\n        \"interpretation\": interpretation,\n        \"expected_random_fraction\": float(0.5),\n    }\n\n    result[\"plot_spec\"] = {\n        \"kind\": \"histogram\",\n        \"title\": \"Low-\u2113 Ecliptic-Plane Power Fraction\",\n        \"xlabel\": \"Even-m power fraction (\u2113 = 2\u20135)\",\n        \"ylabel\": \"Number of simulations\",\n        \"bins\": 50,\n        \"caption\": (\n            f\"Histogram of even-m power fraction from {n_finite} lensed-\u039bCDM simulations. \"\n            f\"Planck value = {planck_stat:.4f} (one-sided p = {p_value:.3f}, \"\n            f\"rank {rank}/{n_finite}). \"\n            f\"The expected value for isotropic random fields is ~0.5; \"\n            f\"a value significantly above 0.5 indicates anomalous ecliptic symmetry.\"\n        ),\n    }\n\n    return result\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "fallback_error",
+    "n_valid_simulations": 1000,
+    "sim_min": 0.11914868438641896,
+    "sim_max": 0.8393251789925151,
+    "z_score": -0.8378140293745538,
+    "thresholds": [
+      0.2340954236590344,
+      0.7606319217961749
+    ],
+    "summary_error": "Traceback (most recent call last):\n  File \"/tmp/ipykernel_17705/482371216.py\", line 450, in run_registered_analysis\n    extra_summary = summary_fn(planck_stat, sim_results)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 64, in summarize_results\nNameError: name 'test_description' is not defined\n"
+  },
+  "updated_summary": {
+    "Test name": "** Low-\u2113 Ecliptic-Plane Power Fraction",
+    "Description": "** The fraction of total CMB temperature power at multipoles \u2113 = 2\u20135 residing in ecliptic-symmetric (even-*m*) spherical harmonic modes is computed for the Planck map and 1000 lensed-\u039bCDM simulations. For a random isotropic field the expected fraction is ~0.5; a significantly higher value would indicate anomalous concentration of low-\u2113 power in modes symmetric about the ecliptic plane.",
+    "Results": "** The Planck even-*m* power fraction is 0.388, notably *below* the simulation mean of 0.506 \u00b1 0.140. The one-sided upper-tail p-value is 0.779 (z = \u22120.84\u03c3), meaning 77.9% of simulations equal or exceed the Planck value. The observed statistic lies comfortably within the expected distribution.",
+    "Interpretation": "** The low-\u2113 ecliptic-plane power fraction in Planck data is fully consistent with isotropic \u039bCDM expectations and is actually marginally lower than the simulation median (0.512). There is no evidence of anomalous excess power in ecliptic-symmetric modes at these multipoles.",
+    "Meets hypothesis?": "** No",
+    "Comparison to literature": "** Ecliptic alignment of low-\u2113 CMB modes has been reported in Planck Collaboration papers (e.g., Planck 2013 XVI; Planck 2018 VII) using various statistics, sometimes at modest significance. The current test, which isolates even-*m* power as a single scalar, finds no such excess. Differences in multipole ranges, masking, and statistic definitions make direct comparison with earlier claims non-trivial.",
+    "Test novelty": "** Variation",
+    "Verdict": "** No anomalies found"
+  }
+}

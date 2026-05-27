@@ -1,0 +1,51 @@
+{
+  "results": {
+    "test_name": "Low-\u2113 Variance-Direction Coherence",
+    "test_description": "For the masked, smoothed low-\u2113 map (\u2113=2\u201320), compute a local variance map at each HEALPix pixel using a 30\u00b0 Gaussian beam-weighted aperture. Fit a dipole pattern to this variance map using least-squares, obtaining a preferred axis (the dipole direction). Perform this procedure separately for each multipole bin from \u2113=2 to \u2113=20 (19 bins total). Collect the 19 dipole axes (unit vectors). The statistic is the length of the mean resultant vector of these 19 axes, normalized by the number of bins (i.e., the magnitude of the average unit vector). This scalar measures how consistently the direction of maximal low-\u2113 power variance aligns across multipole scales.",
+    "test_hypothesis": "The low-\u2113 variance direction coherence (mean resultant length of dipole axes across multipole scales) is greater than expected from isotropic Gaussian fluctuations.",
+    "test_type": "one-tailed, upper",
+    "justification": "The test statistic is specifically designed to detect consistent alignment of variance directions, with a high value (near 1) indicating alignment and being anomalous. The code's interpretation states a high value is anomalous, and the expected random value (~0.23) serves as the null expectation. There is no indication that low values are anomalous, so only upper-tail departures are of interest.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 0.31952163399938277,
+    "mean_sim_stat": 0.3242829162815567,
+    "std_sim_stat": 0.13623133059252043,
+    "median_sim_stat": 0.3144586140622958,
+    "sigma": 0.032591936696663076,
+    "p_value_one_tailed": 0.487,
+    "tail": "upper"
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Low-\u2113 Variance-Direction Coherence: \"\n    \"For each multipole \u2113=2 through 20, compute a local variance map using a \"\n    \"30\u00b0 Gaussian beam-weighted aperture, fit a dipole to extract the preferred \"\n    \"axis of maximal variance, and collect the 19 dipole directions. \"\n    \"The statistic is the magnitude of the mean resultant vector of these 19 \"\n    \"unit vectors, measuring how consistently the variance direction aligns \"\n    \"across multipole scales.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return mean resultant length of per-\u2113 variance-map dipole directions.\"\"\"\n    lmax = 20\n    nside_target = 32  # sufficient for lmax=20\n\n    finite_mask = np.isfinite(m)\n    if not np.any(finite_mask):\n        return 0.0\n\n    m_clean = np.where(finite_mask, m, 0.0)\n    nside_orig = hp.npix2nside(len(m))\n    nside_work = min(nside_orig, nside_target)\n\n    # Downgrade map and mask to working resolution for speed\n    if nside_orig > nside_work:\n        m_work = hp.ud_grade(m_clean, nside_work)\n        mask_low = hp.ud_grade(finite_mask.astype(float), nside_work)\n        valid = mask_low > 0.5\n    else:\n        m_work = m_clean\n        valid = finite_mask.copy()\n\n    # Spherical harmonic coefficients at working resolution\n    alm = hp.map2alm(m_work, lmax=lmax)\n\n    valid_idx = np.where(valid)[0]\n    n_valid = len(valid_idx)\n    if n_valid < 4:\n        return 0.0\n\n    # 30\u00b0 FWHM Gaussian beam window function\n    sigma_beam = np.radians(30.0) / (2.0 * np.sqrt(2.0 * np.log(2.0)))\n    ell_arr = np.arange(lmax + 1, dtype=float)\n    beam = np.exp(-ell_arr * (ell_arr + 1.0) * sigma_beam ** 2 / 2.0)\n\n    # Dipole design matrix [monopole, x, y, z] at valid pixels\n    theta, phi = hp.pix2ang(nside_work, valid_idx)\n    A = np.column_stack([\n        np.ones(n_valid),\n        np.sin(theta) * np.cos(phi),\n        np.sin(theta) * np.sin(phi),\n        np.cos(theta),\n    ])\n    pinv_A = np.linalg.pinv(A)  # (4, n_valid)\n\n    directions = []\n\n    for ell in range(2, 21):\n        # Extract single-\u2113 alm\n        alm_ell = np.zeros_like(alm)\n        idx = hp.Alm.getidx(lmax, ell, np.arange(ell + 1))\n        alm_ell[idx] = alm[idx]\n\n        # Reconstruct single-\u2113 map\n        T = hp.alm2map(alm_ell, nside_work, lmax=lmax, verbose=False)\n\n        # Smoothed T: for single-\u2113, just scale by beam window\n        T_smooth = beam[ell] * T\n\n        # Smoothed T\u00b2: transform T\u00b2 to alm, apply beam, transform back\n        T_sq = T ** 2\n        alm_sq = hp.map2alm(T_sq, lmax=lmax)\n        T_sq_smooth = hp.alm2map(\n            hp.almxfl(alm_sq, beam), nside_work, lmax=lmax, verbose=False\n        )\n\n        # Local variance map\n        var_map = T_sq_smooth - T_smooth ** 2\n\n        # Fit dipole via least-squares at valid pixels\n        coeffs = pinv_A @ var_map[valid_idx]\n        dipole = coeffs[1:4]\n        norm = np.linalg.norm(dipole)\n\n        if norm > 1e-30:\n            directions.append(dipole / norm)\n        else:\n            directions.append(np.array([1.0, 0.0, 0.0]))\n\n    # Mean resultant vector length = magnitude of average unit vector\n    directions = np.array(directions)  # (19, 3)\n    mean_vec = np.mean(directions, axis=0)\n    return float(np.linalg.norm(mean_vec))\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Interpret variance-direction coherence relative to simulation ensemble.\"\"\"\n    sims = np.array(sim_results, dtype=float)\n    sims_finite = sims[np.isfinite(sims)]\n    n_sims = len(sims_finite)\n\n    if n_sims == 0:\n        return {\"planck_stat\": planck_stat, \"note\": \"No finite simulation results.\"}\n\n    mean_s = float(np.mean(sims_finite))\n    std_s = float(np.std(sims_finite, ddof=1)) if n_sims > 1 else 0.0\n    p_value = float(np.mean(sims_finite >= planck_stat))\n    z_score = (planck_stat - mean_s) / std_s if std_s > 0 else np.nan\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"sim_mean\": mean_s,\n        \"sim_std\": std_s,\n        \"z_score\": z_score,\n        \"p_value\": p_value,\n        \"n_sims\": n_sims,\n        \"interpretation\": (\n            \"A high value indicates that the direction of maximal low-\u2113 power \"\n            \"variance is consistently aligned across multipole scales, which \"\n            \"would be anomalous for isotropic Gaussian fluctuations.\"\n        ),\n        \"expected_random\": \"~0.23 for 19 random directions (1/sqrt(19))\",\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-\u2113 Variance-Direction Coherence\",\n            \"xlabel\": \"Mean resultant length of dipole axes\",\n            \"ylabel\": \"Count\",\n            \"bins\": 30,\n            \"caption\": (\n                f\"Planck stat = {planck_stat:.4f}. \"\n                f\"Sim mean \u00b1 \u03c3 = {mean_s:.4f} \u00b1 {std_s:.4f}. \"\n                f\"z = {z_score:.2f}, p = {p_value:.3f} \"\n                f\"(fraction of sims \u2265 Planck). \"\n                f\"Values near 1 indicate aligned variance directions; \"\n                f\"values near 0 indicate random orientations.\"\n            ),\n        },\n    }\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": 0.026497521830355992,
+    "sim_max": 0.7990960734331095,
+    "z_score": -0.03493250065808334,
+    "thresholds": [
+      0.09352936659526538,
+      0.6109339248095152
+    ],
+    "interpretation": "A high value indicates that the direction of maximal low-\u2113 power variance is consistently aligned across multipole scales, which would be anomalous for isotropic Gaussian fluctuations.",
+    "expected_random": "~0.23 for 19 random directions (1/sqrt(19))",
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-\u2113 Variance-Direction Coherence",
+      "xlabel": "Mean resultant length of dipole axes",
+      "ylabel": "Count",
+      "bins": 30,
+      "caption": "Planck stat = 0.3195. Sim mean \u00b1 \u03c3 = 0.3243 \u00b1 0.1363. z = -0.03, p = 0.487 (fraction of sims \u2265 Planck). Values near 1 indicate aligned variance directions; values near 0 indicate random orientations."
+    }
+  },
+  "updated_summary": {
+    "Test name": "** Low-\u2113 Variance-Direction Coherence",
+    "Description": "** For each multipole \u2113=2 through 20, a local variance map is computed using a 30\u00b0 Gaussian beam-weighted aperture, and a dipole is fitted to extract the preferred axis of maximal variance. The 19 resulting dipole directions are combined into a mean resultant vector; its magnitude (normalized by bin count) measures how consistently variance directions align across multipole scales. Values near 1 indicate coherent alignment; values near 0 indicate random orientations (expected ~0.23 for 19 random directions).",
+    "Results": "** Planck statistic = 0.3195. Simulation mean \u00b1 \u03c3 = 0.3243 \u00b1 0.1363. Z-score = \u22120.03. One-tailed upper p-value = 0.487 (49% of simulations exceed the Planck value). The observed coherence is essentially at the simulation mean, well within the 1\u03c3 expectation from isotropic Gaussian skies.",
+    "Interpretation": "** The low-\u2113 variance dipole directions across multipole bins show no evidence of preferential alignment in the Planck data. The result is entirely consistent with random orientation as expected under isotropy, with no deviation from the null distribution.",
+    "Meets hypothesis?": "** No",
+    "Comparison to literature": "** Low-\u2113 alignment anomalies (e.g., quadrupole\u2013octupole alignment, the \"axis of evil\") have been extensively studied in CMB literature. However, this specific statistic\u2014testing coherence of variance-map dipole directions rather than the multipole moments themselves\u2014did not appear in the search results. It addresses a related but distinct observable, and no directly comparable prior analysis was identified.",
+    "Test novelty": "** Variation",
+    "Verdict": "** No anomalies found"
+  }
+}

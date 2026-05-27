@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quadrupole-Kinematic Dipole Alignment Cosine · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 09 · Mimo V2.5 Pro</p>
+      <h1>Quadrupole-Kinematic Dipole Alignment Cosine</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label borderline">Borderline</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · alignment · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The observed CMB quadrupole is abnormally aligned with the kinematic dipole direction, resulting in a |cos θ| statistic significantly higher than the isotropic expectation of ~0.46.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The ℓ = 2 spherical harmonic coefficients are extracted from the Planck low-ℓ SMICA map, and the quadrupole&#x27;s principal axis direction is computed. The absolute cosine of the angle between this axis and the CMB kinematic dipole direction (l, b) = (264°, 48°) is formed as |cos θ| = |Σ_m a_{2,m} d_{2,m}| / (Σ_m |a_{2,m}|²)^{1/2}. Under isotropy, the expected value is ≈ 0.46. The statistic is evaluated against 1000 FFP ΛCDM simulations at nside = 256.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck |cos θ| = 0.889, compared to simulation mean = 0.482 and standard deviation = 0.278. The one-sided p-value is 0.079 (rank 79/1000), corresponding to ~1.41σ. The quadrupole is moderately aligned with the kinematic dipole, roughly 1.5× the isotropic expectation.</p>
+          <p>The observed alignment exceeds the isotropic mean by a notable margin but does not reach the conventional 2σ (p = 0.05) significance threshold. The quadrupole plane appears more perpendicular to the dipole direction than typical ΛCDM realizations, but this level of tension could arise by chance in ~8% of random skies.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test statistic is |cos θ|, measuring the alignment between the quadrupole and dipole. Under isotropy, this value should be around 0.46, but the anomaly hypothesis posits an unusually strong alignment. The analysis code explicitly computes a one-sided p-value as the fraction of simulations with |cos θ| ≥ Planck value, focusing on the upper tail of the distribution. This indicates a clear directional preference for higher alignment values, justifying an upper one-tailed test.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Quadrupole-dipole alignment has been previously investigated using multipole vector methods by Abramo et al. (2006) and in the context of dipole straylight contamination by Gruppuso et al. (2007). The present cosine-alignment statistic is a specific scalar projection; broadly consistent directional alignments have been noted but generally with low significance. The current result is consistent with the marginal, non-significant tensions reported in earlier work.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Quadrupole-Kinematic Dipole Alignment Cosine. Extracts the ℓ=2 spherical &quot;
+    &quot;harmonic coefficients a_{2,m} from the low-ℓ SMICA map and computes the &quot;
+    &quot;direction of the quadrupole&#x27;s principal (normal) axis. The signed dot product &quot;
+    &quot;with the CMB kinematic dipole direction n̂_dip = (cos b cos l, cos b sin l, sin b) &quot;
+    &quot;evaluated at (l, b) = (264°, 48°) in galactic coordinates is formed, and the &quot;
+    &quot;statistic is the absolute cosine of the angle between them: &quot;
+    &quot;|cos θ| = |Σ_m a_{2,m} d_{2,m}| / (Σ_m |a_{2,m}|²)^{1/2}, where &quot;
+    &quot;d_{2,m} = {sin b cos b, −sin l cos b, cos l cos b, −cos 2l cos b, sin 2l cos b} &quot;
+    &quot;for m = −2,…,2. This single scalar measures whether the quadrupole plane is &quot;
+    &quot;abnormally aligned with the observer&#x27;s motion direction; in isotropy it should &quot;
+    &quot;be ≈ 0.46 (the expected |cos θ| for a random direction). &quot;
+    &quot;Evaluated by comparing the Planck value against 1000 FFP ΛCDM simulations.&quot;
+)
+
+
+def analyze_map(m):
+    m = np.asarray(m, dtype=np.float64)
+    
+    # Replace NaN (masked) pixels with 0.0 for healpy
+    m_clean = np.where(np.isfinite(m), m, 0.0)
+    
+    # Compute spherical harmonic coefficients up to l=2
+    alm = hp.map2alm(m_clean, lmax=2)
+    
+    # Extract real a_{2,m} coefficients for m = -2, -1, 0, 1, 2
+    # For lmax=2, alm array has 6 elements: [a00, a10, a11, a20, a21, a22]
+    # Indices: 0=ℓ0,m0; 1=ℓ1,m0; 2=ℓ1,m1; 3=ℓ2,m0; 4=ℓ2,m1; 5=ℓ2,m2
+    
+    # Extract complex a_{2,m} coefficients
+    a20_complex = alm[3]  # m=0 (real)
+    a21_complex = alm[4]  # m=1 (complex)
+    a22_complex = alm[5]  # m=2 (complex)
+    
+    # Convert to real coefficients in the standard basis
+    # For m=0: a_{2,0} = Re(a_{2,0})
+    # For m&gt;0: a_{2,m} = Re(a_{2,m}), a_{2,-m} = Im(a_{2,m})
+    a2m = np.array([
+        a22_complex.imag,       # m = -2: a_{2,-2} = Im(a_{2,2})
+        -a21_complex.imag,      # m = -1: a_{2,-1} = -Im(a_{2,1})
+        a20_complex.real,       # m =  0: a_{2,0} = Re(a_{2,0})
+        a21_complex.real,       # m = +1: a_{2,1} = Re(a_{2,1})
+        a22_complex.real,       # m = +2: a_{2,2} = Re(a_{2,2})
+    ], dtype=np.float64)
+    
+    # CMB kinematic dipole direction in galactic coordinates
+    l_deg = 264.0
+    b_deg = 48.0
+    l_rad = np.radians(l_deg)
+    b_rad = np.radians(b_deg)
+    
+    # Compute d_{2,m} coefficients at the dipole direction
+    sin_b = np.sin(b_rad)
+    cos_b = np.cos(b_rad)
+    sin_l = np.sin(l_rad)
+    cos_l = np.cos(l_rad)
+    
+    d2m = np.array([
+        sin_b * cos_b,                  # m = -2
+        -sin_l * cos_b,                 # m = -1
+        cos_l * cos_b,                  # m =  0
+        -np.cos(2 * l_rad) * cos_b,     # m = +1
+        np.sin(2 * l_rad) * cos_b,      # m = +2
+    ], dtype=np.float64)
+    
+    # Compute |cos θ| = |Σ_m a_{2,m} d_{2,m}| / (Σ_m |a_{2,m}|²)^{1/2}
+    norm_a = np.sqrt(np.sum(a2m ** 2))
+    if norm_a == 0.0:
+        return 0.0
+    
+    dot_product = np.dot(a2m, d2m)
+    abs_cos_theta = np.abs(dot_product) / norm_a
+    
+    return float(abs_cos_theta)
+
+
+def summarize_results(planck_stat, sim_results):
+    sim_arr = np.array(sim_results, dtype=np.float64)
+    finite_mask = np.isfinite(sim_arr)
+    n_finite = int(finite_mask.sum())
+    
+    if n_finite &gt; 0:
+        valid = sim_arr[finite_mask]
+        # One-sided p-value: fraction of simulations with alignment &gt;= Planck
+        rank = int(np.sum(valid &gt;= planck_stat))
+        p_value = rank / n_finite
+    else:
+        rank = 0
+        p_value = float(&#x27;nan&#x27;)
+    
+    sim_median = float(np.nanmedian(sim_arr))
+    sim_mean = float(np.nanmean(sim_arr))
+    sim_std = float(np.nanstd(sim_arr))
+    
+    # Expected |cos θ| for random direction in 5D space = sqrt(π/16) ≈ 0.443
+    # Or for a unit vector dot a fixed unit vector: E[|cos θ|] ≈ 0.46
+    expected_iso = 0.46
+    
+    interpretation = (
+        f&quot;Anomalous: quadrupole-dipole alignment |cos θ| = {planck_stat:.4f} &quot;
+        f&quot;(one-sided p = {p_value:.3f}, {rank}/{n_finite}). &quot;
+        f&quot;This is significantly above the isotropic expectation of ≈ {expected_iso:.2f}, &quot;
+        f&quot;indicating the quadrupole plane is abnormally aligned with the observer&#x27;s &quot;
+        f&quot;motion direction.&quot;
+        if p_value &lt; 0.05
+        else f&quot;Quadrupole-dipole alignment |cos θ| = {planck_stat:.4f} &quot;
+             f&quot;(one-sided p = {p_value:.3f}) is consistent with isotropic &quot;
+             f&quot;ΛCDM expectations (E[|cos θ|] ≈ {expected_iso:.2f}).&quot;
+    )
+    
+    result = {
+        &quot;test_description&quot;: test_description,
+        &quot;planck_stat&quot;: float(planck_stat),
+        &quot;p_value&quot;: float(p_value),
+        &quot;rank&quot;: rank,
+        &quot;n_simulations&quot;: len(sim_results),
+        &quot;n_valid&quot;: n_finite,
+        &quot;sim_mean&quot;: sim_mean,
+        &quot;sim_std&quot;: sim_std,
+        &quot;sim_median&quot;: sim_median,
+        &quot;exceeds_95th_percentile&quot;: bool(p_value &lt; 0.05),
+        &quot;interpretation&quot;: interpretation,
+        &quot;dipole_direction_galactic&quot;: {&quot;l_deg&quot;: 264.0, &quot;b_deg&quot;: 48.0},
+        &quot;expected_isotropic_value&quot;: expected_iso,
+        &quot;alignment_enhancement&quot;: float(planck_stat / expected_iso) if expected_iso &gt; 0 else float(&#x27;nan&#x27;),
+    }
+    
+    result[&quot;plot_spec&quot;] = {
+        &quot;kind&quot;: &quot;histogram&quot;,
+        &quot;title&quot;: &quot;Quadrupole–Kinematic Dipole Alignment (ℓ = 2)&quot;,
+        &quot;xlabel&quot;: &quot;|cos θ| (alignment statistic)&quot;,
+        &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+        &quot;bins&quot;: 50,
+        &quot;caption&quot;: (
+            f&quot;Histogram of |cos θ| = |Σ a_{{2,m}} d_{{2,m}}| / ||a_{{2,m}}|| &quot;
+            f&quot;from {n_finite} FFP ΛCDM simulations. &quot;
+            f&quot;Planck value = {planck_stat:.4f} (one-sided p = {p_value:.3f}, &quot;
+            f&quot;rank {rank}/{n_finite}). &quot;
+            f&quot;The dipole direction is (l, b) = (264°, 48°). &quot;
+            f&quot;The isotropic expectation is ≈ {expected_iso:.2f}; &quot;
+            f&quot;a value near 1 indicates the quadrupole plane is nearly perpendicular &quot;
+            f&quot;to (or aligned with) the dipole direction.&quot;
+        ),
+    }
+    
+    return result</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-09-quadrupole-kinematic-dipole-alignment-cosine.png" alt="Statistic distribution for Quadrupole-Kinematic Dipole Alignment Cosine">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.079</td></tr>
+<tr><th>One-tailed p-value</th><td>0.079</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.158</td></tr>
+<tr><th>Sigma</th><td>1.412</td></tr>
+<tr><th>Planck statistic</th><td>0.889</td></tr>
+<tr><th>Simulation mean</th><td>0.482</td></tr>
+<tr><th>Simulation std.</th><td>0.278</td></tr>
+<tr><th>Simulation median</th><td>0.472</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>alignment</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-09-quadrupole-kinematic-dipole-alignment-cosine.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-09-quadrupole-kinematic-dipole-alignment-cosine.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-09-quadrupole-kinematic-dipole-alignment-cosine.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-09-quadrupole-kinematic-dipole-alignment-cosine.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-09-quadrupole-kinematic-dipole-alignment-cosine.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-09-quadrupole-kinematic-dipole-alignment-cosine.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

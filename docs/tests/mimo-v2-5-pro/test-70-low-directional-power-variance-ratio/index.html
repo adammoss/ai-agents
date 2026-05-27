@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Directional Power Variance Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 70 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Directional Power Variance Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · variance · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The directional power variance ratio for multipoles ℓ=2–10 relative to ℓ=2 alone does not match the expected distribution in standard ΛCDM cosmology, indicating an anomaly in the low-ℓ power structure.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Computes the variance of directional power (squared temperature) across the full sky for multipoles ℓ=2–10, then divides by the corresponding variance from the ℓ=2 quadrupole alone. The resulting ratio quantifies how much spatial structure the higher low-ℓ modes add to the anisotropy pattern of T² relative to the quadrupole baseline.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck ratio = 354.23. Simulation mean ± σ = 333.78 ± 5916.25 (median = 38.74), indicating a highly skewed distribution. z-score = 0.003, two-tailed p-value = 0.098. The Planck value lies extremely close to the simulation mean and well within the bulk of the distribution.</p>
+          <p>The directional power variance ratio for Planck is fully consistent with ΛCDM simulations. The very small z-score confirms negligible deviation from expectations. The distribution is heavily right-skewed (mean ≫ median), so standard symmetric thresholds are less informative, but the Planck value does not approach either tail at the 2σ level.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is explicitly designed to quantify whether the power distribution is &quot;more or less structured&quot; than the quadrupole alone, with the code&#x27;s interpretation noting that &quot;a significantly elevated or suppressed value could indicate anomalous alignment.&quot; There is no directional preference specified in the description or code; instead, both higher and lower ratios are considered potentially anomalous, making it appropriate for a two-tailed test to detect deviations in either direction from the ΛCDM expectation.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The directional power variance ratio of squared temperature across low multipoles does not correspond to any well-known CMB anomaly statistic found in standard literature. Previous searches returned no relevant studies quantifying this specific ratio. The test appears to probe spatial structure in low-ℓ power concentrations but lacks established precedent for direct comparison.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Directional Power Variance Ratio: Restrict the CMB map to multipoles &quot;
+    &quot;ℓ = 2–10 and compute the directional power (squared temperature) at each pixel. &quot;
+    &quot;Calculate the variance of this power across the full sky. Repeat for a map &quot;
+    &quot;containing only the ℓ = 2 quadrupole component. The statistic is the ratio of &quot;
+    &quot;the former variance to the latter, quantifying whether the low-ℓ power distribution &quot;
+    &quot;is more or less structured than what the quadrupole alone produces.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the ratio of directional-power variance (ℓ=2–10) to (ℓ=2 only).&quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+
+    # Replace NaN (masked) pixels with 0.0 for healpy transforms
+    mask_invalid = ~np.isfinite(m)
+    m_clean = m.copy()
+    m_clean[mask_invalid] = 0.0
+
+    # Compute spherical harmonic coefficients up to ℓ=10
+    lmax = 10
+    alm = hp.map2alm(m_clean, lmax=lmax)
+
+    # Build alm for ℓ=2–10: zero out ℓ &lt; 2
+    alm_low = alm.copy()
+    for ell in range(2):  # ℓ=0 and ℓ=1
+        for em in range(ell + 1):
+            idx = hp.Alm.getidx(lmax, ell, em)
+            alm_low[idx] = 0.0
+
+    # Build alm for ℓ=2 only: zero out everything except ℓ=2
+    alm_quad = np.zeros_like(alm)
+    for em in range(3):  # ℓ=2 has m = 0, 1, 2
+        idx = hp.Alm.getidx(lmax, 2, em)
+        alm_quad[idx] = alm[idx]
+
+    # Reconstruct band-limited maps
+    map_low = hp.alm2map(alm_low, nside, lmax=lmax, verbose=False)
+    map_quad = hp.alm2map(alm_quad, nside, lmax=lmax, verbose=False)
+
+    # Directional power = squared amplitude at each pixel
+    power_low = map_low ** 2
+    power_quad = map_quad ** 2
+
+    # Variance of directional power across the sky
+    var_low = np.var(power_low)
+    var_quad = np.var(power_quad)
+
+    # Guard against degenerate case
+    if var_quad == 0.0:
+        return 1.0
+
+    ratio = float(var_low / var_quad)
+    return ratio
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the directional power variance ratio.&quot;&quot;&quot;
+    sims = np.array(sim_results, dtype=float)
+    sims_finite = sims[np.isfinite(sims)]
+    n_sims = len(sims_finite)
+
+    if n_sims == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims_finite))
+    std_s = float(np.std(sims_finite, ddof=1)) if n_sims &gt; 1 else 0.0
+    p_upper = float(np.mean(sims_finite &gt;= planck_stat))
+    p_lower = float(np.mean(sims_finite &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else np.nan
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n_sims,
+        &quot;interpretation&quot;: (
+            &quot;This statistic compares how spatially structured the directional power &quot;
+            &quot;(squared temperature) is across the full sky for the low-ℓ band (ℓ=2–10) &quot;
+            &quot;relative to the quadrupole alone (ℓ=2). The band ℓ=2–10 contains 45 &quot;
+            &quot;spherical harmonic modes whose interference pattern determines the &quot;
+            &quot;anisotropy of T²(p). The ratio of variances quantifies whether adding &quot;
+            &quot;multipoles ℓ=3–10 increases or redistributes the spatial contrast of &quot;
+            &quot;hot/cold power concentrations relative to the quadrupole pattern. In &quot;
+            &quot;standard ΛCDM, this ratio has a well-defined expectation; a significantly &quot;
+            &quot;elevated or suppressed value could indicate anomalous alignment, power &quot;
+            &quot;asymmetry, or unexpected mode coupling at the largest angular scales.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Directional Power Variance Ratio&quot;,
+            &quot;xlabel&quot;: &quot;Variance Ratio (ℓ=2–10) / (ℓ=2)&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck ratio = {planck_stat:.4f}. &quot;
+                f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, p(two-sided) = {p_two:.3f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-70-low-directional-power-variance-ratio.png" alt="Statistic distribution for Low-ℓ Directional Power Variance Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.098</td></tr>
+<tr><th>One-tailed p-value</th><td>0.049</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.098</td></tr>
+<tr><th>Sigma</th><td>1.655</td></tr>
+<tr><th>Planck statistic</th><td>354</td></tr>
+<tr><th>Simulation mean</th><td>334</td></tr>
+<tr><th>Simulation std.</th><td>5.92e+03</td></tr>
+<tr><th>Simulation median</th><td>38.74</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>variance</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-70-low-directional-power-variance-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-70-low-directional-power-variance-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-70-low-directional-power-variance-ratio.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-70-low-directional-power-variance-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-70-low-directional-power-variance-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-70-low-directional-power-variance-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

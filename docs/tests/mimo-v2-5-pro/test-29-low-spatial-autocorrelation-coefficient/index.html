@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Spatial Autocorrelation Coefficient · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 29 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Spatial Autocorrelation Coefficient</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label anomaly">Anomaly</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · cross correlation · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Moran&#x27;s I spatial autocorrelation coefficient of the Planck CMB temperature map deviates significantly from the distribution expected under isotropic Gaussian ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The Planck CMB temperature map is smoothed to ~10° FWHM to retain only large-scale structure. Moran&#x27;s I spatial autocorrelation statistic is computed on the HEALPix grid using 8-neighbor adjacency, measuring whether neighboring pixels tend to have similar (positive I) or dissimilar (negative I) temperatures compared to isotropic Gaussian ΛCDM expectations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Moran&#x27;s I = 1.000753, compared to simulation mean = 1.001712 ± 0.000332. The Planck value falls at the 0.6th percentile of simulations, yielding a two-tailed p-value of 0.012 (z ≈ −2.89σ). Anomaly strength classified as strong.</p>
+          <p>Planck exhibits significantly negative spatial autocorrelation at large angular scales. The smoothed temperature map displays an unusually checkerboard-like pattern, with adjacent pixels tending to have opposite-sign temperatures more frequently than expected under ΛCDM. This suggests anti-correlated spatial structure or anomalous interference among low-ℓ spherical harmonic modes, consistent with previously noted large-angle anomalies.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect anomalies in both directions—positive autocorrelation indicating spatial clustering and negative autocorrelation indicating checkerboard-like structure—without a prior directional preference. The code explicitly computes a two-sided p-value and interprets deviations in either tail, supporting a non-directional hypothesis.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No published studies were found applying Moran&#x27;s I spatial autocorrelation specifically to CMB temperature maps. However, the finding is broadly consistent with known low-ℓ anomalies—including the quadrupole–octupole alignment, hemispherical power asymmetry, and cold spot—collectively suggesting departures from statistical isotropy at large angular scales. The checkerboard-like anti-correlation pattern detected here may relate to anomalous phase correlations among low-ℓ multipoles reported in other anomaly studies.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Spatial Autocorrelation Coefficient: Smooth the temperature map to an &quot;
+    &quot;effective FWHM of ~10° to retain only large-scale (low-ℓ) structure. Using a &quot;
+    &quot;nearest-neighbor adjacency weight matrix on the HEALPix grid (8 neighbors per &quot;
+    &quot;unmasked pixel), compute Moran&#x27;s I spatial autocorrelation statistic &quot;
+    &quot;I = (N/W) × [Σᵢ Σⱼ wᵢⱼ (Tᵢ - T̄)(Tⱼ - T̄)] / [Σᵢ (Tᵢ - T̄)²], where N is &quot;
+    &quot;the number of unmasked pixels, T̄ is the masked-sky mean temperature, wᵢⱼ = 1 &quot;
+    &quot;if pixels i and j are spatial neighbors and both unmasked (0 otherwise), and &quot;
+    &quot;W = Σᵢ Σⱼ wᵢⱼ is the total neighbor-pair weight. Values near zero are expected &quot;
+    &quot;for Gaussian ΛCDM; significant positive values indicate anomalous spatial &quot;
+    &quot;clustering of hot/cold regions; significant negative values indicate unusual &quot;
+    &quot;checkerboard-like spatial structure.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute Moran&#x27;s I spatial autocorrelation on a 10°-smoothed low-ℓ map.
+
+    Steps:
+      1. Identify unmasked pixels (finite values).
+      2. Fill masked (NaN) pixels with 0 for healpy compatibility.
+      3. Smooth the map with a Gaussian beam of FWHM ≈ 10° to retain only
+         large-scale structure.
+      4. Extract smoothed values at unmasked pixels, compute deviation from
+         the masked-sky mean.
+      5. Build a full-sky lookup array of centered values (0 for masked pixels).
+      6. For each unmasked pixel, find its 8 HEALPix neighbors (4 side + 4
+         corner). Use the lookup array to sum centered values of unmasked
+         neighbors and compute Moran&#x27;s I numerator and total weight.
+      7. Return Moran&#x27;s I = (N/W) × (Σᵢ Σⱼ wᵢⱼ cᵢ cⱼ) / (Σᵢ cᵢ²).
+
+    Returns
+    -------
+    float
+        Moran&#x27;s I spatial autocorrelation coefficient.
+    &quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    npix = hp.nside2npix(nside)
+    mask = np.isfinite(m)
+    valid_idx = np.where(mask)[0]
+    N = len(valid_idx)
+
+    if N == 0:
+        return 0.0
+
+    # Fill masked pixels with 0 for healpy transforms
+    m_filled = np.where(mask, m, 0.0)
+
+    # Smooth to ~10° FWHM to isolate low-ℓ structure
+    fwhm_rad = 10.0 * np.pi / 180.0
+    m_smooth = hp.smoothing(m_filled, fwhm=fwhm_rad, verbose=False)
+
+    # Extract smoothed values at unmasked pixels and center
+    vals = m_smooth[valid_idx]
+    T_bar = np.mean(vals)
+    centered = vals - T_bar
+
+    # Denominator: sum of squared deviations
+    denom = np.sum(centered ** 2)
+    if denom == 0.0:
+        return 0.0
+
+    # Build full-sky lookup of centered values: 0 for masked pixels
+    centered_full = np.zeros(npix, dtype=np.float64)
+    centered_full[valid_idx] = centered
+
+    # Validity lookup: True if pixel is unmasked
+    is_valid = np.zeros(npix, dtype=bool)
+    is_valid[valid_idx] = True
+
+    # Get all 8 neighbors for valid pixels (shape: 8 × npix)
+    # hp.get_all_neighbours returns -1 for missing neighbors
+    all_neighbors = hp.get_all_neighbours(nside, valid_idx)  # shape (8, N)
+
+    # Check which neighbors are valid (not -1 and unmasked)
+    has_neighbor = all_neighbors &gt;= 0
+    # Safe index: replace -1 with 0 so we can use it for array lookup
+    safe_idx = np.where(has_neighbor, all_neighbors, 0)
+    neighbor_valid = np.zeros_like(all_neighbors, dtype=bool)
+    neighbor_valid[has_neighbor] = is_valid[safe_idx[has_neighbor]]
+
+    # Get centered values of neighbors (0 for invalid ones via safe_idx)
+    neighbor_centered = centered_full[safe_idx]  # shape (8, N)
+    # Zero out invalid neighbors
+    neighbor_centered = np.where(neighbor_valid, neighbor_centered, 0.0)
+
+    # Moran&#x27;s I numerator: Σᵢ Σⱼ wᵢⱼ cᵢ cⱼ
+    # For each pixel i, contribution = cᵢ × Σⱼ(valid neighbor) cⱼ
+    sum_neighbor = np.sum(neighbor_centered, axis=0)  # shape (N,)
+    numerator = np.sum(centered * sum_neighbor)
+
+    # Total weight W = total number of valid neighbor pairs
+    W = float(np.sum(neighbor_valid))
+
+    if W == 0.0:
+        return 0.0
+
+    # Moran&#x27;s I
+    morans_I = (N / W) * (numerator / denom)
+
+    return float(morans_I)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarise the Low-ℓ Spatial Autocorrelation Coefficient test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results to compare.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Spatial Autocorrelation (Moran&#x27;s I)&quot;,
+                &quot;xlabel&quot;: &quot;Moran&#x27;s I&quot;,
+                &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data available.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    # Two-sided p-value
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    direction = &quot;&quot;
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck shows significantly positive spatial autocorrelation: &quot;
+            &quot;hot and cold regions on the large-scale (10°-smoothed) map are &quot;
+            &quot;more clustered together than expected from isotropic Gaussian &quot;
+            &quot;ΛCDM simulations. This could indicate anomalous alignment of &quot;
+            &quot;low-ℓ modes, preferred directions, or spatially coherent &quot;
+            &quot;temperature structure beyond statistical isotropy.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck shows significantly negative spatial autocorrelation: &quot;
+            &quot;the large-scale temperature map has an unusually checkerboard-like &quot;
+            &quot;structure with adjacent pixels tending to have opposite signs &quot;
+            &quot;more than expected, suggesting anti-correlated spatial patterns &quot;
+            &quot;or unusual mode interference.&quot;
+        )
+    else:
+        direction = (
+            &quot;The spatial autocorrelation is consistent with isotropic Gaussian &quot;
+            &quot;ΛCDM expectations; the large-scale temperature field shows no &quot;
+            &quot;anomalous clustering or anti-clustering of hot/cold regions.&quot;
+        )
+
+    interp = (
+        f&quot;Moran&#x27;s I = {planck_stat:.6f}. &quot;
+        f&quot;Simulation mean = {mean_sim:.6f} ± {std_sim:.6f}. &quot;
+        f&quot;Percentile = {percentile:.1f}%, two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of Moran&#x27;s I spatial autocorrelation statistic from &quot;
+        &quot;isotropic ΛCDM simulations. The temperature map is smoothed to &quot;
+        &quot;~10° FWHM to isolate large-scale (low-ℓ) structure. Moran&#x27;s I &quot;
+        &quot;measures whether neighboring pixels on the HEALPix grid (8 &quot;
+        &quot;neighbors per pixel) tend to have similar (positive I) or &quot;
+        &quot;dissimilar (negative I) temperature values. Under Gaussian &quot;
+        &quot;statistical isotropy, I should be near zero; significantly &quot;
+        &quot;positive values indicate spatial clustering of hot/cold regions, &quot;
+        &quot;while significantly negative values indicate checkerboard-like &quot;
+        &quot;structure. The red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Spatial Autocorrelation (Moran&#x27;s I)&quot;,
+            &quot;xlabel&quot;: &quot;Moran&#x27;s I (10°-smoothed map, 8-neighbor adjacency)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-29-low-spatial-autocorrelation-coefficient.png" alt="Statistic distribution for Low-ℓ Spatial Autocorrelation Coefficient">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.012</td></tr>
+<tr><th>One-tailed p-value</th><td>0.006</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.012</td></tr>
+<tr><th>Sigma</th><td>2.512</td></tr>
+<tr><th>Planck statistic</th><td>1.001</td></tr>
+<tr><th>Simulation mean</th><td>1.002</td></tr>
+<tr><th>Simulation std.</th><td>0.000332</td></tr>
+<tr><th>Simulation median</th><td>1.002</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>cross correlation</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-29-low-spatial-autocorrelation-coefficient.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-29-low-spatial-autocorrelation-coefficient.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-29-low-spatial-autocorrelation-coefficient.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-29-low-spatial-autocorrelation-coefficient.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-29-low-spatial-autocorrelation-coefficient.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-29-low-spatial-autocorrelation-coefficient.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

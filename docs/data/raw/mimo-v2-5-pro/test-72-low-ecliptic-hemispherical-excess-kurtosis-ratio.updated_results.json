@@ -1,0 +1,51 @@
+{
+  "results": {
+    "test_name": "Low-ℓ Ecliptic Hemispherical Excess Kurtosis Ratio",
+    "test_description": "This statistic quantifies whether the non-Gaussian heavy-tailedness of the low-ℓ temperature field is asymmetric between the ecliptic hemispheres. First, apply a low-pass harmonic filter to the SMICA map retaining only multipoles ℓ = 2–10 (the upstream pipeline has already harmonised resolution, converted to µK, and applied the Planck common mask). Then assign each unmasked pixel to the ecliptic north (ecliptic latitude β > 0°) or ecliptic south (β < 0°). Within each hemisphere, compute the sample excess kurtosis κ = μ₄/σ⁴ − 3, where μ₄ is the fourth central moment and σ² is the variance of the pixel temperature values in that hemisphere, each computed after subtracting the hemisphere's own mean. The statistic is the ratio κ_North / κ_South. A value near unity is expected under isotropy; the Planck value is then ranked against the distribution obtained from 1000 FFP-simulated ΛCDM maps processed identically.",
+    "test_hypothesis": "The excess kurtosis ratio between the ecliptic north and south hemispheres for the low-ℓ CMB temperature field is equal to 1 under isotropy, versus not equal to 1 under anisotropy.",
+    "test_type": "two-tailed",
+    "justification": "The test aims to detect any asymmetry in heavy-tailedness between ecliptic hemispheres, with no directional preference specified. The description states \"a value near unity is expected under isotropy,\" indicating the null hypothesis is ratio = 1, and departures in either direction are of interest. The code computes both upper and lower p-values and emphasizes a two-sided p-value in the summary, reinforcing a two-tailed approach.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 8.11520683649497,
+    "mean_sim_stat": 0.0006529951533790524,
+    "std_sim_stat": 3.5012504118373737,
+    "median_sim_stat": 0.27593758372278726,
+    "sigma": 1.838423669247777,
+    "p_value_two_tailed": 0.066
+  },
+  "analysis_code": "import numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Quantifies whether the non-Gaussian heavy-tailedness (excess kurtosis) of the \"\n    \"low-ℓ (ℓ = 2–10) CMB temperature field differs between ecliptic hemispheres. \"\n    \"Each unmasked pixel is assigned to the ecliptic north (β > 0°) or south (β < 0°). \"\n    \"The sample excess kurtosis κ = μ₄/σ⁴ − 3 is computed per hemisphere (each centred \"\n    \"on its own mean). The statistic is the ratio κ_North / κ_South; values near unity \"\n    \"are expected under isotropy.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return the ecliptic hemispherical excess kurtosis ratio for ℓ = 2–10.\"\"\"\n    nside = hp.npix2nside(len(m))\n\n    # --- 1. Low-pass filter to ℓ = 2–10 ---\n    mask_valid = np.isfinite(m)\n    m_clean = m.copy()\n    m_clean[~mask_valid] = 0.0\n\n    lmax = 10\n    alm = hp.map2alm(m_clean, lmax=lmax)\n\n    # Zero out ℓ = 0 and ℓ = 1 modes\n    for ell in range(2):\n        for m_idx in range(ell + 1):\n            alm[hp.Alm.getidx(lmax, ell, m_idx)] = 0.0\n\n    m_low = hp.alm2map(alm, nside, lmax=lmax, verbose=False)\n    m_low[~mask_valid] = np.nan\n\n    # --- 2. Ecliptic hemisphere assignment ---\n    npix = hp.nside2npix(nside)\n    pix = np.arange(npix)\n    theta_gal, phi_gal = hp.pix2ang(nside, pix)\n\n    R = hp.Rotator(coord=['G', 'E'])\n    theta_ecl, _ = R(theta_gal, phi_gal)       # ecliptic colatitude\n\n    north = (theta_ecl < np.pi / 2) & mask_valid\n    south = (theta_ecl > np.pi / 2) & mask_valid\n\n    vals_n = m_low[north]\n    vals_s = m_low[south]\n\n    # --- 3. Excess kurtosis per hemisphere ---\n    def excess_kurtosis(vals):\n        if len(vals) < 4:\n            return 0.0\n        c = vals - np.mean(vals)\n        var = np.mean(c * c)\n        if var < 1e-30:\n            return 0.0\n        mu4 = np.mean(c ** 4)\n        return mu4 / (var ** 2) - 3.0\n\n    kN = excess_kurtosis(vals_n)\n    kS = excess_kurtosis(vals_s)\n\n    # --- 4. Ratio with guard for near-zero denominator ---\n    eps = 1e-8\n    if abs(kS) < eps:\n        return 1.0 if abs(kN) < eps else 10.0\n\n    return float(np.clip(kN / kS, -10.0, 10.0))\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Interpret the ecliptic hemispherical excess kurtosis ratio.\"\"\"\n    sims = np.asarray(sim_results, dtype=float)\n    sims = sims[np.isfinite(sims)]\n    n = len(sims)\n\n    if n == 0:\n        return {\"planck_stat\": planck_stat, \"note\": \"No finite simulation results.\"}\n\n    mean_s = float(np.mean(sims))\n    std_s = float(np.std(sims, ddof=1)) if n > 1 else 0.0\n    p_upper = float(np.mean(sims >= planck_stat))\n    p_lower = float(np.mean(sims <= planck_stat))\n    p_two = min(2.0 * min(p_upper, p_lower), 1.0)\n    z_score = (planck_stat - mean_s) / std_s if std_s > 0 else np.nan\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"sim_mean\": mean_s,\n        \"sim_std\": std_s,\n        \"z_score\": z_score,\n        \"p_value_upper\": p_upper,\n        \"p_value_lower\": p_lower,\n        \"p_value_two_sided\": p_two,\n        \"n_sims\": n,\n        \"interpretation\": (\n            \"This statistic probes the low-ℓ CMB for asymmetric non-Gaussian \"\n            \"heavy-tailedness between the ecliptic hemispheres. Under isotropy the \"\n            \"excess kurtosis ratio should be near unity. A significant departure \"\n            \"could point to ecliptic-correlated systematics or intrinsic cosmological \"\n            \"anisotropy in the non-Gaussian tail behaviour of the temperature field.\"\n        ),\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-ℓ Ecliptic Hemispherical Excess Kurtosis Ratio\",\n            \"xlabel\": \"κ_North / κ_South\",\n            \"ylabel\": \"Count\",\n            \"bins\": 30,\n            \"caption\": (\n                f\"Planck ratio = {planck_stat:.3f}. \"\n                f\"Sim mean ± σ = {mean_s:.3f} ± {std_s:.3f}. \"\n                f\"z = {z_score:.2f}, p(two-sided) = {p_two:.3f}.\"\n            ),\n        },\n    }",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": -10.0,
+    "sim_max": 10.0,
+    "z_score": 2.3164568641458625,
+    "thresholds": [
+      -10.0,
+      9.805946392930855
+    ],
+    "p_value_upper": 0.033,
+    "p_value_lower": 0.967,
+    "interpretation": "This statistic probes the low-ℓ CMB for asymmetric non-Gaussian heavy-tailedness between the ecliptic hemispheres. Under isotropy the excess kurtosis ratio should be near unity. A significant departure could point to ecliptic-correlated systematics or intrinsic cosmological anisotropy in the non-Gaussian tail behaviour of the temperature field.",
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-ℓ Ecliptic Hemispherical Excess Kurtosis Ratio",
+      "xlabel": "κ_North / κ_South",
+      "ylabel": "Count",
+      "bins": 30,
+      "caption": "Planck ratio = 8.115. Sim mean ± σ = 0.001 ± 3.503. z = 2.32, p(two-sided) = 0.066."
+    }
+  },
+  "updated_summary": {
+    "Test name": "Low-ℓ Ecliptic Hemispherical Excess Kurtosis Ratio",
+    "Description": "Quantifies whether heavy-tailed non-Gaussianity (excess kurtosis) in the CMB temperature field at multipoles ℓ = 2–10 differs between ecliptic north and south hemispheres. Each unmasked pixel is assigned by ecliptic latitude, sample excess kurtosis κ = μ₄/σ⁴ − 3 is computed per hemisphere, and the ratio κ_North/κ_South is the test statistic. Isotropy predicts a ratio near unity; the Planck value is ranked against 1000 FFP ΛCDM simulations.",
+    "Results": "Planck ratio = 8.115; simulation mean ± σ = 0.001 ± 3.501; z-score = 2.32; two-tailed p-value = 0.066.",
+    "Interpretation": "The observed ratio is elevated, suggesting the ecliptic north hemisphere may exhibit heavier tails than the south at low multipoles. However, the departure falls short of the conventional 2σ (p < 0.05) threshold. The asymmetry in kurtosis could point to ecliptic-correlated systematics or a distinct signature of cosmological anisotropy beyond the well-known power asymmetry.",
+    "Meets hypothesis?": "No",
+    "Comparison to literature": "Ecliptic hemispherical anomalies at low ℓ—particularly the dipolar power asymmetry and parity oddities—have been reported extensively (e.g., Planck Collaboration 2016, Isotropy and Statistics, arXiv:1506.07135). However, no prior study was found that specifically tests an excess kurtosis ratio between ecliptic hemispheres, making direct comparison to published results difficult.",
+    "Test novelty": "Novel",
+    "Verdict": "Borderline"
+  }
+}

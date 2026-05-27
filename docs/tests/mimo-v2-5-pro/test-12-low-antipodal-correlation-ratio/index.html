@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Antipodal Correlation Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 12 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Antipodal Correlation Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · power · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The low-ℓ antipodal correlation ratio R from the CMB temperature map is inconsistent with the distribution expected under ΛCDM simulations, indicating an unexpected even-odd power imbalance.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Computes R = [Σ(2ℓ+1)C_ℓ(-1)^ℓ] / [Σ(2ℓ+1)C_ℓ] for multipoles 2 ≤ ℓ ≤ 10. R quantifies the normalized even–odd power balance: R &gt; 0 indicates antipodal symmetry (even-ℓ dominance), R &lt; 0 indicates antipodal antisymmetry (odd-ℓ dominance). This statistic captures the correlation between the low-ℓ temperature map and its antipodal reflection.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck R = −0.135 (odd-ℓ dominant), while 1000 ΛCDM simulations yield mean R = 0.179 ± 0.201. The Planck value sits 1.51σ below the simulation mean (two-tailed p = 0.132), corresponding to rank ~66/1000 in the lower tail.</p>
+          <p>The observed CMB shows modest odd-ℓ power excess at low multipoles, whereas ΛCDM simulations mildly favor even-ℓ dominance on average. However, at ~1.5σ significance, this deviation does not reach the conventional 2σ anomaly threshold. The even–odd power balance is broadly consistent with ΛCDM expectations, though the Planck value lies on the low end of the simulated distribution.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is exploratory, aiming to detect any deviation in the even-odd ℓ power balance without a prior directional preference. The analysis code computes a two-sided p-value by considering both high and low extremes of R, and the description highlights potential anomalies in either direction, confirming a two-tailed approach.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The even–odd multipole parity asymmetry has been extensively studied, with prior work finding odd-ℓ power excess at ~2σ significance (Hansen et al. 2011; Kim &amp; Naselsky 2010; Aluri et al. 2017). The present antipodal correlation ratio R is a distinct but related statistic to the C_ℓ odd/even ratio used in earlier analyses. No prior studies using this specific R formulation were found, though the underlying phenomenon is well-documented.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Antipodal Correlation Ratio. Computes the angular power spectrum C_ℓ &quot;
+    &quot;of the temperature map restricted to multipoles 2 ≤ ℓ ≤ 10, then forms the &quot;
+    &quot;statistic R = [Σ_{ℓ=2}^{10} (2ℓ+1) C_ℓ (-1)^ℓ] / [Σ_{ℓ=2}^{10} (2ℓ+1) C_ℓ]. &quot;
+    &quot;Because P_ℓ(cos π) = (-1)^ℓ, the numerator equals the sky-averaged correlation &quot;
+    &quot;between the map and its antipodal (θ = 180°) version in the low-ℓ regime, while &quot;
+    &quot;the denominator is the total weighted power. R ∈ [-1, 1]: R = +1 means all power &quot;
+    &quot;resides in even ℓ (strong antipodal symmetry), R = -1 means all power in odd ℓ &quot;
+    &quot;(strong antipodal antisymmetry), R ≈ 0 means no net antipodal preference. &quot;
+    &quot;An anomalous R indicates an unexpected even–odd power imbalance at large angular &quot;
+    &quot;scales, potentially related to the hemispherical power asymmetry or parity &quot;
+    &quot;violation signatures reported in the CMB.&quot;
+)
+
+
+def analyze_map(m):
+    m = np.asarray(m, dtype=np.float64)
+
+    # Identify unmasked pixels (finite values)
+    mask = np.isfinite(m)
+
+    # Replace NaN with 0.0 for healpy spherical harmonic transforms
+    m_clean = np.where(mask, m, 0.0)
+
+    # Compute the angular power spectrum up to ℓ = 10
+    lmax = 10
+    cl = hp.anafast(m_clean, lmax=lmax)
+
+    # Compute the antipodal correlation ratio R for 2 ≤ ℓ ≤ 10
+    ells = np.arange(2, 11)  # ℓ = 2, 3, ..., 10
+    weights = 2.0 * ells + 1.0
+    cl_slice = cl[2:11]  # C_2, C_3, ..., C_10
+    signs = (-1.0) ** ells  # +1 for even ℓ, -1 for odd ℓ
+
+    numerator = float(np.sum(weights * cl_slice * signs))
+    denominator = float(np.sum(weights * cl_slice))
+
+    # Guard against division by zero
+    if not np.isfinite(denominator) or denominator &lt; 1e-30:
+        return 0.0
+
+    R = numerator / denominator
+
+    if not np.isfinite(R):
+        return 0.0
+
+    return float(R)
+
+
+def summarize_results(planck_stat, sim_results):
+    sim_arr = np.array(sim_results, dtype=np.float64)
+    finite_mask = np.isfinite(sim_arr)
+    n_finite = int(finite_mask.sum())
+
+    if n_finite &gt; 0:
+        valid = sim_arr[finite_mask]
+        sim_median = float(np.median(valid))
+        p_upper = float(np.sum(valid &gt;= planck_stat) / n_finite)
+        p_lower = float(np.sum(valid &lt;= planck_stat) / n_finite)
+        p_value = min(p_upper, p_lower)
+        rank_upper = int(np.sum(valid &gt;= planck_stat))
+        rank_lower = int(np.sum(valid &lt;= planck_stat))
+    else:
+        p_value = float(&#x27;nan&#x27;)
+        rank_upper = 0
+        rank_lower = 0
+        sim_median = float(&#x27;nan&#x27;)
+
+    sim_mean = float(np.nanmean(sim_arr))
+    sim_std = float(np.nanstd(sim_arr))
+
+    if n_finite &gt; 0 and not np.isnan(p_value):
+        if p_upper &lt;= p_lower:
+            direction = &quot;high&quot;
+            rank = rank_upper
+        else:
+            direction = &quot;low&quot;
+            rank = rank_lower
+    else:
+        direction = &quot;unknown&quot;
+        rank = 0
+
+    # Even-ℓ dominance label
+    if planck_stat &gt; 0:
+        parity_label = &quot;even-ℓ dominant (antipodal symmetry)&quot;
+    elif planck_stat &lt; 0:
+        parity_label = &quot;odd-ℓ dominant (antipodal antisymmetry)&quot;
+    else:
+        parity_label = &quot;balanced even/odd ℓ power&quot;
+
+    interpretation_parts = []
+    interpretation_parts.append(
+        f&quot;Low-ℓ antipodal correlation ratio R = {planck_stat:.4f}. &quot;
+        f&quot;This means the low-ℓ power spectrum is {parity_label}.&quot;
+    )
+    interpretation_parts.append(
+        f&quot;Two-sided p = {p_value:.3f} ({rank}/{n_finite} simulations &quot;
+        f&quot;at least as extreme in the {direction} direction).&quot;
+    )
+    interpretation_parts.append(
+        f&quot;Simulation mean = {sim_mean:.4f}, std = {sim_std:.4f}, &quot;
+        f&quot;median = {sim_median:.4f}.&quot;
+    )
+
+    if not np.isnan(p_value) and p_value &lt; 0.05:
+        if direction == &quot;high&quot;:
+            interpretation_parts.append(
+                &quot;Anomalous: the antipodal correlation ratio is unusually HIGH, &quot;
+                &quot;indicating excess even-ℓ power relative to simulations — &quot;
+                &quot;the large-scale temperature pattern has stronger antipodal &quot;
+                &quot;symmetry than expected from ΛCDM, potentially linked to &quot;
+                &quot;hemispherical power asymmetry or parity-violation signatures.&quot;
+            )
+        else:
+            interpretation_parts.append(
+                &quot;Anomalous: the antipodal correlation ratio is unusually LOW, &quot;
+                &quot;indicating excess odd-ℓ power relative to simulations — &quot;
+                &quot;the large-scale temperature pattern has stronger antipodal &quot;
+                &quot;antisymmetry than expected from ΛCDM, suggesting an unexpected &quot;
+                &quot;odd-parity preference at large angular scales.&quot;
+            )
+    else:
+        interpretation_parts.append(
+            &quot;The even–odd ℓ power balance is consistent with ΛCDM simulation expectations.&quot;
+        )
+
+    result = {
+        &quot;test_description&quot;: test_description,
+        &quot;planck_stat&quot;: float(planck_stat),
+        &quot;p_value&quot;: float(p_value),
+        &quot;rank&quot;: rank,
+        &quot;n_simulations&quot;: len(sim_results),
+        &quot;n_valid&quot;: n_finite,
+        &quot;sim_mean&quot;: sim_mean,
+        &quot;sim_std&quot;: sim_std,
+        &quot;sim_median&quot;: sim_median,
+        &quot;exceeds_95th_percentile&quot;: bool(p_value &lt; 0.05) if not np.isnan(p_value) else False,
+        &quot;anomaly_direction&quot;: direction,
+        &quot;interpretation&quot;: &quot; &quot;.join(interpretation_parts),
+        &quot;ell_range&quot;: &quot;2-10&quot;,
+    }
+
+    result[&quot;plot_spec&quot;] = {
+        &quot;kind&quot;: &quot;histogram&quot;,
+        &quot;title&quot;: &quot;Low-ℓ Antipodal Correlation Ratio R&quot;,
+        &quot;xlabel&quot;: &quot;R = [Σ(2ℓ+1)C_ℓ(-1)^ℓ] / [Σ(2ℓ+1)C_ℓ]&quot;,
+        &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+        &quot;bins&quot;: 50,
+        &quot;caption&quot;: (
+            f&quot;Histogram of the low-ℓ (2 ≤ ℓ ≤ 10) antipodal correlation ratio R &quot;
+            f&quot;from {n_finite} FFP ΛCDM simulations. Planck value = {planck_stat:.4f} &quot;
+            f&quot;(two-sided p = {p_value:.3f}, rank {rank}/{n_finite}, &quot;
+            f&quot;{direction} direction). Simulation mean = {sim_mean:.4f} ± {sim_std:.4f}. &quot;
+            f&quot;R &gt; 0 indicates even-ℓ (antipodal symmetric) dominance; &quot;
+            f&quot;R &lt; 0 indicates odd-ℓ (antipodal antisymmetric) dominance.&quot;
+        ),
+    }
+
+    return result</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-12-low-antipodal-correlation-ratio.png" alt="Statistic distribution for Low-ℓ Antipodal Correlation Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.132</td></tr>
+<tr><th>One-tailed p-value</th><td>0.066</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.132</td></tr>
+<tr><th>Sigma</th><td>1.506</td></tr>
+<tr><th>Planck statistic</th><td>-0.135</td></tr>
+<tr><th>Simulation mean</th><td>0.179</td></tr>
+<tr><th>Simulation std.</th><td>0.201</td></tr>
+<tr><th>Simulation median</th><td>0.185</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>power</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-12-low-antipodal-correlation-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-12-low-antipodal-correlation-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-12-low-antipodal-correlation-ratio.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-12-low-antipodal-correlation-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-12-low-antipodal-correlation-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-12-low-antipodal-correlation-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

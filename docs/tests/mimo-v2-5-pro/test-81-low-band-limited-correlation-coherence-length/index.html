@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Band-Limited Correlation Coherence Length · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 81 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Band-Limited Correlation Coherence Length</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The low-ℓ (ℓ=2–10) temperature-temperature correlation coherence length in the Planck SMICA map is larger than the average coherence length predicted by standard ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Compute the temperature-temperature two-point correlation function C(θ) restricted to multipoles ℓ=2–10 from the Planck SMICA map. Define the coherence length L_c as the smallest angle where C(θ) first drops to 1/e of its maximum value. The anomaly statistic is the ratio L_c(Planck) / mean(L_c(1000 ΛCDM simulations)), testing whether the real sky&#x27;s low-ℓ pattern is more spatially coherent than typical random realizations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck L_c = 0.2919 rad (16.7°), while the simulation mean ± σ = 0.3406 ± 0.0395 rad (19.5° ± 2.3°). The anomaly ratio is 0.857, meaning the Planck coherence length is actually *smaller* than the simulation average. z = −1.23, one-tailed upper p-value = 0.917, two-sided p = 0.166.</p>
+          <p>The hypothesis predicted an anomalously *large* coherence length in the real sky. Instead, the Planck map shows a coherence length ~14% shorter than the ΛCDM mean, sitting at roughly the 8th percentile of simulations toward smaller scales. This deviation is modest (1.2σ below the mean) and falls well within the range expected from normal statistical fluctuation. There is no evidence that the low-ℓ correlation pattern is unusually coherent.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test description and code explicitly define the anomaly as a ratio greater than 1, indicating &quot;an anomalously large coherence length.&quot; The interpretation within the code states: &quot;A ratio &gt; 1 means the low-ℓ pattern in the real sky is more spatially coherent than typical ΛCDM realizations.&quot; This establishes a clear, directional prediction that the real sky&#x27;s coherence length is greater than the simulated average. Therefore, a one-tailed test examining the upper tail (ratio &gt; 1) is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No prior studies were found that specifically test a &quot;coherence length&quot; statistic derived from the band-limited (ℓ=2–10) two-point correlation function. Related work exists on large-angle C(θ) anomalies and low-ℓ alignment/planarity, but this particular statistic does not appear in the searched literature.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;For the masked Planck SMICA map, compute the two-point temperature correlation function &quot;
+    &quot;C(θ) restricted to multipoles ℓ=2–10. Define the coherence length L_c as the smallest &quot;
+    &quot;angle θ at which C(θ) first drops to 1/e of its maximum value (which occurs at θ=0). &quot;
+    &quot;The per-map statistic is L_c in radians. The final anomaly statistic is the ratio &quot;
+    &quot;L_c(Planck) / mean(L_c(simulations)), measuring how the spatial coherence scale of the &quot;
+    &quot;low-ℓ pattern in the real sky compares to the typical scale expected in random ΛCDM &quot;
+    &quot;realizations. A ratio &gt; 1 indicates an anomalously large coherence length.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return coherence length L_c (radians) for the low-ℓ correlation function.
+
+    Computes C(θ) = Σ_{ℓ=2}^{10} (2ℓ+1)/(4π) C_ℓ P_ℓ(cos θ) on a fine grid,
+    then finds the smallest angle where C(θ) first drops to C(0)/e.
+    &quot;&quot;&quot;
+    # Replace NaN masked pixels with 0 for healpy compatibility
+    valid = np.isfinite(m)
+    m_clean = np.where(valid, m, 0.0)
+
+    # Compute pseudo-C_ℓ up to ℓ=10
+    cl = hp.anafast(m_clean, lmax=10)
+
+    # Fine angular grid from 0 to π
+    n_theta = 2000
+    theta = np.linspace(0.0, np.pi, n_theta)
+    cos_theta = np.cos(theta)
+
+    # Compute C(θ) = Σ_{ℓ=2}^{10} (2ℓ+1)/(4π) * C_ℓ * P_ℓ(cos θ)
+    c_theta = np.zeros(n_theta)
+    for ell in range(2, 11):
+        coeffs = np.zeros(ell + 1)
+        coeffs[ell] = 1
+        P_ell = np.polynomial.legendre.legval(cos_theta, coeffs)
+        c_theta += (2 * ell + 1) / (4 * np.pi) * cl[ell] * P_ell
+
+    # C(0) is the global maximum since all C_ℓ &gt;= 0 and P_ℓ(1) = 1
+    c_max = c_theta[0]
+
+    if c_max &lt;= 0:
+        return 1.0  # fallback for maps with no power at low ℓ
+
+    # Find L_c: smallest θ where C(θ) first drops to c_max / e
+    threshold = c_max / np.e
+
+    below = np.where(c_theta &lt; threshold)[0]
+
+    if len(below) == 0:
+        # Correlation never drops below threshold within [0, π]
+        return float(np.pi)
+
+    idx = below[0]
+    if idx &gt; 0:
+        # Linear interpolation for a more accurate crossing point
+        frac = (threshold - c_theta[idx - 1]) / (c_theta[idx] - c_theta[idx - 1])
+        L_c = theta[idx - 1] + frac * (theta[idx] - theta[idx - 1])
+    else:
+        L_c = theta[0]
+
+    return float(L_c)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the Low-ℓ Band-Limited Correlation Coherence Length.&quot;&quot;&quot;
+    sims = np.asarray(sim_results, dtype=float)
+    sims = sims[np.isfinite(sims)]
+    n = len(sims)
+
+    if n == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims))
+    std_s = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    median_s = float(np.median(sims))
+
+    # The anomaly ratio: Planck coherence / mean sim coherence
+    ratio = planck_stat / mean_s if mean_s &gt; 0 else float(&#x27;inf&#x27;)
+
+    # p-values
+    p_value_upper = float(np.mean(sims &gt;= planck_stat))  # tail toward large L_c
+    p_value_lower = float(np.mean(sims &lt;= planck_stat))  # tail toward small L_c
+    p_two = min(2.0 * min(p_value_upper, p_value_lower), 1.0)
+
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else 0.0
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;planck_coherence_length_rad&quot;: planck_stat,
+        &quot;planck_coherence_length_deg&quot;: float(np.degrees(planck_stat)),
+        &quot;anomaly_ratio&quot;: ratio,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;sim_mean_deg&quot;: float(np.degrees(mean_s)),
+        &quot;sim_median&quot;: median_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value_upper&quot;: p_value_upper,
+        &quot;p_value_lower&quot;: p_value_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n,
+        &quot;interpretation&quot;: (
+            f&quot;The coherence length L_c is the smallest angle at which the low-ℓ (2–10) &quot;
+            f&quot;two-point correlation function C(θ) first drops to 1/e of its maximum value. &quot;
+            f&quot;Planck L_c = {planck_stat:.4f} rad ({np.degrees(planck_stat):.1f}°). &quot;
+            f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f} rad &quot;
+            f&quot;({np.degrees(mean_s):.1f}° ± {np.degrees(std_s):.1f}°). &quot;
+            f&quot;Anomaly ratio (Planck/sim_mean) = {ratio:.4f}. &quot;
+            f&quot;A ratio &gt; 1 means the low-ℓ pattern in the real sky is more spatially &quot;
+            f&quot;coherent than typical ΛCDM realizations. &quot;
+            f&quot;z = {z_score:.2f}, two-sided p = {p_two:.4f}.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Band-Limited Correlation Coherence Length&quot;,
+            &quot;xlabel&quot;: &quot;Coherence length L_c (radians)&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck L_c = {planck_stat:.4f} rad ({np.degrees(planck_stat):.1f}°). &quot;
+                f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f} rad. &quot;
+                f&quot;Anomaly ratio = {ratio:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, P(two-sided) = {p_two:.4f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-81-low-band-limited-correlation-coherence-length.png" alt="Statistic distribution for Low-ℓ Band-Limited Correlation Coherence Length">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.917</td></tr>
+<tr><th>One-tailed p-value</th><td>0.917</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.166</td></tr>
+<tr><th>Sigma</th><td>1.385</td></tr>
+<tr><th>Planck statistic</th><td>0.292</td></tr>
+<tr><th>Simulation mean</th><td>0.341</td></tr>
+<tr><th>Simulation std.</th><td>0.0394</td></tr>
+<tr><th>Simulation median</th><td>0.335</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-81-low-band-limited-correlation-coherence-length.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-81-low-band-limited-correlation-coherence-length.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-81-low-band-limited-correlation-coherence-length.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-81-low-band-limited-correlation-coherence-length.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-81-low-band-limited-correlation-coherence-length.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-81-low-band-limited-correlation-coherence-length.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

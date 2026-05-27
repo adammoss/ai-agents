@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ T²–(∇²T)² Cross-Correlation Coefficient · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 74 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ T²–(∇²T)² Cross-Correlation Coefficient</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · cross correlation · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The CMB temperature map is consistent with an isotropic Gaussian random field, implying the cross-correlation coefficient r between T² and (∇²T)² should be zero.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>This test computes the normalized cross-correlation coefficient *r* between the squared temperature field T² and the squared Laplacian (curvature) field (∇²T)² over multipoles ℓ = 2–20. It probes whether the CMB&#x27;s most intense temperature features (hot/cold spots) systematically coincide with regions of large spatial curvature—a coupling absent in isotropic Gaussian fields where T² and (∇²T)² respond independently to temperature structure. Non-Gaussian sources such as topological defects, foreground residuals, or primordial non-Gaussianity could inflate |r| relative to ΛCDM expectations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The Planck observed value is r = 0.4917, while 1000 ΛCDM simulations yield a mean ± σ of 0.4795 ± 0.0716. The z-score is 0.17 and the two-tailed p-value is 0.902, indicating excellent agreement with the isotropic Gaussian hypothesis.</p>
+          <p>The observed cross-correlation falls comfortably within the simulation distribution, showing no evidence of anomalous spatial coupling between temperature intensity and curvature extremes at low multipoles. The intrinsic non-zero mean of *r* in simulations arises from the nonlinear mapping between the underlying Gaussian field and its squared quantities, not from non-Gaussianity.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect any significant deviation from zero, as the description states that a &quot;significantly non-zero r&quot; indicates spatial coupling absent in isotropic Gaussian fields. The analysis code computes both upper and lower p-values and uses a two-sided p-value for interpretation, showing no directional preference. Non-Gaussian sources could produce either positive or negative correlation, making a two-tailed test appropriate for general exploration.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No prior studies examining this specific T²–(∇²T)² cross-correlation statistic on the CMB were identified in available literature or online searches. Related work exists on hot/cold spot statistics and Minkowski functionals, but this particular multipole-space cross-correlation of squared fields does not appear to have been previously documented.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Tests whether the spatial distribution of extreme temperatures (hot and cold &quot;
+    &quot;spots) correlates with the distribution of large temperature curvature across &quot;
+    &quot;the low-ℓ (ℓ = 2–20) sky. Computes the normalized cross-correlation coefficient &quot;
+    &quot;between the squared temperature field T² and the squared Laplacian field (∇²T)² &quot;
+    &quot;in multipole space. For isotropic Gaussian fields, T² and (∇²T)² respond &quot;
+    &quot;independently to temperature structure, so the expected correlation is zero. &quot;
+    &quot;Non-Gaussian sources such as topological defects, foreground residuals, or &quot;
+    &quot;primordial non-Gaussianity could produce correlated structure between intensity &quot;
+    &quot;and curvature extremes that inflates |r| relative to ΛCDM simulations.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the T²–(∇²T)² cross-correlation coefficient r for ℓ = 2–20.&quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    lmax = 20
+
+    # --- 1. Clean masked pixels for healpy compatibility ---
+    mask_valid = np.isfinite(m)
+    m_clean = np.where(mask_valid, m, 0.0)
+
+    # --- 2. Get a_ℓm and zero out ℓ = 0, 1 (discard monopole and dipole) ---
+    alm = hp.map2alm(m_clean, lmax=lmax)
+    for ell in range(2):
+        for m_idx in range(ell + 1):
+            alm[hp.Alm.getidx(lmax, ell, m_idx)] = 0.0
+
+    # --- 3. Compute Laplacian a_ℓm: multiply by -ℓ(ℓ+1) ---
+    # (Ignoring 1/R²_CMB since it cancels in the normalized correlation)
+    l_arr, _ = hp.Alm.getlm(lmax)
+    factors = -l_arr.astype(float) * (l_arr.astype(float) + 1.0)
+    alm_lap = alm * factors
+
+    # --- 4. Reconstruct band-limited T and ∇²T maps in pixel space ---
+    T_map = hp.alm2map(alm, nside, lmax=lmax)
+    lap_map = hp.alm2map(alm_lap, nside, lmax=lmax)
+
+    # --- 5. Construct squared-field maps ---
+    T2_map = T_map ** 2
+    lap2_map = lap_map ** 2
+
+    # --- 6. Transform squared maps to spherical harmonics ---
+    alm_T2 = hp.map2alm(T2_map, lmax=lmax)
+    alm_lap2 = hp.map2alm(lap2_map, lmax=lmax)
+
+    # Zero out ℓ = 0, 1 in both squared-field harmonic arrays
+    for ell in range(2):
+        for m_idx in range(ell + 1):
+            idx = hp.Alm.getidx(lmax, ell, m_idx)
+            alm_T2[idx] = 0.0
+            alm_lap2[idx] = 0.0
+
+    # --- 7. Compute cross-spectra across multipole space ---
+    # r = Σ_{ℓ=2}^{20} (2ℓ+1) C_ℓ^{T²,(∇²T)²} / sqrt[ Σ (2ℓ+1) C_ℓ^{T²,T²} · Σ (2ℓ+1) C_ℓ^{(∇²T)²,(∇²T)²} ]
+    # where (2ℓ+1) C_ℓ^{A,B} = Σ_m a_ℓm^A a_ℓm^{B*}
+    # So r = Σ_{ℓ,m} a_ℓm^{T²} a_ℓm^{(∇²T)²*} / sqrt[ Σ |a_ℓm^{T²}|² · Σ |a_ℓm^{(∇²T)²}|² ]
+    # Since ℓ=0,1 are zeroed, summing over all indices gives ℓ=2..20 only.
+
+    cross_num = np.real(np.sum(alm_T2 * np.conj(alm_lap2)))
+    cross_den1 = np.real(np.sum(alm_T2 * np.conj(alm_T2)))
+    cross_den2 = np.real(np.sum(alm_lap2 * np.conj(alm_lap2)))
+
+    # --- 8. Compute normalized cross-correlation coefficient ---
+    denom = np.sqrt(cross_den1 * cross_den2)
+    if denom &lt; 1e-30:
+        return 0.0
+
+    r = cross_num / denom
+    return float(np.clip(r, -1.0, 1.0))
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the T²–(∇²T)² cross-correlation coefficient.&quot;&quot;&quot;
+    sims = np.asarray(sim_results, dtype=float)
+    sims = sims[np.isfinite(sims)]
+    n = len(sims)
+
+    if n == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims))
+    std_s = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    p_upper = float(np.mean(sims &gt;= planck_stat))
+    p_lower = float(np.mean(sims &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else np.nan
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n,
+        &quot;interpretation&quot;: (
+            &quot;This statistic measures the multipole-space cross-correlation between the &quot;
+            &quot;squared temperature field T² and the squared Laplacian field (∇²T)² over &quot;
+            &quot;low multipoles ℓ = 2–20. For a statistically isotropic Gaussian random &quot;
+            &quot;field, T² and (∇²T)² respond independently to temperature structure, &quot;
+            &quot;yielding an expected correlation of zero. A significantly non-zero r &quot;
+            &quot;indicates that the CMB&#x27;s most intense temperature features (hot and cold &quot;
+            &quot;spots) systematically coincide with its most curved regions—a spatial &quot;
+            &quot;coupling absent in isotropic Gaussian fields. Such coupling could arise &quot;
+            &quot;from topological defects, foreground residuals, or primordial &quot;
+            &quot;non-Gaussianity.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ T²–(∇²T)² Cross-Correlation Coefficient&quot;,
+            &quot;xlabel&quot;: &quot;r = corr(T², (∇²T)²)&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck r = {planck_stat:.4f}. &quot;
+                f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, p(two-sided) = {p_two:.3f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-74-low-t-t-cross-correlation-coefficient.png" alt="Statistic distribution for Low-ℓ T²–(∇²T)² Cross-Correlation Coefficient">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.902</td></tr>
+<tr><th>One-tailed p-value</th><td>0.451</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.902</td></tr>
+<tr><th>Sigma</th><td>0.123</td></tr>
+<tr><th>Planck statistic</th><td>0.492</td></tr>
+<tr><th>Simulation mean</th><td>0.479</td></tr>
+<tr><th>Simulation std.</th><td>0.0715</td></tr>
+<tr><th>Simulation median</th><td>0.483</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>cross correlation</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-74-low-t-t-cross-correlation-coefficient.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-74-low-t-t-cross-correlation-coefficient.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-74-low-t-t-cross-correlation-coefficient.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-74-low-t-t-cross-correlation-coefficient.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-74-low-t-t-cross-correlation-coefficient.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-74-low-t-t-cross-correlation-coefficient.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,51 @@
+{
+  "results": {
+    "test_name": "Low-\u2113 Directional Power Variance Ratio",
+    "test_description": "For each map, restrict to the low-\u2113 multipoles \u2113 = 2 to 10. For each pixel on the full sky at the given nside, compute the directional power as the squared amplitude of the band-limited temperature map (reconstructed from these multipoles) at that pixel. Calculate the variance of this directional power over all pixels. Then compute the same variance for a map constructed only from the \u2113 = 2 (quadrupole) component. The test statistic is the ratio of the former variance to the latter. This single number quantifies whether the power distribution across the sky in the low-\u2113 regime is more or less structured than what the quadrupole alone would produce.",
+    "test_hypothesis": "The directional power variance ratio for multipoles \u2113=2\u201310 relative to \u2113=2 alone does not match the expected distribution in standard \u039bCDM cosmology, indicating an anomaly in the low-\u2113 power structure.",
+    "test_type": "two-tailed",
+    "justification": "The test is explicitly designed to quantify whether the power distribution is \"more or less structured\" than the quadrupole alone, with the code's interpretation noting that \"a significantly elevated or suppressed value could indicate anomalous alignment.\" There is no directional preference specified in the description or code; instead, both higher and lower ratios are considered potentially anomalous, making it appropriate for a two-tailed test to detect deviations in either direction from the \u039bCDM expectation.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 354.2287992752943,
+    "mean_sim_stat": 333.78044978649683,
+    "std_sim_stat": 5916.247109572866,
+    "median_sim_stat": 38.74138122467332,
+    "sigma": 1.654627902351078,
+    "p_value_two_tailed": 0.098
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Low-\u2113 Directional Power Variance Ratio: Restrict the CMB map to multipoles \"\n    \"\u2113 = 2\u201310 and compute the directional power (squared temperature) at each pixel. \"\n    \"Calculate the variance of this power across the full sky. Repeat for a map \"\n    \"containing only the \u2113 = 2 quadrupole component. The statistic is the ratio of \"\n    \"the former variance to the latter, quantifying whether the low-\u2113 power distribution \"\n    \"is more or less structured than what the quadrupole alone produces.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return the ratio of directional-power variance (\u2113=2\u201310) to (\u2113=2 only).\"\"\"\n    nside = hp.npix2nside(len(m))\n\n    # Replace NaN (masked) pixels with 0.0 for healpy transforms\n    mask_invalid = ~np.isfinite(m)\n    m_clean = m.copy()\n    m_clean[mask_invalid] = 0.0\n\n    # Compute spherical harmonic coefficients up to \u2113=10\n    lmax = 10\n    alm = hp.map2alm(m_clean, lmax=lmax)\n\n    # Build alm for \u2113=2\u201310: zero out \u2113 < 2\n    alm_low = alm.copy()\n    for ell in range(2):  # \u2113=0 and \u2113=1\n        for em in range(ell + 1):\n            idx = hp.Alm.getidx(lmax, ell, em)\n            alm_low[idx] = 0.0\n\n    # Build alm for \u2113=2 only: zero out everything except \u2113=2\n    alm_quad = np.zeros_like(alm)\n    for em in range(3):  # \u2113=2 has m = 0, 1, 2\n        idx = hp.Alm.getidx(lmax, 2, em)\n        alm_quad[idx] = alm[idx]\n\n    # Reconstruct band-limited maps\n    map_low = hp.alm2map(alm_low, nside, lmax=lmax, verbose=False)\n    map_quad = hp.alm2map(alm_quad, nside, lmax=lmax, verbose=False)\n\n    # Directional power = squared amplitude at each pixel\n    power_low = map_low ** 2\n    power_quad = map_quad ** 2\n\n    # Variance of directional power across the sky\n    var_low = np.var(power_low)\n    var_quad = np.var(power_quad)\n\n    # Guard against degenerate case\n    if var_quad == 0.0:\n        return 1.0\n\n    ratio = float(var_low / var_quad)\n    return ratio\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Interpret the directional power variance ratio.\"\"\"\n    sims = np.array(sim_results, dtype=float)\n    sims_finite = sims[np.isfinite(sims)]\n    n_sims = len(sims_finite)\n\n    if n_sims == 0:\n        return {\"planck_stat\": planck_stat, \"note\": \"No finite simulation results.\"}\n\n    mean_s = float(np.mean(sims_finite))\n    std_s = float(np.std(sims_finite, ddof=1)) if n_sims > 1 else 0.0\n    p_upper = float(np.mean(sims_finite >= planck_stat))\n    p_lower = float(np.mean(sims_finite <= planck_stat))\n    p_two = min(2.0 * min(p_upper, p_lower), 1.0)\n    z_score = (planck_stat - mean_s) / std_s if std_s > 0 else np.nan\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"sim_mean\": mean_s,\n        \"sim_std\": std_s,\n        \"z_score\": z_score,\n        \"p_value_upper\": p_upper,\n        \"p_value_lower\": p_lower,\n        \"p_value_two_sided\": p_two,\n        \"n_sims\": n_sims,\n        \"interpretation\": (\n            \"This statistic compares how spatially structured the directional power \"\n            \"(squared temperature) is across the full sky for the low-\u2113 band (\u2113=2\u201310) \"\n            \"relative to the quadrupole alone (\u2113=2). The band \u2113=2\u201310 contains 45 \"\n            \"spherical harmonic modes whose interference pattern determines the \"\n            \"anisotropy of T\u00b2(p). The ratio of variances quantifies whether adding \"\n            \"multipoles \u2113=3\u201310 increases or redistributes the spatial contrast of \"\n            \"hot/cold power concentrations relative to the quadrupole pattern. In \"\n            \"standard \u039bCDM, this ratio has a well-defined expectation; a significantly \"\n            \"elevated or suppressed value could indicate anomalous alignment, power \"\n            \"asymmetry, or unexpected mode coupling at the largest angular scales.\"\n        ),\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-\u2113 Directional Power Variance Ratio\",\n            \"xlabel\": \"Variance Ratio (\u2113=2\u201310) / (\u2113=2)\",\n            \"ylabel\": \"Count\",\n            \"bins\": 30,\n            \"caption\": (\n                f\"Planck ratio = {planck_stat:.4f}. \"\n                f\"Sim mean \u00b1 \u03c3 = {mean_s:.4f} \u00b1 {std_s:.4f}. \"\n                f\"z = {z_score:.2f}, p(two-sided) = {p_two:.3f}.\"\n            ),\n        },\n    }\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": 3.6749254967478007,
+    "sim_max": 184272.71489372142,
+    "z_score": 0.0034545755743806547,
+    "thresholds": [
+      7.624452880387683,
+      609.7045158233379
+    ],
+    "p_value_upper": 0.049,
+    "p_value_lower": 0.951,
+    "interpretation": "This statistic compares how spatially structured the directional power (squared temperature) is across the full sky for the low-\u2113 band (\u2113=2\u201310) relative to the quadrupole alone (\u2113=2). The band \u2113=2\u201310 contains 45 spherical harmonic modes whose interference pattern determines the anisotropy of T\u00b2(p). The ratio of variances quantifies whether adding multipoles \u2113=3\u201310 increases or redistributes the spatial contrast of hot/cold power concentrations relative to the quadrupole pattern. In standard \u039bCDM, this ratio has a well-defined expectation; a significantly elevated or suppressed value could indicate anomalous alignment, power asymmetry, or unexpected mode coupling at the largest angular scales.",
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-\u2113 Directional Power Variance Ratio",
+      "xlabel": "Variance Ratio (\u2113=2\u201310) / (\u2113=2)",
+      "ylabel": "Count",
+      "bins": 30,
+      "caption": "Planck ratio = 354.2288. Sim mean \u00b1 \u03c3 = 333.7804 \u00b1 5919.2075. z = 0.00, p(two-sided) = 0.098."
+    }
+  },
+  "updated_summary": {
+    "Test name": "Low-\u2113 Directional Power Variance Ratio",
+    "Description": "Computes the variance of directional power (squared temperature) across the full sky for multipoles \u2113=2\u201310, then divides by the corresponding variance from the \u2113=2 quadrupole alone. The resulting ratio quantifies how much spatial structure the higher low-\u2113 modes add to the anisotropy pattern of T\u00b2 relative to the quadrupole baseline.",
+    "Results": "Planck ratio = 354.23. Simulation mean \u00b1 \u03c3 = 333.78 \u00b1 5916.25 (median = 38.74), indicating a highly skewed distribution. z-score = 0.003, two-tailed p-value = 0.098. The Planck value lies extremely close to the simulation mean and well within the bulk of the distribution.",
+    "Interpretation": "The directional power variance ratio for Planck is fully consistent with \u039bCDM simulations. The very small z-score confirms negligible deviation from expectations. The distribution is heavily right-skewed (mean \u226b median), so standard symmetric thresholds are less informative, but the Planck value does not approach either tail at the 2\u03c3 level.",
+    "Meets hypothesis?": "No",
+    "Comparison to literature": "The directional power variance ratio of squared temperature across low multipoles does not correspond to any well-known CMB anomaly statistic found in standard literature. Previous searches returned no relevant studies quantifying this specific ratio. The test appears to probe spatial structure in low-\u2113 power concentrations but lacks established precedent for direct comparison.",
+    "Test novelty": "Novel",
+    "Verdict": "No anomalies found"
+  }
+}

@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Skewness Dipole Amplitude · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 21 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Skewness Dipole Amplitude</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · direction · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The dipole amplitude of local skewness in the low-ℓ CMB temperature map is inconsistent with predictions from the standard ΛCDM model.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The CMB temperature map is bandpass-filtered to ℓ = 2–10. For each unmasked pixel, the local skewness S(n̂) of temperatures within a 60° cap is computed, producing a sky map of third-moment asymmetry. The ℓ = 1 dipole amplitude A_skew = √(|S₁₀|² + 2|S₁₁|²) of this skewness map is extracted, quantifying any preferred direction in how local non-Gaussianity (hot-versus-cold asymmetry) varies across the sky.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck SMICA yields A_skew = 0.752, compared to a simulation mean of 0.667 ± 0.307. The Planck value sits at the 65.4th percentile of 1000 ΛCDM simulations, with a two-tailed p-value of 0.692 and a log-amplitude z-score of 0.46. Anomaly strength is negligible.</p>
+          <p>The low-ℓ skewness dipole amplitude is fully consistent with standard ΛCDM expectations. No preferred direction in local non-Gaussianity is detected at large angular scales. The Planck value falls well within the central distribution of simulations, showing no evidence of the directional asymmetry in non-Gaussianity that the test was designed to probe.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to explore any directional anomaly in non-Gaussianity without a prior directional expectation, as it measures the strength of a preferred direction in local skewness. The analysis code computes a two-sided p-value using a log transform, indicating that both higher and lower dipole amplitudes are considered potentially anomalous, supporting a two-tailed approach for general exploration.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No prior studies on the dipole of a local-skewness sky map were found in the CMB anomaly literature. Existing work addresses global skewness, directional H₀ variations, and hemispherical power asymmetries, but not directional third-moment asymmetry via this approach.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Skewness Dipole Amplitude: Filter the masked CMB temperature map to ℓ = 2–10 &quot;
+    &quot;via spherical-harmonic bandpass. For each unmasked pixel, compute the local skewness &quot;
+    &quot;S(n̂) = ⟨(T − T̄)³⟩ / ⟨(T − T̄)²⟩^{3/2} of pixel temperatures within a 60°-radius cap, &quot;
+    &quot;using only unmasked pixels. Decompose the resulting skewness map into spherical harmonics &quot;
+    &quot;under the same mask and extract the ℓ = 1 dipole amplitude A_skew = √(|S₁₀|² + 2|S₁₁|²). &quot;
+    &quot;This quantifies the strength of any preferred direction in how the degree of non-Gaussianity &quot;
+    &quot;(hot-versus-cold asymmetry) varies across the sky at large angular scales.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute the Low-ℓ Skewness Dipole Amplitude.
+
+    Steps:
+    1. Bandpass filter the temperature map to ℓ = 2–10 via spherical harmonics.
+    2. Downgrade to nside=16 for fast local skewness computation.
+    3. For each unmasked pixel, compute local skewness in a 60° cap using
+       a precomputed vectorized distance matrix (no query_disc).
+    4. Decompose the skewness map into SH and extract the ℓ=1 dipole amplitude.
+    &quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+
+    # Identify unmasked pixels and fill masked with 0 for SH transforms
+    valid = np.isfinite(m)
+    m_filled = np.where(valid, m, 0.0).astype(np.float64)
+
+    # --- Step 1: Bandpass filter to ℓ = 2–10 ---
+    lmax_bp = 10
+    alm = hp.map2alm(m_filled, lmax=lmax_bp, iter=0)
+
+    # Zero out ℓ = 0 and ℓ = 1 (keep only ℓ = 2–10)
+    mask_ell = np.zeros(hp.Alm.getsize(lmax_bp), dtype=bool)
+    for ell in range(2, lmax_bp + 1):
+        for em in range(ell + 1):
+            mask_ell[hp.Alm.getidx(lmax_bp, ell, em)] = True
+    alm[~mask_ell] = 0.0
+
+    # Reconstruct bandpass-filtered map, then downgrade to nside=16 for fast skewness
+    nside_lo = 16
+    m_filt = hp.alm2map(alm, nside_lo, lmax=lmax_bp, verbose=False)
+
+    # Mask at low resolution: keep pixel if &gt;50% of its area is unmasked
+    if nside != nside_lo:
+        mask_hi = valid.astype(np.float64)
+        mask_lo = hp.ud_grade(mask_hi, nside_lo)
+        valid_lo = mask_lo &gt; 0.5
+    else:
+        valid_lo = valid
+
+    # --- Step 2: Local skewness via vectorized distance matrix ---
+    cap_radius_rad = np.radians(60.0)
+
+    valid_idx = np.where(valid_lo)[0]
+    n_valid = len(valid_idx)
+
+    if n_valid &lt; 4:
+        return 0.0
+
+    # Unit vectors for all valid pixels (precomputed for distance matrix)
+    vecs = np.column_stack(hp.pix2vec(nside_lo, valid_idx))  # (n_valid, 3)
+
+    # Full pairwise distance matrix: all distances between valid pixels
+    dist_matrix = vecs @ vecs.T  # (n_valid, n_valid), cosine of angles
+
+    # Precompute cap membership masks (no query_disc used)
+    cap_masks = []
+    for i in range(n_valid):
+        in_cap = dist_matrix[i] &gt; np.cos(cap_radius_rad)
+        cap_masks.append(in_cap)
+
+    # Bandpass-filtered temperatures (NaN for masked pixels)
+    temps = np.where(valid_lo, m_filt, np.nan)
+
+    # Compute skewness for each valid pixel
+    skewness_map = np.full(hp.nside2npix(nside_lo), np.nan)
+
+    for i in range(n_valid):
+        pix = valid_idx[i]
+        in_cap = cap_masks[i]
+
+        # Temperatures of neighbor pixels in cap (NaN for masked neighbors)
+        cap_temps = temps[valid_idx[in_cap]]
+        cap_valid = np.isfinite(cap_temps)
+
+        if np.sum(cap_valid) &lt; 4:
+            continue
+
+        cap_vals = cap_temps[cap_valid]
+        t_mean = np.mean(cap_vals)
+        t_dev = cap_vals - t_mean
+        m2 = np.mean(t_dev ** 2)
+        m3 = np.mean(t_dev ** 3)
+
+        if m2 &gt; 1e-30:
+            skewness_map[pix] = m3 / (m2 ** 1.5)
+
+    # --- Step 3: Extract ℓ=1 dipole of the skewness map ---
+    skew_valid = np.isfinite(skewness_map)
+    skew_filled = np.where(skew_valid, skewness_map, 0.0).astype(np.float64)
+
+    lmax_skew = 1
+    alm_skew = hp.map2alm(skew_filled, lmax=lmax_skew, iter=0)
+
+    # A_skew = √(|S₁₀|² + 2|S₁₁|²)
+    # alm_skew indices: ℓ=0,m=0 → 0; ℓ=1,m=0 → 1; ℓ=1,m=1 → 2
+    s10 = alm_skew[1]
+    s11 = alm_skew[2]
+    A_skew = np.sqrt(np.abs(s10) ** 2 + 2.0 * np.abs(s11) ** 2)
+
+    return float(A_skew)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Skewness Dipole Amplitude anomaly.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&#x27;nan&#x27;),
+            &quot;p_value_low&quot;: float(&#x27;nan&#x27;),
+            &quot;p_value_high&quot;: float(&#x27;nan&#x27;),
+            &quot;rank&quot;: 0,
+            &quot;n_sims&quot;: 0,
+            &quot;percentile&quot;: float(&#x27;nan&#x27;),
+            &quot;sim_mean&quot;: float(&#x27;nan&#x27;),
+            &quot;sim_std&quot;: float(&#x27;nan&#x27;),
+            &quot;log_z_score&quot;: float(&#x27;nan&#x27;),
+            &quot;asymmetry_label&quot;: &quot;unknown&quot;,
+            &quot;asymmetry_direction&quot;: &quot;no simulations available&quot;,
+            &quot;interpretation&quot;: &quot;No simulation results to compare.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Skewness Dipole Amplitude&quot;,
+                &quot;xlabel&quot;: &quot;A_skew&quot;,
+                &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data available.&quot;,
+            },
+        }
+
+    # Percentile rank (one-sided)
+    rank = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank / n_sims
+
+    # One-sided p-values
+    p_value_low = float(np.mean(sim &lt;= planck_stat))
+    p_value_high = float(np.mean(sim &gt;= planck_stat))
+
+    # Two-sided p-value using log transform (A_skew is non-negative, right-skewed)
+    pos_sim = sim[sim &gt; 0]
+    log_planck = np.log(planck_stat) if planck_stat &gt; 0 else float(&#x27;-inf&#x27;)
+    if len(pos_sim) &gt; 0:
+        log_sim = np.log(pos_sim)
+        mean_log = float(np.mean(log_sim))
+        std_log = float(np.std(log_sim))
+        z_score = (log_planck - mean_log) / std_log if std_log &gt; 0 else float(&#x27;nan&#x27;)
+        planck_dev = abs(log_planck - mean_log)
+        sim_devs = np.abs(log_sim - mean_log)
+        p_value_two_sided = float(np.mean(sim_devs &gt;= planck_dev))
+    else:
+        z_score = float(&#x27;nan&#x27;)
+        p_value_two_sided = float(&#x27;nan&#x27;)
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    if percentile &gt;= 95 or percentile &lt;= 5:
+        strength = &quot;strong&quot;
+    elif percentile &gt;= 90 or percentile &lt;= 10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    if planck_stat &gt; mean_sim + std_sim:
+        direction = &quot;Planck shows a stronger dipole in local skewness than typical simulations&quot;
+    elif planck_stat &lt; mean_sim - std_sim:
+        direction = &quot;Planck shows a weaker dipole in local skewness than typical simulations&quot;
+    else:
+        direction = &quot;Planck&#x27;s skewness dipole is consistent with simulations&quot;
+
+    interp = (
+        &quot;Low-ℓ skewness dipole amplitude A_skew = {stat:.6f}, indicating {direction}. &quot;
+        &quot;This places it at the {pct:.1f}th percentile of ΛCDM simulations &quot;
+        &quot;(two-sided p-value = {pval:.4f}). &quot;
+        &quot;Simulated mean A_skew = {mean:.6f} ± {std:.6f}. &quot;
+        &quot;Log-amplitude z-score = {z:.2f}. &quot;
+        &quot;Anomaly strength: {strength}.&quot;
+    ).format(stat=planck_stat, direction=direction, pct=percentile,
+             pval=p_value_two_sided, mean=mean_sim, std=std_sim, z=z_score, strength=strength)
+
+    caption = (
+        &quot;Histogram of the Low-ℓ Skewness Dipole Amplitude A_skew = √(|S₁₀|² + 2|S₁₁|²), &quot;
+        &quot;measuring the strength of the preferred direction in local temperature skewness &quot;
+        &quot;across the sky. The temperature map is first bandpass-filtered to ℓ = 2–10, &quot;
+        &quot;then local skewness S(n̂) is computed in 60° caps around each unmasked pixel. &quot;
+        &quot;The dipole of the resulting skewness map quantifies directional non-Gaussianity. &quot;
+        &quot;The red line marks the Planck SMICA value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value_two_sided,
+        &quot;p_value_low&quot;: p_value_low,
+        &quot;p_value_high&quot;: p_value_high,
+        &quot;rank&quot;: rank,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;log_z_score&quot;: z_score,
+        &quot;asymmetry_label&quot;: strength,
+        &quot;asymmetry_direction&quot;: direction,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Skewness Dipole Amplitude&quot;,
+            &quot;xlabel&quot;: &quot;A_skew = √(|S₁₀|² + 2|S₁₁|²)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-21-low-skewness-dipole-amplitude.png" alt="Statistic distribution for Low-ℓ Skewness Dipole Amplitude">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.692</td></tr>
+<tr><th>One-tailed p-value</th><td>0.346</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.692</td></tr>
+<tr><th>Sigma</th><td>0.396</td></tr>
+<tr><th>Planck statistic</th><td>0.752</td></tr>
+<tr><th>Simulation mean</th><td>0.667</td></tr>
+<tr><th>Simulation std.</th><td>0.307</td></tr>
+<tr><th>Simulation median</th><td>0.636</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>direction</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-21-low-skewness-dipole-amplitude.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-21-low-skewness-dipole-amplitude.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-21-low-skewness-dipole-amplitude.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-21-low-skewness-dipole-amplitude.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-21-low-skewness-dipole-amplitude.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-21-low-skewness-dipole-amplitude.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

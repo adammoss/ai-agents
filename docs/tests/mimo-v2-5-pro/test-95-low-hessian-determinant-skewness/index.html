@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Hessian Determinant Skewness · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 95 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Hessian Determinant Skewness</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The skewness of the Hessian determinant is zero, indicating a symmetric distribution of curvature extrema consistent with a Gaussian random field.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Measures the skewness of the determinant of the Hessian matrix of the low-ℓ (ℓ≤32) CMB temperature map smoothed to 5 degrees. This probes asymmetry in local curvature extrema, sensitive to non-Gaussian features in hot/cold spot morphology.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck skewness = -13.82. Simulated mean ± std = -16.17 ± 5.78. z-score = 0.41, two-tailed p-value = 0.80.</p>
+          <p>The observed skewness is typical and well within the range expected from Gaussian simulations. The distribution of curvature extrema shows no significant asymmetry, consistent with a Gaussian random field.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is exploratory, aimed at detecting any non-Gaussian features in the low-ℓ temperature map, with no prior directional preference for positive or negative skewness. The analysis code computes both upper and lower p-values and interprets deviations in either direction as anomalies, supporting a two-tailed approach.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>A web search for &quot;Hessian determinant skewness CMB temperature map anomaly test&quot; did not return any direct studies on this specific statistic. Related CMB anomaly tests often focus on Minkowski functionals, multipole alignment, or temperature gradients.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Hessian Determinant Skewness. &quot;
+    &quot;Compute the Hessian matrix of the low-ℓ (ℓ ≤ 32) temperature map smoothed &quot;
+    &quot;to 5 degrees FWHM. For each pixel i, calculate the determinant of the Hessian &quot;
+    &quot;H_i = [[∂²T/∂θ², ∂²T/(∂θ∂φ)], [∂²T/(∂θ∂φ), ∂²T/∂φ²]] using finite &quot;
+    &quot;differences on the HEALPix grid. The test statistic is the skewness of the &quot;
+    &quot;distribution of H_i over all unmasked pixels. This scalar measures the &quot;
+    &quot;asymmetry of local curvature extrema in the temperature field, which is &quot;
+    &quot;sensitive to non-Gaussian features in the shape of hot and cold spots.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the skewness of the Hessian determinant of the low-ℓ smoothed map.&quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    lmax = 32
+    valid = np.isfinite(m)
+
+    if np.sum(valid) &lt; 10:
+        return 0.0
+
+    # Replace masked pixels with 0 for harmonic transforms
+    m_filled = np.where(valid, m, 0.0)
+
+    # Smooth to 5° FWHM Gaussian beam via harmonic space
+    fwhm_rad = np.radians(5.0)
+    alm = hp.map2alm(m_filled, lmax=lmax)
+    alm_smoothed = hp.smoothalm(alm, fwhm=fwhm_rad)
+
+    # Get smoothed map and first derivatives via alm2map_der1
+    nside_int = int(nside)
+    derivs = hp.alm2map_der1(alm_smoothed, nside_int, lmax=lmax)
+    m_smooth = derivs[0]           # T
+    dT_dtheta = derivs[1]          # ∂T/∂θ
+    dT_dphi_sin = derivs[2]        # (1/sinθ) ∂T/∂φ
+
+    npix = hp.nside2npix(nside_int)
+    theta, phi = hp.pix2ang(nside_int, np.arange(npix))
+    sin_theta = np.sin(theta)
+    cos_theta = np.cos(theta)
+
+    # Protect sinθ from zero for division
+    safe_sin = np.where(np.abs(sin_theta) &gt; 1e-10, sin_theta, 1e-10)
+    inv_sin2 = 1.0 / (safe_sin ** 2)
+
+    # Get pixel neighbors for finite differences
+    # hp.get_all_neighbours returns [SW, S, SE, W, E, NW, N, NE] = indices 0..7
+    neighbors = hp.get_all_neighbours(nside_int, np.arange(npix))
+    arange = np.arange(npix)
+    n_north = np.where(neighbors[6] &gt;= 0, neighbors[6], arange)  # N
+    n_south = np.where(neighbors[1] &gt;= 0, neighbors[1], arange)  # S
+    n_east  = np.where(neighbors[4] &gt;= 0, neighbors[4], arange)  # E
+    n_west  = np.where(neighbors[3] &gt;= 0, neighbors[3], arange)  # W
+    n_ne    = np.where(neighbors[7] &gt;= 0, neighbors[7], arange)  # NE
+    n_nw    = np.where(neighbors[5] &gt;= 0, neighbors[5], arange)  # NW
+    n_se    = np.where(neighbors[2] &gt;= 0, neighbors[2], arange)  # SE
+    n_sw    = np.where(neighbors[0] &gt;= 0, neighbors[0], arange)  # SW
+
+    # Pixel angular spacing (radians)
+    dtheta = hp.nside2resol(nside_int)
+
+    # ------------------------------------------------------------------
+    # Second derivatives via central finite differences on the smoothed map
+    # ------------------------------------------------------------------
+
+    # ∂²T/∂θ² : north-south neighbors (constant φ, varying θ)
+    d2T_dtheta2 = (m_smooth[n_north] - 2.0 * m_smooth + m_smooth[n_south]) / (dtheta ** 2)
+
+    # ∂²T/(∂θ∂φ) : diagonal neighbors
+    # NE ≈ (θ+dθ, φ+dφ), NW ≈ (θ+dθ, φ-dφ), etc.
+    d2T_dtheta_dphi = (m_smooth[n_ne] - m_smooth[n_nw]
+                       - m_smooth[n_se] + m_smooth[n_sw]) / (4.0 * dtheta ** 2)
+
+    # ∂²T/∂φ² : east-west neighbors with sin²θ correction
+    # In the equatorial band Δφ ≈ dθ/sinθ, so
+    # ∂²T/∂φ² ≈ (T_E + T_W - 2T) * sin²θ / dθ²
+    d2T_dphi2 = (m_smooth[n_east] - 2.0 * m_smooth + m_smooth[n_west]) * inv_sin2 / (dtheta ** 2)
+
+    # ------------------------------------------------------------------
+    # Covariant Hessian on the unit sphere (with Christoffel corrections)
+    # ------------------------------------------------------------------
+    cot_theta = cos_theta / safe_sin
+
+    # H_θθ = ∇_θ∇_θ T = ∂²T/∂θ²  (Γ^θ_θθ = 0)
+    H_tt = d2T_dtheta2
+
+    # H_θφ = ∇_θ∇_φ T = ∂²T/(∂θ∂φ) - cot(θ) (1/sinθ ∂T/∂φ)
+    # Note: we use (1/sinθ ∂T/∂φ) directly from alm2map_der1
+    H_tp = d2T_dtheta_dphi - cot_theta * dT_dphi_sin
+
+    # H_φφ = ∇_φ∇_φ T = ∂²T/∂φ² + sinθ cosθ ∂T/∂θ
+    H_pp = d2T_dphi2 + sin_theta * cos_theta * dT_dtheta
+
+    # Determinant of the 2×2 covariant Hessian
+    det_H = H_tt * H_pp - H_tp ** 2
+
+    # ------------------------------------------------------------------
+    # Skewness of the Hessian determinant over unmasked pixels
+    # ------------------------------------------------------------------
+    # Exclude near-pole pixels (sinθ &lt; 0.1) where φ-derivatives are ill-defined
+    good = valid &amp; (sin_theta &gt; 0.1)
+    valid_det = det_H[good]
+
+    if len(valid_det) &lt; 10:
+        return 0.0
+
+    mean_d = np.mean(valid_det)
+    var_d = np.var(valid_det)
+
+    if var_d &lt; 1e-30:
+        return 0.0
+
+    skew = float(np.mean((valid_det - mean_d) ** 3) / (var_d ** 1.5))
+
+    if not np.isfinite(skew):
+        return 0.0
+    return skew
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the Low-ℓ Hessian Determinant Skewness.&quot;&quot;&quot;
+    sims = np.asarray(sim_results, dtype=float)
+    sims = sims[np.isfinite(sims)]
+    n = len(sims)
+    if n == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims))
+    std_s = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    median_s = float(np.median(sims))
+    rank = int(np.sum(sims &lt;= planck_stat))
+    p_upper = float(np.mean(sims &gt;= planck_stat))
+    p_lower = float(np.mean(sims &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else 0.0
+    pct_rank = rank / n * 100 if n &gt; 0 else 50.0
+
+    if pct_rank &lt; 2.5 or pct_rank &gt; 97.5:
+        sig_desc = &quot;highly anomalous (&lt;2.5% or &gt;97.5% of sims)&quot;
+    elif pct_rank &lt; 5 or pct_rank &gt; 95:
+        sig_desc = &quot;marginally anomalous (&lt;5% or &gt;95% of sims)&quot;
+    elif pct_rank &lt; 25 or pct_rank &gt; 75:
+        sig_desc = &quot;noteworthy (outside IQR of sims)&quot;
+    else:
+        sig_desc = &quot;typical (within IQR of sims)&quot;
+
+    if planck_stat &gt; mean_s + std_s:
+        curv_desc = (
+            &quot;positive curvature determinants dominate, suggesting hot-spot peaks &quot;
+            &quot;are more concentrated/sharper than cold-spot troughs, or saddle points &quot;
+            &quot;are biased toward negative curvature configurations&quot;
+        )
+    elif planck_stat &lt; mean_s - std_s:
+        curv_desc = (
+            &quot;negative curvature determinants dominate, suggesting cold-spot troughs &quot;
+            &quot;are more concentrated/sharper than hot-spot peaks, or saddle points &quot;
+            &quot;are biased toward positive curvature configurations&quot;
+        )
+    else:
+        curv_desc = (
+            &quot;curvature determinant distribution is consistent with &quot;
+            &quot;Gaussian random field expectations (symmetric hot/cold spot morphology)&quot;
+        )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;hessian_det_skewness&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;sim_median&quot;: median_s,
+        &quot;z_score&quot;: z_score,
+        &quot;rank&quot;: rank,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n,
+        &quot;percentile_rank&quot;: pct_rank,
+        &quot;curvature_asymmetry&quot;: curv_desc,
+        &quot;significance_description&quot;: sig_desc,
+        &quot;interpretation&quot;: (
+            f&quot;Hessian determinant skewness = {planck_stat:.4f}. &quot;
+            f&quot;A Gaussian random field predicts zero skewness (symmetric curvature extrema). &quot;
+            f&quot;{curv_desc.capitalize()} &quot;
+            f&quot;Sim mean ± std = {mean_s:.4f} ± {std_s:.4f}. &quot;
+            f&quot;{sig_desc.capitalize()}. z = {z_score:.2f}, two-sided p = {p_two:.4f}.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Hessian Determinant Skewness&quot;,
+            &quot;xlabel&quot;: &quot;Skewness of det(H) (dimensionless)&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck skewness = {planck_stat:.4f}. &quot;
+                f&quot;Sim mean ± std = {mean_s:.4f} ± {std_s:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, P(two-sided) = {p_two:.4f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-95-low-hessian-determinant-skewness.png" alt="Statistic distribution for Low-ℓ Hessian Determinant Skewness">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.8</td></tr>
+<tr><th>One-tailed p-value</th><td>0.4</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.8</td></tr>
+<tr><th>Sigma</th><td>0.253</td></tr>
+<tr><th>Planck statistic</th><td>-13.82</td></tr>
+<tr><th>Simulation mean</th><td>-16.17</td></tr>
+<tr><th>Simulation std.</th><td>5.781</td></tr>
+<tr><th>Simulation median</th><td>-14.92</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-95-low-hessian-determinant-skewness.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-95-low-hessian-determinant-skewness.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-95-low-hessian-determinant-skewness.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-95-low-hessian-determinant-skewness.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-95-low-hessian-determinant-skewness.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-95-low-hessian-determinant-skewness.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

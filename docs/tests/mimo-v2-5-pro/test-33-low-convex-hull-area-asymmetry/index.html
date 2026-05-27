@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Convex Hull Area Asymmetry · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 33 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Convex Hull Area Asymmetry</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The convex hull area ratio of low-ℓ hot spots in the Planck CMB temperature map is consistent with the distribution expected from isotropic Gaussian ΛCDM simulations, with no significant morphological asymmetry or clustering.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The convex hull enclosing low-ℓ (ℓ ≤ 20) hot spots (positive temperature pixels exceeding the 1σ threshold) is computed in 3D Cartesian space on the unit sphere. The ratio of its solid angle to 4π provides a single morphological scalar sensitive to whether hot regions are unusually clustered or elongated relative to isotropic Gaussian realisations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck&#x27;s convex hull area ratio = 0.1450, compared to simulation mean = 0.1335 ± 0.0132. The value sits at the 80.5th percentile with a two-sided p-value of 0.39 (z ≈ 0.87σ). The anomaly strength is negligible.</p>
+          <p>The spatial extent of low-ℓ hot spots in the Planck map is fully consistent with random Gaussian realisations. There is no evidence for anomalous morphological clustering, elongation, or preferred directional compression of hot regions on the largest angular scales.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect anomalies in the morphology of hot regions, which could manifest as either an unusually small convex hull area (indicating elongation or clustering) or an unusually large area (indicating dispersion). The analysis code computes a two-sided empirical p-value and interprets deviations in both directions, indicating no prior directional preference. Therefore, a two-tailed test is appropriate for general exploration of potential anomalies.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No prior studies applying convex hull morphology of low-ℓ CMB hot spots were identified in the search. Related morphological analyses of the CMB (e.g., genus statistics, Minkowski functionals) are well-established but do not employ this specific convex hull area ratio statistic.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+from scipy.spatial import ConvexHull
+
+test_description = (
+    &quot;Low-ℓ Convex Hull Area Asymmetry: &quot;
+    &quot;Compute the 1-sigma contour of the low-ℓ (ℓ ≤ 20) temperature map by thresholding. &quot;
+    &quot;Calculate the area of the convex hull enclosing all positive-temperature pixels (hot spots) &quot;
+    &quot;above the threshold. Compute the ratio of this area to the total area of the sphere. &quot;
+    &quot;This single scalar measures how &#x27;clustered&#x27; or &#x27;elongated&#x27; the hot regions are morphologically, &quot;
+    &quot;which can differ between Gaussian random fields and those with specific non-Gaussianities or anomalies.&quot;
+)
+
+
+def _solid_angle_triangle(A, B, C):
+    &quot;&quot;&quot;Compute the solid angle subtended by a triangle (A, B, C) at the origin.
+
+    Uses the formula: tan(Ω/2) = (A · (B × C)) / (1 + A·B + A·C + B·C)
+    and returns Ω = 2 * atan2(numerator, denominator).
+    All vectors should be 3D numpy arrays.
+    &quot;&quot;&quot;
+    cross = np.cross(B, C)
+    num = np.dot(A, cross)
+    den = 1.0 + np.dot(A, B) + np.dot(A, C) + np.dot(B, C)
+    return 2.0 * np.arctan2(num, den)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute the convex hull area ratio of low-ℓ hot spots.
+
+    Steps:
+      1. Identify unmasked pixels (finite values).
+      2. Fill masked (NaN) pixels with 0.0 for healpy compatibility.
+      3. Compute alm coefficients up to ℓ_max = 20 and reconstruct the
+         band-limited low-ℓ temperature map.
+      4. Compute the 1-sigma threshold (std of the filtered map over unmasked pixels).
+      5. Identify hot spot pixels: positive temperature AND above the 1-sigma threshold.
+      6. Convert hot pixel centres to 3D Cartesian coordinates on the unit sphere.
+      7. Compute the 3D convex hull of these points using scipy.spatial.ConvexHull.
+      8. For each triangular face of the hull, compute its solid angle at the origin
+         using the formula Ω = 2·atan2(A·(B×C), 1+A·B+A·C+B·C).
+      9. Sum the absolute solid angles over all faces and divide by 4π.
+
+    Returns
+    -------
+    float
+        Ratio of convex hull area to total sphere area (dimensionless).
+    &quot;&quot;&quot;
+    mask = np.isfinite(m)
+    valid_idx = np.where(mask)[0]
+    N = len(valid_idx)
+
+    if N == 0:
+        return 0.0
+
+    nside = hp.npix2nside(len(m))
+
+    # Fill masked pixels with 0 for healpy transforms
+    m_filled = np.where(mask, m, 0.0)
+
+    # Compute spherical harmonic coefficients up to ℓ = 20
+    lmax = 20
+    alm = hp.map2alm(m_filled, lmax=lmax)
+
+    # Reconstruct band-limited map (ℓ ≤ 20)
+    map_low = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Extract values at unmasked pixels
+    vals = map_low[valid_idx]
+
+    # 1-sigma threshold
+    sigma = np.std(vals)
+
+    if sigma == 0.0:
+        return 0.0
+
+    # Hot spot pixels: positive AND above 1-sigma
+    hot_mask = (map_low &gt; sigma) &amp; mask
+    hot_idx = np.where(hot_mask)[0]
+    n_hot = len(hot_idx)
+
+    # Fallback for very few hot pixels: approximate by pixel count
+    if n_hot &lt; 4:
+        npix = hp.nside2npix(nside)
+        return float(n_hot) / float(npix)
+
+    # Convert hot pixel centres to 3D Cartesian coordinates on the unit sphere
+    theta, phi = hp.pix2ang(nside, hot_idx)
+    x = np.sin(theta) * np.cos(phi)
+    y = np.sin(theta) * np.sin(phi)
+    z = np.cos(theta)
+    points = np.column_stack((x, y, z))
+
+    # Compute the 3D convex hull
+    try:
+        hull = ConvexHull(points)
+    except Exception:
+        # Fallback if ConvexHull fails (e.g., degenerate configuration)
+        npix = hp.nside2npix(nside)
+        return float(n_hot) / float(npix)
+
+    # Sum the solid angles of all triangular faces
+    vertices = points[hull.simplices]  # shape: (n_faces, 3, 3)
+    A = vertices[:, 0, :]
+    B = vertices[:, 1, :]
+    C = vertices[:, 2, :]
+
+    # Vectorised: numerator = A · (B × C), denominator = 1 + A·B + A·C + B·C
+    cross_BC = np.cross(B, C)  # (n_faces, 3)
+    num = np.sum(A * cross_BC, axis=1)  # (n_faces,)
+    den = (1.0
+           + np.sum(A * B, axis=1)
+           + np.sum(A * C, axis=1)
+           + np.sum(B * C, axis=1))  # (n_faces,)
+
+    omega = 2.0 * np.arctan2(num, den)  # (n_faces,)
+    total_omega = np.sum(np.abs(omega))
+
+    # Ratio to full sphere solid angle (4π)
+    ratio = total_omega / (4.0 * np.pi)
+
+    # Clamp to [0, 1] for safety
+    ratio = float(np.clip(ratio, 0.0, 1.0))
+
+    return ratio
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarise the Low-ℓ Convex Hull Area Asymmetry test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available for comparison.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Convex Hull Area Asymmetry&quot;,
+                &quot;xlabel&quot;: &quot;Convex hull area / Sphere area&quot;,
+                &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data available.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    # Two-sided empirical p-value
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    # Direction interpretation
+    if planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck&#x27;s low-ℓ hot spot convex hull occupies a significantly smaller &quot;
+            &quot;fraction of the sky than expected from isotropic Gaussian ΛCDM simulations. &quot;
+            &quot;This indicates that the hot regions are unusually elongated, compressed, &quot;
+            &quot;or morphologically distinct — potentially reflecting large-scale anisotropy &quot;
+            &quot;or a preferred direction in the temperature field.&quot;
+        )
+    elif planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck&#x27;s low-ℓ hot spot convex hull occupies a significantly larger &quot;
+            &quot;fraction of the sky than expected. The hot regions are unusually spread &quot;
+            &quot;out, which could indicate atypical large-scale temperature structure.&quot;
+        )
+    else:
+        direction = (
+            &quot;The convex hull area of low-ℓ hot spots is consistent with isotropic &quot;
+            &quot;Gaussian ΛCDM expectations; there is no anomalous morphological &quot;
+            &quot;clustering or elongation of the hot regions.&quot;
+        )
+
+    interp = (
+        f&quot;Convex hull area ratio = {planck_stat:.6f}. &quot;
+        f&quot;Simulation mean = {mean_sim:.6f} ± {std_sim:.6f}. &quot;
+        f&quot;Percentile = {percentile:.1f}%, two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the convex hull area ratio (convex hull enclosing low-ℓ hot spots &quot;
+        &quot;divided by total sphere area) from isotropic ΛCDM simulations. Hot spots are &quot;
+        &quot;defined as pixels with positive temperature exceeding the 1σ threshold of the &quot;
+        &quot;ℓ ≤ 20 filtered map. For a statistically isotropic Gaussian field, the &quot;
+        &quot;morphology of hot regions should vary randomly between realisations. &quot;
+        &quot;Significantly low values indicate unusually elongated or clustered hot regions, &quot;
+        &quot;while significantly high values indicate unusually dispersed ones. &quot;
+        &quot;The red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Convex Hull Area Asymmetry&quot;,
+            &quot;xlabel&quot;: &quot;Convex hull area / Sphere area&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-33-low-convex-hull-area-asymmetry.png" alt="Statistic distribution for Low-ℓ Convex Hull Area Asymmetry">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.39</td></tr>
+<tr><th>One-tailed p-value</th><td>0.195</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.39</td></tr>
+<tr><th>Sigma</th><td>0.86</td></tr>
+<tr><th>Planck statistic</th><td>0.145</td></tr>
+<tr><th>Simulation mean</th><td>0.134</td></tr>
+<tr><th>Simulation std.</th><td>0.0132</td></tr>
+<tr><th>Simulation median</th><td>0.133</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-33-low-convex-hull-area-asymmetry.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-33-low-convex-hull-area-asymmetry.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-33-low-convex-hull-area-asymmetry.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-33-low-convex-hull-area-asymmetry.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-33-low-convex-hull-area-asymmetry.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-33-low-convex-hull-area-asymmetry.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

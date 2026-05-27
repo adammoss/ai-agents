@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Parity-Dependent Hemispherical Power Asymmetry Slope · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 68 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Parity-Dependent Hemispherical Power Asymmetry Slope</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · parity · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The slope of Δ_ℓ versus (-1)^ℓ is different from zero.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>For the Planck-masked SMICA map, ecliptic north and south hemispheres are defined. Pseudo-C_ℓ are computed for ℓ = 2–32 in each hemisphere. The fractional power difference Δ_ℓ = (C_ℓ^N − C_ℓ^S)/(C_ℓ^N + C_ℓ^S) is calculated at each ℓ, then regressed against (−1)^ℓ. The resulting slope tests whether the ecliptic hemispherical power asymmetry correlates with multipole parity (even vs. odd ℓ).</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck slope = 0.0111. Simulations yield mean ± σ = 0.0010 ± 0.0111. The z-score is 0.99, corresponding to a two-tailed p-value of 0.32. Planck shows even-ℓ modes with relatively more power in ecliptic north than odd-ℓ modes, compared to simulations.</p>
+          <p>The observed slope is well within the distribution expected from isotropic ΛCDM simulations. At roughly 1σ from the simulated mean, the result shows no evidence for a parity-dependent hemispherical asymmetry. The small positive slope (even-ℓ slightly favored in ecliptic north) is fully consistent with statistical fluctuations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test statistic measures the correlation between hemispherical power asymmetry and multipole parity. Under the null hypothesis of isotropy, the slope should be zero. The alternative hypothesis is that the slope is non-zero, without a specified direction. The code computes a two-sided p-value, indicating that both positive and negative deviations from zero are considered interesting. There is no prior expectation in the test description that the asymmetry should favor even or odd ℓ modes in a particular hemisphere, so a two-tailed test is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Parity asymmetry in the CMB low-ℓ spectrum has been studied extensively (Naselsky et al. 2012; Zhao et al. 2017, arXiv:1702.04541; Chang et al. 2018), typically as a global even-ℓ/odd-ℓ power imbalance. Hemispherical power asymmetry is also well-documented (McDonald 2014, arXiv:1405.2076). However, these two phenomena have generally been examined independently. The specific statistic combining hemispherical decomposition with a parity-dependent regression was not identified in literature searches.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Parity-Dependent Hemispherical Power Asymmetry Slope: &quot;
+    &quot;For ecliptic north and south hemispheres, compute the pseudo angular power spectra &quot;
+    &quot;C_ℓ for 2 ≤ ℓ ≤ 32 from the Planck-masked SMICA map. At each ℓ, form the fractional &quot;
+    &quot;power difference Δ_ℓ = (C_ℓ^N - C_ℓ^S) / (C_ℓ^N + C_ℓ^S). The statistic is the &quot;
+    &quot;linear-regression slope of Δ_ℓ against the parity sign (-1)^ℓ, measuring whether the &quot;
+    &quot;ecliptic hemispherical asymmetry correlates with multipole parity. Positive slope: &quot;
+    &quot;even-ℓ power relatively stronger in ecliptic north; negative: odd-ℓ relatively stronger.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the slope of ecliptic hemispherical Δ_ℓ vs (-1)^ℓ for ℓ = 2–32.&quot;&quot;&quot;
+    lmin, lmax = 2, 32
+    finite_mask = np.isfinite(m)
+    if not np.any(finite_mask):
+        return 0.0
+
+    nside = hp.npix2nside(len(m))
+    npix = hp.nside2npix(nside)
+
+    # Replace NaN with 0 for healpy transforms
+    m_clean = np.where(finite_mask, m, 0.0)
+
+    # Convert pixel positions to ecliptic coordinates
+    # coord=&#x27;ge&#x27; : Galactic → Ecliptic rotation
+    rot = hp.Rotator(coord=&#x27;ge&#x27;)
+    theta_ecl, phi_ecl = rot(hp.pix2ang(nside, np.arange(npix)))
+
+    # Ecliptic north: colatitude θ_ecl ≤ π/2 (latitude β ≥ 0)
+    ecl_north_mask = (theta_ecl &lt;= np.pi / 2.0) &amp; finite_mask
+    ecl_south_mask = (theta_ecl &gt;  np.pi / 2.0) &amp; finite_mask
+
+    m_north = np.where(ecl_north_mask, m_clean, 0.0)
+    m_south = np.where(ecl_south_mask, m_clean, 0.0)
+
+    # Pseudo-C_ℓ for each hemisphere
+    cl_north = hp.anafast(m_north, lmax=lmax)[lmin:lmax + 1]
+    cl_south = hp.anafast(m_south, lmax=lmax)[lmin:lmax + 1]
+
+    # Fractional power difference per ℓ
+    denom = cl_north + cl_south
+    power_floor = np.max(denom) * 1e-30 if np.max(denom) &gt; 0 else 1e-30
+    delta_ell = np.where(denom &gt; power_floor,
+                         (cl_north - cl_south) / np.maximum(denom, power_floor),
+                         0.0)
+
+    # Slope of Δ_ℓ regressed on (-1)^ℓ
+    ell = np.arange(lmin, lmax + 1)
+    parity = (-1.0) ** ell            # +1 for even ℓ, -1 for odd ℓ
+    slope = float(np.polyfit(parity, delta_ell, 1)[0])
+
+    return slope
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the parity-dependent hemispherical asymmetry slope.&quot;&quot;&quot;
+    sims = np.array(sim_results, dtype=float)
+    sims_finite = sims[np.isfinite(sims)]
+    n_sims = len(sims_finite)
+
+    if n_sims == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims_finite))
+    std_s = float(np.std(sims_finite, ddof=1)) if n_sims &gt; 1 else 0.0
+    p_upper = float(np.mean(sims_finite &gt;= planck_stat))
+    p_lower = float(np.mean(sims_finite &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else np.nan
+
+    if planck_stat &gt; 0:
+        tail_note = (&quot;Planck shows even-ℓ modes with relatively more power in ecliptic north &quot;
+                     &quot;than odd-ℓ modes, compared to simulations.&quot;)
+    else:
+        tail_note = (&quot;Planck shows odd-ℓ modes with relatively more power in ecliptic north &quot;
+                     &quot;than even-ℓ modes, compared to simulations.&quot;)
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n_sims,
+        &quot;tail_note&quot;: tail_note,
+        &quot;interpretation&quot;: (
+            &quot;This statistic measures whether the ecliptic hemispherical power asymmetry at &quot;
+            &quot;low multipoles (ℓ = 2–32) correlates with parity (-1)^ℓ. For each multipole, &quot;
+            &quot;the fractional power difference between the ecliptic north and south hemispheres &quot;
+            &quot;is computed as Δ_ℓ = (C_ℓ^N − C_ℓ^S) / (C_ℓ^N + C_ℓ^S). A linear regression &quot;
+            &quot;of Δ_ℓ against (-1)^ℓ yields the reported slope. A positive slope means even-ℓ &quot;
+            &quot;modes contribute relatively more power to the ecliptic north, while a negative &quot;
+            &quot;slope means odd-ℓ modes dominate the north. In isotropic ΛCDM the slope should &quot;
+            &quot;be consistent with zero; a significant non-zero value could indicate parity-&quot;
+            &quot;dependent large-scale anomalies or foreground contamination.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Parity-Dependent Hemispherical Asymmetry Slope&quot;,
+            &quot;xlabel&quot;: &quot;Slope of Δ_ℓ vs (−1)^ℓ&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck slope = {planck_stat:.4f}. &quot;
+                f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, p(two-sided) = {p_two:.3f}. &quot;
+                f&quot;Positive: even-ℓ power relatively stronger in ecliptic north.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-68-low-parity-dependent-hemispherical-power-asymmetry-slope.png" alt="Statistic distribution for Low-ℓ Parity-Dependent Hemispherical Power Asymmetry Slope">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.32</td></tr>
+<tr><th>One-tailed p-value</th><td>0.16</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.32</td></tr>
+<tr><th>Sigma</th><td>0.994</td></tr>
+<tr><th>Planck statistic</th><td>0.0111</td></tr>
+<tr><th>Simulation mean</th><td>0.000967</td></tr>
+<tr><th>Simulation std.</th><td>0.0111</td></tr>
+<tr><th>Simulation median</th><td>0.000797</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>parity</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-68-low-parity-dependent-hemispherical-power-asymmetry-slope.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-68-low-parity-dependent-hemispherical-power-asymmetry-slope.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-68-low-parity-dependent-hemispherical-power-asymmetry-slope.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-68-low-parity-dependent-hemispherical-power-asymmetry-slope.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-68-low-parity-dependent-hemispherical-power-asymmetry-slope.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-68-low-parity-dependent-hemispherical-power-asymmetry-slope.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

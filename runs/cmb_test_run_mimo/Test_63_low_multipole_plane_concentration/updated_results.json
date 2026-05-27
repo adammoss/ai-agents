@@ -1,0 +1,49 @@
+{
+  "results": {
+    "test_name": "Low-\u2113 Multipole Plane Concentration",
+    "test_description": "Compute the principal axes of the temperature field for each multipole \u2113=2,3,4,5 using the quadrupolar tensor (a_{\u2113m} coefficients). Extract the normal vector to the plane defined by the two largest axes for each \u2113. For the set of normal vectors, compute the concentration parameter \u03ba of a von Mises-Fisher distribution fit to their directions on the sphere. The statistic is \u03ba, which measures how tightly the low-multipole planes are aligned with each other (higher \u03ba means more concentrated normals, implying a common preferred plane).",
+    "test_hypothesis": "The observed alignment of low-multipole planes (\u2113=2-5) in the CMB is unexpectedly strong, resulting in a significantly higher concentration parameter \u03ba compared to standard \u039bCDM simulations.",
+    "test_type": "one-tailed, upper",
+    "justification": "The anomaly test specifically seeks evidence for an *excess* alignment of the planes defined by low multipoles. The code defines the p-value as the fraction of simulations with \u03ba *greater than or equal to* the observed Planck value (`p_value = float(np.mean(sims_finite >= planck_stat))`). This indicates the primary interest is in the upper tail of the simulation distribution, where the observed \u03ba is abnormally large. The scientific context of \"preferred plane\" anomalies also suggests a directional hypothesis: if there is an anomaly, the planes should be *more* aligned than expected by chance, not less. Therefore, a one-tailed upper test is appropriate.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 3.980453911414284,
+    "mean_sim_stat": 5.323395541297162,
+    "std_sim_stat": 3.418162823258272,
+    "median_sim_stat": 4.385889286783327,
+    "sigma": 0.27931903444745415,
+    "p_value_one_tailed": 0.61,
+    "tail": "upper"
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Low-\u2113 Multipole Plane Concentration: \"\n    \"For each multipole \u2113=2,3,4,5, compute the quadrupolar tensor of T_\u2113\u00b2 \"\n    \"on the sphere to find principal axes. Extract the normal to the plane \"\n    \"of the two largest axes for each \u2113. Fit a von Mises-Fisher distribution \"\n    \"to the set of normal vectors; the statistic is the concentration \"\n    \"parameter \u03ba (higher \u03ba means the low-\u2113 multipole planes share a common \"\n    \"preferred plane).\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return von Mises-Fisher \u03ba for the alignment of low-\u2113 multipole planes.\"\"\"\n\n    masked = ~np.isfinite(m)\n    m_clean = m.copy()\n    m_clean[masked] = 0.0\n\n    nside = hp.npix2nside(len(m))\n    lmax = 5\n\n    alm = hp.map2alm(m_clean, lmax=lmax)\n\n    # Pixel directions in Cartesian\n    npix = hp.nside2npix(nside)\n    theta, phi = hp.pix2ang(nside, np.arange(npix))\n    n_vec = np.column_stack([\n        np.sin(theta) * np.cos(phi),\n        np.sin(theta) * np.sin(phi),\n        np.cos(theta),\n    ])  # (npix, 3)\n\n    normals = []\n\n    for ell in [2, 3, 4, 5]:\n        # Zero out all alm except this \u2113\n        alm_ell = np.zeros_like(alm)\n        for m_ in range(ell + 1):\n            idx = hp.Alm.getidx(lmax, ell, m_)\n            alm_ell[idx] = alm[idx]\n\n        # Reconstruct single-\u2113 map\n        T_ell = hp.alm2map(alm_ell, nside, lmax=lmax, verbose=False)\n\n        # Quadrupolar tensor: M_ij = \u03a3_p T_\u2113\u00b2(p) n_i(p) n_j(p)\n        T2 = T_ell ** 2\n        w_n = T2[:, None] * n_vec          # (npix, 3)\n        M = n_vec.T @ w_n                   # (3, 3)\n\n        # Eigenvalues in ascending order; smallest \u2192 normal to the plane\n        evals, evecs = np.linalg.eigh(M)\n        normal = evecs[:, 0]\n        normals.append(normal)\n\n    normals = np.array(normals)  # (4, 3)\n\n    # Handle antipodal symmetry: normals define planes, so n and -n are\n    # equivalent.  Find orientations that maximise the resultant length.\n    n_vecs = len(normals)\n    best_R2 = -1.0\n\n    for signs in range(1 << n_vecs):\n        s = np.array([1 if (signs >> i) & 1 else -1 for i in range(n_vecs)])\n        oriented = normals * s[:, None]\n        s_sum = oriented.sum(axis=0)\n        R2 = s_sum @ s_sum\n        if R2 > best_R2:\n            best_R2 = R2\n\n    R = np.sqrt(best_R2)\n    R_bar = R / n_vecs\n\n    # MLE for \u03ba: solve  coth(\u03ba) \u2212 1/\u03ba = R_bar  via Newton's method\n    if R_bar >= 1.0 - 1e-12:\n        kappa = 1e4\n    elif R_bar < 1e-10:\n        kappa = 0.0\n    else:\n        # Initial guess (Banerjee et al. 2005 approximation)\n        kappa = R_bar * (3.0 - R_bar ** 2) / max(1.0 - R_bar ** 2, 1e-10)\n        kappa = max(kappa, 1e-6)\n\n        for _ in range(100):\n            if kappa > 500:\n                f = 1.0 - 1.0 / kappa - R_bar\n                fp = 1.0 / kappa ** 2\n            else:\n                ck = 1.0 / np.tanh(kappa)\n                f = ck - 1.0 / kappa - R_bar\n                fp = -1.0 / np.sinh(kappa) ** 2 + 1.0 / kappa ** 2\n\n            if abs(fp) < 1e-30:\n                break\n            delta = f / fp\n            kappa -= delta\n            kappa = max(kappa, 1e-10)\n            if abs(delta) < 1e-12 * max(1.0, kappa):\n                break\n\n    return float(kappa)\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Interpret the von Mises-Fisher \u03ba relative to simulation ensemble.\"\"\"\n    sims = np.array(sim_results, dtype=float)\n    sims_finite = sims[np.isfinite(sims)]\n    n_sims = len(sims_finite)\n\n    if n_sims == 0:\n        return {\"planck_stat\": planck_stat, \"note\": \"No finite simulation results.\"}\n\n    mean_s = float(np.mean(sims_finite))\n    std_s = float(np.std(sims_finite, ddof=1)) if n_sims > 1 else 0.0\n    p_value = float(np.mean(sims_finite >= planck_stat)) if n_sims > 0 else np.nan\n    z_score = (planck_stat - mean_s) / std_s if std_s > 0 else np.nan\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"sim_mean\": mean_s,\n        \"sim_std\": std_s,\n        \"z_score\": z_score,\n        \"p_value\": p_value,\n        \"n_sims\": n_sims,\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-\u2113 Multipole Plane Concentration\",\n            \"xlabel\": r\"von Mises\u2013Fisher $\\kappa$\",\n            \"ylabel\": \"Count\",\n            \"bins\": 30,\n            \"caption\": (\n                f\"Planck \u03ba = {planck_stat:.3f}.  \"\n                f\"Sim mean \u00b1 \u03c3 = {mean_s:.3f} \u00b1 {std_s:.3f}.  \"\n                f\"z = {z_score:.2f}, p = {p_value:.3f}  \"\n                f\"(fraction of sims \u2265 Planck).\"\n            ),\n        },\n    }\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": 2.321394634290698,
+    "sim_max": 41.97045894804583,
+    "z_score": -0.3926875519161969,
+    "thresholds": [
+      2.7612856173462506,
+      13.757283283243742
+    ],
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-\u2113 Multipole Plane Concentration",
+      "xlabel": "von Mises\u2013Fisher $\\kappa$",
+      "ylabel": "Count",
+      "bins": 30,
+      "caption": "Planck \u03ba = 3.980.  Sim mean \u00b1 \u03c3 = 5.323 \u00b1 3.420.  z = -0.39, p = 0.610  (fraction of sims \u2265 Planck)."
+    }
+  },
+  "updated_summary": {
+    "Test name": "** Low-\u2113 Multipole Plane Concentration",
+    "Description": "** For each multipole \u2113=2,3,4,5, compute the quadrupolar tensor of the temperature field to find principal axes. Extract the normal vector to the plane of the two largest axes per \u2113. Fit a von Mises-Fisher distribution to the four normal vectors; the statistic is the concentration parameter \u03ba (higher \u03ba implies a common preferred plane).",
+    "Results": "** Observed Planck \u03ba = 3.980, compared to simulation mean \u00b1 \u03c3 = 5.323 \u00b1 3.420. The z-score is \u22120.39, indicating the observed value lies slightly *below* the simulation mean. The one-tailed upper p-value is 0.61, meaning 61% of \u039bCDM simulations produce \u03ba values \u2265 the Planck value.",
+    "Interpretation": "** The low-multipole planes in Planck data show no unusual degree of mutual alignment. The observed concentration is entirely consistent with \u2014 and actually marginally less than \u2014 what \u039bCDM simulations predict. There is no evidence for a preferred plane in the low-\u2113 multipoles using this statistic.",
+    "Meets hypothesis?": "** No",
+    "Comparison to literature": "** Low-\u2113 alignment anomalies have been extensively studied, e.g., Abramo et al. (2006) who tested multipole vector correlations and normal-plane alignments for \u2113=2\u20135 using WMAP data, finding quadrupole\u2013octopole alignment at the ~10% level. The present test uses a similar conceptual framework but applies a von Mises-Fisher concentration parameter rather than pairwise angular statistics, making it methodologically distinct.",
+    "Test novelty": "** Variation",
+    "Verdict": "** No anomalies found"
+  }
+}

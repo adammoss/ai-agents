@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Kurtosis Dipole Amplitude · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 69 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Kurtosis Dipole Amplitude</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label borderline">Borderline</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The dipole amplitude of the kurtosis over Nside=8 regions is larger than expected from isotropic ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Fit a dipole to the excess kurtosis of CMB temperature values within 768 Nside=8 regions, then take the fitted dipole amplitude as the test statistic.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The Planck dipole amplitude (0.0617) exceeds the simulation mean (0.0389 ± 0.0166), yielding z = 1.38 and an upper-tail p-value of 0.088.</p>
+          <p>The observed kurtosis dipole is larger than the ΛCDM simulation average, suggesting a possible directional preference in non-Gaussianity, but it does not reach the conventional 2σ (p &lt; 0.05) anomaly threshold.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test measures the amplitude of a dipole fit to kurtosis values across the sky, where the dipole amplitude is non-negative. The anomaly interpretation explicitly focuses on whether the value is &quot;significantly elevated,&quot; indicating a directional preference in non-Gaussianity. Since only large positive deviations from the expected null distribution (centered near zero) would constitute evidence for such an anomaly, an upper-tailed test is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Literature searches did not find direct prior studies of this specific kurtosis dipole statistic, making a direct comparison difficult. Related work on CMB dipoles and non-Gaussianity exists (e.g., Lineweaver 1996; Luongo et al. 2022; Yokoyama et al. 2011), but not this exact test.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Kurtosis Dipole Amplitude: For each Nside=8 region (768 pixels), compute &quot;
+    &quot;the excess kurtosis of the underlying higher-resolution CMB temperature values. &quot;
+    &quot;Fit a dipole model (monopole + dipole) to these kurtosis values via least squares &quot;
+    &quot;and return the dipole amplitude as the anomaly statistic. This measures whether &quot;
+    &quot;non-Gaussianity (heaviness of tails) has a preferred spatial direction.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the dipole amplitude of kurtosis values over Nside=8 regions.&quot;&quot;&quot;
+    nside_high = hp.npix2nside(len(m))
+    nside_low = 8
+    npix_low = hp.nside2npix(nside_low)  # 768
+
+    # Handle trivial case: map is already at Nside=8 or lower
+    if nside_high &lt;= nside_low:
+        return 0.0
+
+    finite_mask = np.isfinite(m)
+    if np.sum(finite_mask) &lt; npix_low:
+        return 0.0
+
+    valid_pix = np.where(finite_mask)[0]
+    valid_vals = m[valid_pix]
+
+    # Map each higher-resolution pixel to its Nside=8 parent
+    ratio = nside_high // nside_low
+    parent_pix = valid_pix // (ratio * ratio)
+
+    # Group valid pixels by parent region
+    sort_idx = np.argsort(parent_pix)
+    parent_sorted = parent_pix[sort_idx]
+    vals_sorted = valid_vals[sort_idx]
+    unique_parents, counts = np.unique(parent_sorted, return_counts=True)
+    split_points = np.cumsum(counts)[:-1]
+    grouped_vals = np.split(vals_sorted, split_points)
+
+    # Compute excess kurtosis for each Nside=8 region
+    kurtosis = np.full(npix_low, np.nan)
+    min_pixels = 10  # minimum for a reliable estimate
+
+    for i, (parent, vals) in enumerate(zip(unique_parents, grouped_vals)):
+        n = len(vals)
+        if n &lt; min_pixels:
+            continue
+        mu = np.mean(vals)
+        m2 = np.mean((vals - mu) ** 2)
+        if m2 &lt;= 0:
+            continue
+        m4 = np.mean((vals - mu) ** 4)
+        kurtosis[parent] = m4 / (m2 ** 2) - 3.0
+
+    # Collect finite kurtosis values
+    finite_k = np.isfinite(kurtosis)
+    n_valid = np.sum(finite_k)
+    if n_valid &lt; 4:
+        return 0.0
+
+    k_vals = kurtosis[finite_k]
+
+    # Pixel centers for Nside=8 in Cartesian coordinates
+    theta, phi = hp.pix2ang(nside_low, np.arange(npix_low))
+    x = np.sin(theta) * np.cos(phi)
+    y = np.sin(theta) * np.sin(phi)
+    z = np.cos(theta)
+
+    x_f = x[finite_k]
+    y_f = y[finite_k]
+    z_f = z[finite_k]
+
+    # Fit dipole: kurtosis = a + d_x*x + d_y*y + d_z*z
+    # Normalize coordinates to improve conditioning
+    A = np.column_stack([np.ones(n_valid), x_f, y_f, z_f])
+    coeffs, _, _, _ = np.linalg.lstsq(A, k_vals, rcond=None)
+
+    d_x, d_y, d_z = coeffs[1], coeffs[2], coeffs[3]
+    dipole_amplitude = np.sqrt(d_x**2 + d_y**2 + d_z**2)
+
+    return float(dipole_amplitude)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the kurtosis dipole amplitude.&quot;&quot;&quot;
+    sims = np.array(sim_results, dtype=float)
+    sims_finite = sims[np.isfinite(sims)]
+    n_sims = len(sims_finite)
+
+    if n_sims == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims_finite))
+    std_s = float(np.std(sims_finite, ddof=1)) if n_sims &gt; 1 else 0.0
+    p_upper = float(np.mean(sims_finite &gt;= planck_stat))
+    p_lower = float(np.mean(sims_finite &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else np.nan
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n_sims,
+        &quot;interpretation&quot;: (
+            &quot;This statistic measures whether the non-Gaussianity of the CMB temperature &quot;
+            &quot;field (as characterized by excess kurtosis) has a preferred spatial direction. &quot;
+            &quot;For each Nside=8 region (768 pixels covering the full sky), the excess kurtosis &quot;
+            &quot;of temperature values from the higher-resolution map is computed. A dipole &quot;
+            &quot;model (monopole + dipole) is then fit to these kurtosis values via least &quot;
+            &quot;squares. The dipole amplitude quantifies the degree of directional preference &quot;
+            &quot;in the tail-heaviness of the temperature distribution. In isotropic ΛCDM, the &quot;
+            &quot;kurtosis dipole amplitude should be small; a significantly elevated value could &quot;
+            &quot;indicate anisotropic non-Gaussianity, residual systematics, or foreground &quot;
+            &quot;contamination with a preferred direction.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Kurtosis Dipole Amplitude&quot;,
+            &quot;xlabel&quot;: &quot;Dipole Amplitude (kurtosis)&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck amplitude = {planck_stat:.4f}. &quot;
+                f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, p(two-sided) = {p_two:.3f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-69-low-kurtosis-dipole-amplitude.png" alt="Statistic distribution for Low-ℓ Kurtosis Dipole Amplitude">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.088</td></tr>
+<tr><th>One-tailed p-value</th><td>0.088</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.176</td></tr>
+<tr><th>Sigma</th><td>1.353</td></tr>
+<tr><th>Planck statistic</th><td>0.0617</td></tr>
+<tr><th>Simulation mean</th><td>0.0389</td></tr>
+<tr><th>Simulation std.</th><td>0.0166</td></tr>
+<tr><th>Simulation median</th><td>0.0372</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-69-low-kurtosis-dipole-amplitude.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-69-low-kurtosis-dipole-amplitude.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-69-low-kurtosis-dipole-amplitude.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-69-low-kurtosis-dipole-amplitude.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-69-low-kurtosis-dipole-amplitude.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-69-low-kurtosis-dipole-amplitude.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

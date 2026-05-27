@@ -1,0 +1,55 @@
+{
+  "results": {
+    "test_name": "Low-\u2113 Gradient Magnitude Interquartile Range",
+    "test_description": "Compute the gradient magnitude of the low-\u2113 (\u2113=2-10) temperature map. The gradient is calculated in spherical harmonic space up to \u2113=10 and then sampled at the nside=256 pixels. The interquartile range (IQR) of the gradient magnitudes over the unmasked pixels is then calculated as the difference between the 75th and 25th percentiles. This scalar measures the statistical dispersion of the gradient magnitudes in the low-\u2113 map, providing a robust summary of the spatial variation without relying on parametric assumptions.",
+    "test_hypothesis": "The low-\u2113 (\u2113=2-10) gradient magnitude interquartile range (IQR) of the CMB temperature map deviates significantly from the distribution expected based on simulations, indicating an anomaly in the spatial variation of large-scale temperature patterns.",
+    "test_type": "two-tailed",
+    "justification": "The test is exploratory and aims to detect any significant deviation from the simulated distribution, whether the gradient dispersion is unusually low (indicating a smoother low-\u2113 pattern) or unusually high (indicating sharper features). This is evident from the code, which computes both upper and lower p-values and uses a two-sided p-value for interpretation, with no directional preference specified in the test description.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 113.82454871245395,
+    "mean_sim_stat": 135.47309049893752,
+    "std_sim_stat": 12.311836602614918,
+    "median_sim_stat": 135.51035005640387,
+    "sigma": 1.78661336549347,
+    "p_value_two_tailed": 0.074
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Compute the gradient magnitude of the low-\u2113 (\u2113=2-10) temperature map. \"\n    \"The gradient is calculated in spherical harmonic space up to \u2113=10 and then \"\n    \"sampled at the nside=256 pixels. The interquartile range (IQR) of the gradient \"\n    \"magnitudes over the unmasked pixels is then calculated as the difference between \"\n    \"the 75th and 25th percentiles. This scalar measures the statistical dispersion \"\n    \"of the gradient magnitudes in the low-\u2113 map, providing a robust summary of the \"\n    \"spatial variation without relying on parametric assumptions.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return the IQR of gradient magnitudes for the low-\u2113 (\u2113=2-10) temperature map.\n\n    Steps:\n    1. Replace NaN pixels with 0.0 for healpy compatibility.\n    2. Compute spherical harmonic coefficients a_lm up to \u2113=10.\n    3. Zero out \u2113=0 and \u2113=1 to isolate \u2113=2-10.\n    4. Reconstruct the gradient components (d\u03b8, d\u03c6) via alm2map_der1.\n    5. Compute gradient magnitude G = sqrt(d\u03b8\u00b2 + d\u03c6\u00b2).\n    6. Return IQR = Q75(G) - Q25(G) over unmasked pixels.\n    \"\"\"\n    valid = np.isfinite(m)\n    n_valid = int(np.sum(valid))\n\n    if n_valid < 50:\n        return 0.0\n\n    # Replace NaN with 0.0 for healpy transforms\n    m_clean = np.where(valid, m, 0.0)\n    nside = hp.npix2nside(len(m_clean))\n\n    # Band-limit to \u2113_max = 10\n    lmax = 10\n    alm = hp.map2alm(m_clean, lmax=lmax, pol=False)\n\n    # Zero out \u2113=0 and \u2113=1 to isolate low-\u2113 features in \u2113=2-10\n    for ell in range(0, 2):\n        for m_val in range(0, ell + 1):\n            idx = hp.Alm.getidx(lmax, ell, m_val)\n            alm[idx] = 0.0\n\n    # Compute gradient: alm2map_der1 returns (map, dtheta, dphi)\n    _, grad_theta, grad_phi = hp.alm2map_der1(alm, nside, lmax=lmax)\n\n    # Gradient magnitude\n    grad_mag = np.sqrt(grad_theta ** 2 + grad_phi ** 2)\n\n    # Select only unmasked (valid) pixels\n    grad_valid = grad_mag[valid]\n\n    if len(grad_valid) < 50:\n        return 0.0\n\n    # Interquartile range: Q75 - Q25\n    q25 = np.percentile(grad_valid, 25)\n    q75 = np.percentile(grad_valid, 75)\n    iqr = q75 - q25\n\n    return float(iqr)\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Interpret the Low-\u2113 Gradient Magnitude IQR statistic.\"\"\"\n    sims = np.asarray(sim_results, dtype=float)\n    sims = sims[np.isfinite(sims)]\n    n = len(sims)\n\n    if n == 0:\n        return {\"planck_stat\": planck_stat, \"note\": \"No finite simulation results.\"}\n\n    mean_s = float(np.mean(sims))\n    std_s = float(np.std(sims, ddof=1)) if n > 1 else 0.0\n    median_s = float(np.median(sims))\n    rank = int(np.sum(sims <= planck_stat))\n    p_upper = float(np.mean(sims >= planck_stat))\n    p_lower = float(np.mean(sims <= planck_stat))\n    p_two = min(2.0 * min(p_upper, p_lower), 1.0)\n    z_score = (planck_stat - mean_s) / std_s if std_s > 0 else 0.0\n\n    if std_s > 0:\n        pct_rank = rank / n * 100\n    else:\n        pct_rank = 50.0\n\n    if pct_rank < 5:\n        dispersion_desc = \"much lower gradient dispersion than expected (very smooth low-\u2113 pattern)\"\n    elif pct_rank < 25:\n        dispersion_desc = \"notably low gradient dispersion (relatively smooth large-scale features)\"\n    elif pct_rank < 75:\n        dispersion_desc = \"typical gradient dispersion consistent with simulations\"\n    elif pct_rank < 95:\n        dispersion_desc = \"notably high gradient dispersion (sharper large-scale features)\"\n    else:\n        dispersion_desc = \"much higher gradient dispersion than expected (anomalously sharp low-\u2113 pattern)\"\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"gradient_iqr\": planck_stat,\n        \"sim_mean\": mean_s,\n        \"sim_std\": std_s,\n        \"sim_median\": median_s,\n        \"z_score\": z_score,\n        \"rank\": rank,\n        \"p_value_upper\": p_upper,\n        \"p_value_lower\": p_lower,\n        \"p_value_two_sided\": p_two,\n        \"n_sims\": n,\n        \"percentile_rank\": pct_rank,\n        \"dispersion_description\": dispersion_desc,\n        \"interpretation\": (\n            f\"The interquartile range (IQR) of the low-\u2113 (\u2113=2-10) gradient magnitude \"\n            f\"is {planck_stat:.6f} \u00b5K/rad. This measures the spread of spatial variation \"\n            f\"in the large-scale temperature pattern. \"\n            f\"Planck IQR = {planck_stat:.6f} ({dispersion_desc}). \"\n            f\"Simulation mean \u00b1 std = {mean_s:.6f} \u00b1 {std_s:.6f}. \"\n            f\"z = {z_score:.2f}, two-sided p = {p_two:.4f}.\"\n        ),\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-\u2113 Gradient Magnitude Interquartile Range\",\n            \"xlabel\": \"IQR of gradient magnitude (\u00b5K/rad)\",\n            \"ylabel\": \"Count\",\n            \"bins\": 30,\n            \"caption\": (\n                f\"Planck IQR = {planck_stat:.6f}. \"\n                f\"Sim mean \u00b1 std = {mean_s:.6f} \u00b1 {std_s:.6f}. \"\n                f\"z = {z_score:.2f}, P(two-sided) = {p_two:.4f}.\"\n            ),\n        },\n    }\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": 101.61064617200495,
+    "sim_max": 185.14232392862922,
+    "z_score": -1.7574725450444237,
+    "thresholds": [
+      112.71620804946123,
+      160.92017831647237
+    ],
+    "gradient_iqr": 113.82454871245395,
+    "rank": 37,
+    "p_value_upper": 0.963,
+    "p_value_lower": 0.037,
+    "percentile_rank": 3.6999999999999997,
+    "dispersion_description": "much lower gradient dispersion than expected (very smooth low-\u2113 pattern)",
+    "interpretation": "The interquartile range (IQR) of the low-\u2113 (\u2113=2-10) gradient magnitude is 113.824549 \u00b5K/rad. This measures the spread of spatial variation in the large-scale temperature pattern. Planck IQR = 113.824549 (much lower gradient dispersion than expected (very smooth low-\u2113 pattern)). Simulation mean \u00b1 std = 135.473090 \u00b1 12.317997. z = -1.76, two-sided p = 0.0740.",
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-\u2113 Gradient Magnitude Interquartile Range",
+      "xlabel": "IQR of gradient magnitude (\u00b5K/rad)",
+      "ylabel": "Count",
+      "bins": 30,
+      "caption": "Planck IQR = 113.824549. Sim mean \u00b1 std = 135.473090 \u00b1 12.317997. z = -1.76, P(two-sided) = 0.0740."
+    }
+  },
+  "updated_summary": {
+    "Test name": "Low-\u2113 Gradient Magnitude Interquartile Range",
+    "Description": "This test measures the statistical dispersion of spatial variation in the large-scale (\u2113=2-10) CMB temperature pattern by computing the interquartile range (IQR) of the gradient magnitudes. The gradient is calculated from the low-\u2113 spherical harmonic coefficients, providing a robust, non-parametric summary of the map's spatial gradient structure.",
+    "Results": "The Planck IQR value is 113.82 \u00b5K/rad. This is lower than the simulation mean of 135.47 \u00b1 12.31 \u00b5K/rad, corresponding to a z-score of -1.76 and a two-tailed p-value of 0.074.",
+    "Interpretation": "The large-scale CMB temperature map exhibits notably lower gradient dispersion than expected from \u039bCDM simulations, indicating a smoother-than-anticipated pattern at the largest angular scales. However, this deviation does not reach the conventional 2\u03c3 significance threshold (p < 0.05).",
+    "Meets hypothesis?": "No",
+    "Comparison to literature": "While low-\u2113 anomalies like the quadrupole-octupole alignment and hemispherical power asymmetry are well-studied, the gradient magnitude IQR as a statistic appears to be a new probe of large-scale spatial variation. A direct literature comparison for this specific metric was not found (see note below).",
+    "Test novelty": "Novel",
+    "Verdict": "Borderline"
+  }
+}

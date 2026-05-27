@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Disc-Local-Power Dipole Amplitude · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 01 · Mimo V2.5 Pro</p>
+      <h1>Disc-Local-Power Dipole Amplitude</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · hemispherical · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The observed Planck CMB temperature map exhibits a stronger dipole modulation of large-scale power (l ∈ [2,10]) than expected from lensed-ΛCDM simulations, as measured by the disc-local power dipole amplitude D.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The SMICA temperature map is bandpass-filtered to l∈[2,10]. For each pixel at nside=256, local power is computed within a 15° disc via harmonic-space convolution (accounting for the mask). The monopole and dipole of the resulting local-power map are extracted, and the test statistic D = dipole amplitude / monopole is computed. D is compared against 1000 lensed-ΛCDM simulations processed identically.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck D = 0.377. Simulation mean D = 0.268 ± 0.111 (z-score ≈ 0.97σ). One-tailed upper p-value = 0.165; 16.5% of simulations exceed the data value. No significant excess is detected.</p>
+          <p>The measured dipole modulation of large-scale power (l∈[2,10]) is slightly elevated compared to the simulation mean but lies well within the expected scatter. The result is consistent with standard lensed-ΛCDM fluctuations and does not constitute evidence for hemispherical power asymmetry.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test description explicitly states &quot;Large D indicates directional variation of large-scale power, consistent with hemispherical power asymmetry or dipole modulation.&quot; The scientific motivation is to detect an anomalous directional bias (an excess), not merely any deviation from the simulation mean. The code&#x27;s p-value is calculated as the fraction of simulations with D ≥ the observed value (`sim_arr &gt;= planck_stat`), confirming a one-tailed upper-tail test. There is no physical expectation or interest in a D value that is unusually small (lower-tail), making a two-tailed test inappropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The local variance estimator (LVE) for hemispherical power asymmetry has been widely applied to WMAP and Planck data (e.g., Aluri &amp; Shafieloo 2017; Sanyal et al. 2026, arXiv:2602.10059). Previous studies report ~2–4% power asymmetry in polarization and modest signals in temperature, typically at marginal significance. The present implementation differs in using harmonic-space disc convolution rather than brute-force pixel averaging, and in restricting to l∈[2,10]. The null result here is broadly consistent with literature findings that temperature-based power asymmetry signals are weak in Planck data.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (&quot;Disc-local power dipole amplitude. The SMICA temperature map is bandpass-filtered to l ∈ [2,10]. &quot;
+    &quot;For each pixel the local variance is computed within a 15 deg disc (unmasked pixels only). &quot;
+    &quot;The monopole and dipole of the resulting local-power map are extracted via SH decomposition. &quot;
+    &quot;The test statistic is D = sqrt(|a10|^2 + 2*|a11|^2) / |a00|, accounting for both m=±1 dipole terms. &quot;
+    &quot;Large D indicates directional variation of large-scale power (hemispherical power asymmetry).&quot;)
+
+
+def analyze_map(m):
+    m = np.array(m, dtype=np.float64)
+    nside = hp.npix2nside(len(m))
+    mask = np.isfinite(m).astype(np.float64)
+
+    lmin, lmax = 2, 10
+
+    # Fill masked pixels with 0 for harmonic transforms
+    m_fill = np.where(np.isfinite(m), m, 0.0)
+
+    # Bandpass filter: keep only l in [2, 10] using almxfl for proper l-indexing
+    alm = hp.map2alm(m_fill, lmax=lmax)
+    fl = np.zeros(lmax + 1)
+    fl[lmin:lmax + 1] = 1.0
+    f_alm = hp.almxfl(alm, fl)
+    f = hp.alm2map(f_alm, nside, lmax=lmax)
+
+    # Zero out masked pixels in filtered map
+    f = np.where(np.isfinite(m), f, 0.0)
+
+    # Compute f^2
+    f2 = f * f
+
+    # === Disc kernel in harmonic space ===
+    # For a disc of radius theta_disc, the normalized kernel coefficients are:
+    #   kernel[0] = 1
+    #   kernel[l] = W_l / W_0  for l &gt;= 1
+    # where W_l = int_{cos(theta)}^{1} P_l(x) dx
+    # W_0 = 1 - cos(theta)
+    # W_l = [P_{l-1}(cos_theta) - P_{l+1}(cos_theta)] / (2l+1)  for l &gt;= 1
+
+    lmax_kernel = 30
+    theta_disc = np.radians(15.0)
+    cos_theta = np.cos(theta_disc)
+
+    # Compute P_l(cos_theta) for l = 0, ..., lmax_kernel+1 using standard recurrence
+    P = np.zeros(lmax_kernel + 2)
+    P[0] = 1.0
+    P[1] = cos_theta
+    for l in range(1, lmax_kernel + 1):
+        P[l + 1] = ((2 * l + 1) * cos_theta * P[l] - l * P[l - 1]) / (l + 1)
+
+    # Compute W_l
+    kernel = np.zeros(lmax_kernel + 1)
+    kernel[0] = 1.0 - cos_theta
+    for l in range(1, lmax_kernel + 1):
+        kernel[l] = (P[l - 1] - P[l + 1]) / (2 * l + 1)
+
+    # Normalize so kernel[0] = 1 (disc-averaging operator)
+    kernel /= kernel[0]
+
+    # Convolve f^2 and mask with disc kernel via harmonic smoothing
+    f2_smoothed = hp.smoothing(f2, beam_window=kernel, lmax=lmax_kernel)
+    mask_smoothed = hp.smoothing(mask, beam_window=kernel, lmax=lmax_kernel)
+
+    # Local power: kernel-weighted average of f^2 over unmasked pixels in disc
+    P_map = np.where(mask_smoothed &gt; 1e-10, f2_smoothed / mask_smoothed, 0.0)
+
+    # Extract monopole and dipole of P(n)
+    alm_P = hp.map2alm(P_map, lmax=1)
+    # alm_P indices: [a_{00}, a_{10}, a_{1,1}]
+    # For real maps, |a_{1,-1}|^2 = |a_{1,1}|^2
+    # Total dipole amplitude: sqrt(|a10|^2 + |a11|^2 + |a1,-1|^2) = sqrt(|a10|^2 + 2*|a11|^2)
+
+    a00 = alm_P[0]        # real (m=0)
+    a10 = alm_P[1]        # real (m=0)
+    a11 = alm_P[2]        # complex (m=1)
+
+    dipole_amp = np.sqrt(np.abs(a10) ** 2 + 2.0 * np.abs(a11) ** 2)
+    monopole = np.abs(a00)
+
+    if monopole &lt; 1e-30:
+        return 0.0
+
+    D = float(dipole_amp / monopole)
+    return D
+
+
+def summarize_results(planck_stat, sim_results):
+    sim_arr = np.array(sim_results)
+    finite_mask = np.isfinite(sim_arr)
+    n_finite = finite_mask.sum()
+
+    if n_finite &gt; 0:
+        p_value = float(np.sum(sim_arr[finite_mask] &gt;= planck_stat) / n_finite)
+    else:
+        p_value = float(&#x27;nan&#x27;)
+
+    result = {
+        &quot;test_description&quot;: test_description,
+        &quot;planck_stat&quot;: float(planck_stat),
+        &quot;p_value&quot;: p_value,
+        &quot;n_simulations&quot;: len(sim_results),
+        &quot;n_valid&quot;: int(n_finite),
+        &quot;sim_mean&quot;: float(np.nanmean(sim_arr)),
+        &quot;sim_std&quot;: float(np.nanstd(sim_arr)),
+        &quot;exceeds_95th_percentile&quot;: bool(p_value &lt; 0.05),
+    }
+
+    result[&quot;plot_spec&quot;] = {
+        &quot;kind&quot;: &quot;histogram&quot;,
+        &quot;title&quot;: &quot;Disc-Local Power Dipole Amplitude&quot;,
+        &quot;xlabel&quot;: &quot;D = dipole_amplitude / monopole&quot;,
+        &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+        &quot;bins&quot;: 40,
+        &quot;caption&quot;: (f&quot;Histogram of D values from {n_finite} lensed-LCDM simulations. &quot;
+                    f&quot;Planck measured D = {planck_stat:.4f} (p = {p_value:.3f}). &quot;
+                    f&quot;Large D indicates hemispherical power asymmetry / dipole modulation of large-scale power.&quot;)
+    }
+
+    return result</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-01-disc-local-power-dipole-amplitude.png" alt="Statistic distribution for Disc-Local-Power Dipole Amplitude">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.165</td></tr>
+<tr><th>One-tailed p-value</th><td>0.165</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.33</td></tr>
+<tr><th>Sigma</th><td>0.974</td></tr>
+<tr><th>Planck statistic</th><td>0.377</td></tr>
+<tr><th>Simulation mean</th><td>0.268</td></tr>
+<tr><th>Simulation std.</th><td>0.111</td></tr>
+<tr><th>Simulation median</th><td>0.257</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>hemispherical</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-01-disc-local-power-dipole-amplitude.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-01-disc-local-power-dipole-amplitude.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-01-disc-local-power-dipole-amplitude.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-01-disc-local-power-dipole-amplitude.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-01-disc-local-power-dipole-amplitude.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-01-disc-local-power-dipole-amplitude.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

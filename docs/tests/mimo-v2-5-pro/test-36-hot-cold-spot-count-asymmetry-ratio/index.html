@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hot-Cold Spot Count Asymmetry Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 36 · Mimo V2.5 Pro</p>
+      <h1>Hot-Cold Spot Count Asymmetry Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>There is an asymmetry between the number of hot and cold spots in the low-ℓ CMB temperature map (R ≠ 0), which may indicate a departure from isotropy or Gaussianity in the large-scale CMB.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The number of local maxima (hot spots) and local minima (cold spots) are identified in the low-ℓ (ℓ ≤ 32) Planck temperature map using an 8-neighbor stencil on the HEALPix grid. The asymmetry ratio R = (N_hot − N_cold) / (N_hot + N_cold) quantifies the imbalance between hot and cold extrema. The statistic is compared against 1000 isotropic ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck yields R = −0.0065. The simulation mean is −0.0011 ± 0.0316, placing the observed value at −0.17σ from the mean (43.8th percentile). The two-tailed p-value is 0.88.</p>
+          <p>The hot and cold spot counts in the large-scale CMB are well-balanced, fully consistent with isotropic Gaussian ΛCDM expectations. The slight excess of cold spots over hot spots is negligible and well within the typical simulation scatter. No evidence for a preferred direction or handedness in the low-ℓ temperature pattern is found.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test statistic R measures the imbalance between hot and cold spots, and can be positive or negative. The code computes a two-sided p-value by considering both tails, and the interpretation handles deviations in either direction without a prior directional expectation. Since the anomaly could manifest as an excess of either hot or cold spots, a two-tailed test is appropriate for exploratory analysis.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No directly comparable studies using this specific formal statistic were found. Related work includes CMB peak count statistics and studies of the CMB Cold Spot anomaly, but the formal asymmetry ratio between hot and cold local extrema at low multipoles does not appear to have been previously investigated as a dedicated anomaly test.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Hot-Cold Spot Count Asymmetry Ratio: &quot;
+    &quot;Compute the number of local maxima (hot spots) and local minima (cold spots) &quot;
+    &quot;in the low-ℓ (ℓ ≤ 32) temperature map. A spot is a pixel whose temperature is &quot;
+    &quot;higher (or lower) than all its immediate neighbors using an 8-neighbor stencil &quot;
+    &quot;on the HEALPix grid. The statistic is R = (N_hot - N_cold) / (N_hot + N_cold), &quot;
+    &quot;measuring the asymmetry between hot and cold extrema in the large-scale CMB field. &quot;
+    &quot;An anomalous R indicates an imbalance in the number of hot versus cold peaks, &quot;
+    &quot;which could reflect a preferred direction or handedness in the large-scale temperature pattern.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute the hot-cold spot count asymmetry ratio R for the low-ℓ temperature map.
+
+    Steps:
+      1. Identify unmasked (finite) pixels; bail out if too few.
+      2. Fill masked pixels with 0 for healpy compatibility.
+      3. Band-limit the map to ℓ ≤ 32 via spherical harmonic transform.
+      4. For each unmasked pixel, find all valid (unmasked) HEALPix neighbors via
+         hp.get_all_neighbours (8-neighbor stencil).
+      5. Identify local maxima (hot spots) and local minima (cold spots): a pixel
+         must be strictly greater (or less) than ALL of its valid neighbors.
+      6. Compute R = (N_hot - N_cold) / (N_hot + N_cold).
+
+    Returns
+    -------
+    float
+        Asymmetry ratio R in [-1, 1]. Returns 0.0 if no valid spots are found.
+    &quot;&quot;&quot;
+    mask = np.isfinite(m)
+    n_valid = np.sum(mask)
+
+    if n_valid &lt; 100:
+        return 0.0
+
+    # Fill masked pixels with 0 for healpy transforms
+    m_filled = np.where(mask, m, 0.0)
+
+    # Band-limit to ℓ ≤ 32 via spherical harmonics
+    lmax = 32
+    alm = hp.map2alm(m_filled, lmax=lmax)
+    nside = hp.get_nside(m_filled)
+    m_low = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    npix = hp.nside2npix(nside)
+
+    # Get up to 8 neighbors for every pixel (shape: 8 × npix)
+    # Missing neighbors are marked with -1
+    all_neighbors = hp.get_all_neighbours(nside, np.arange(npix))
+
+    # Mask indicating which neighbor entries are valid (&gt;= 0)
+    valid_nb = all_neighbors &gt;= 0
+
+    # Look up neighbor temperature values; use -inf for missing so they never
+    # block a pixel from being a hot spot, and +inf so they never block a cold spot
+    # (but we also track which pixels have at least one valid neighbor)
+    has_any_valid = np.any(valid_nb, axis=0)
+
+    # Neighbor values: where invalid, use +inf for hot-spot test (never blocks)
+    # and -inf for cold-spot test (never blocks)
+    nb_vals_hot = np.where(valid_nb, m_low[np.clip(all_neighbors, 0, npix - 1)], np.inf)
+    nb_vals_cold = np.where(valid_nb, m_low[np.clip(all_neighbors, 0, npix - 1)], -np.inf)
+
+    # Vectorized comparison: pixel must be strictly above ALL valid neighbors (hot spot)
+    is_hot = np.all(m_low &gt; nb_vals_hot, axis=0) &amp; mask &amp; has_any_valid
+
+    # Pixel must be strictly below ALL valid neighbors (cold spot)
+    is_cold = np.all(m_low &lt; nb_vals_cold, axis=0) &amp; mask &amp; has_any_valid
+
+    N_hot = int(np.sum(is_hot))
+    N_cold = int(np.sum(is_cold))
+    total = N_hot + N_cold
+
+    if total == 0:
+        return 0.0
+
+    return float((N_hot - N_cold) / total)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarise the Hot-Cold Spot Count Asymmetry Ratio test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available for comparison.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Hot-Cold Spot Count Asymmetry Ratio&quot;,
+                &quot;xlabel&quot;: &quot;Asymmetry ratio R&quot;,
+                &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data available.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    # Two-sided empirical p-value
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    if std_sim &gt; 0:
+        deviation_sigma = (planck_stat - mean_sim) / std_sim
+    else:
+        deviation_sigma = 0.0
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck&#x27;s large-scale temperature field has significantly more hot spots &quot;
+            &quot;than cold spots compared to typical ΛCDM realizations. This asymmetry &quot;
+            &quot;could indicate a preferred direction or anomalous power distribution &quot;
+            &quot;in the low-ℓ CMB.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck&#x27;s large-scale temperature field has significantly more cold spots &quot;
+            &quot;than hot spots compared to typical ΛCDM realizations. This asymmetry &quot;
+            &quot;could indicate a preferred direction or anomalous power distribution &quot;
+            &quot;in the low-ℓ CMB.&quot;
+        )
+    else:
+        direction = (
+            &quot;The hot-cold spot count is consistent with isotropic Gaussian ΛCDM &quot;
+            &quot;expectations; the number of local maxima and minima in the low-ℓ &quot;
+            &quot;temperature map are balanced as expected.&quot;
+        )
+
+    interp = (
+        f&quot;Asymmetry ratio R = {planck_stat:+.4f}. &quot;
+        f&quot;Simulation mean = {mean_sim:+.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ from mean). &quot;
+        f&quot;Percentile = {percentile:.1f}%, two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the hot-cold spot count asymmetry ratio R = (N_hot - N_cold) / &quot;
+        &quot;(N_hot + N_cold) computed from the ℓ ≤ 32 band-limited temperature map of &quot;
+        &quot;isotropic ΛCDM simulations. Local maxima and minima are identified using &quot;
+        &quot;an 8-neighbor stencil on the HEALPix grid. R near 0 indicates balanced &quot;
+        &quot;hot and cold extrema; R near ±1 indicates all extrema are of one type. &quot;
+        &quot;The red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Hot-Cold Spot Count Asymmetry Ratio&quot;,
+            &quot;xlabel&quot;: &quot;Asymmetry ratio R&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-36-hot-cold-spot-count-asymmetry-ratio.png" alt="Statistic distribution for Hot-Cold Spot Count Asymmetry Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.88</td></tr>
+<tr><th>One-tailed p-value</th><td>0.44</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.88</td></tr>
+<tr><th>Sigma</th><td>0.151</td></tr>
+<tr><th>Planck statistic</th><td>-0.00654</td></tr>
+<tr><th>Simulation mean</th><td>-0.00105</td></tr>
+<tr><th>Simulation std.</th><td>0.0316</td></tr>
+<tr><th>Simulation median</th><td>0</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-36-hot-cold-spot-count-asymmetry-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-36-hot-cold-spot-count-asymmetry-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-36-hot-cold-spot-count-asymmetry-ratio.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-36-hot-cold-spot-count-asymmetry-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-36-hot-cold-spot-count-asymmetry-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-36-hot-cold-spot-count-asymmetry-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

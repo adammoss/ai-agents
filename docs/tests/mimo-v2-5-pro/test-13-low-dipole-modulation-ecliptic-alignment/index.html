@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Dipole Modulation Ecliptic Alignment · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 13 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Dipole Modulation Ecliptic Alignment</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · alignment · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The direction of the low-ℓ dipole modulation shows an anomalous alignment with the ecliptic plane (i.e., |cos(angle)| significantly less than 0.5) compared to ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Measures the orientation of the low-ℓ (ℓ=2–6) hemispherical power asymmetry dipole relative to the ecliptic plane. The CMB temperature map is bandpass-filtered to ℓ=2–6, squared to form a power proxy, and the ℓ=1 dipole direction of the squared map is extracted via spherical harmonic decomposition. The output is |cos(angle)| between this dipole direction and the ecliptic pole (l=96.3°, b=−29.8° Galactic). Values near 0 indicate the power dipole lies in the ecliptic plane; near 1 indicates alignment with the ecliptic pole. Under isotropy this is uniformly distributed with mean ≈0.5.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck observed |cos(angle)| = 0.215. Simulation mean = 0.509 ± 0.287 (median = 0.519). Two-tailed p-value = 0.39 (z ≈ −0.86), placing the observed value well within the ΛCDM simulation distribution. Approximately 39% of simulations produce values at least as extreme.</p>
+          <p>While the observed |cos| = 0.215 is below 0.5, suggesting some tendency toward ecliptic-plane alignment, the deviation is only ~0.86σ and far from significant. This is consistent with normal statistical fluctuation under ΛCDM.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>While the primary anomaly of interest in the literature is alignment with the ecliptic plane (low |cos|), the test statistic |cos| is symmetric under isotropy and the code explicitly computes a two-sided p-value, checking both extremes. The test description and summary function do not pre-specify a directional prediction, treating both low and high values as potentially anomalous. Therefore, a two-tailed test is appropriate for this exploratory analysis.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Hemispherical power asymmetry at low multipoles is well-studied (e.g., Eriksen et al. 2004; Planck 2016 XXIII), typically focusing on dipole modulation amplitude rather than directional orientation relative to the ecliptic. No directly comparable statistic measuring this specific alignment was found in our search. The null result is broadly consistent with prior findings that ecliptic anomalies at low ℓ are subtle and inconsistent across analyses.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Dipole Modulation Ecliptic Alignment. Measures how the direction of &quot;
+    &quot;hemispherical power asymmetry at multipoles ℓ = 2–6 aligns with the ecliptic &quot;
+    &quot;plane. The map is bandpass-filtered to ℓ = 2–6, squared to form a power proxy, &quot;
+    &quot;and its ℓ = 1 dipole direction is extracted via spherical harmonic decomposition. &quot;
+    &quot;The returned value is |cos(α)| where α is the angle between this dipole and the &quot;
+    &quot;ecliptic pole (l=96.3°, b=−29.8° Galactic). Under isotropy this is Uniform[0,1] &quot;
+    &quot;with mean ≈0.5; values near 0 indicate the power dipole lies close to the ecliptic &quot;
+    &quot;plane (anomalous alignment). This complements amplitude-based dipole statistics by &quot;
+    &quot;targeting the orientation of the low-ℓ power modulation.&quot;
+)
+
+
+def analyze_map(m):
+    m = np.asarray(m, dtype=np.float64)
+    mask = np.isfinite(m)
+    m_clean = np.where(mask, m, 0.0)
+    nside = hp.npix2nside(len(m_clean))
+
+    # Step 1: Bandpass filter to ℓ = 2–6
+    lmax = 6
+    alm = hp.map2alm(m_clean, lmax=lmax)
+    # Zero out ℓ = 0, 1 (healpy stores m &gt;= 0 only)
+    for l in range(2):
+        for mm in range(l + 1):
+            alm[hp.Alm.getidx(lmax, l, mm)] = 0.0
+    m_filt = hp.alm2map(alm, nside, lmax=lmax)
+
+    # Step 2: Square to get power proxy.
+    # A 90° disc convolution in harmonic space multiplies each a_lm by W_ℓ.
+    # For ℓ=1, W_1 = 0.5, which scales the dipole amplitude but NOT its direction.
+    # Since we only need the direction, we skip the convolution.
+    m_sq = m_filt ** 2
+    m_sq[~mask] = 0.0  # re-apply mask so masked pixels don&#x27;t contribute
+
+    # Step 3: Extract ℓ=1 dipole of the squared map
+    alm_sq = hp.map2alm(m_sq, lmax=1)
+    # healpy ordering for lmax=1: idx 0→(0,0), 1→(1,0), 2→(1,1)
+    a10 = alm_sq[hp.Alm.getidx(1, 1, 0)]
+    a11 = alm_sq[hp.Alm.getidx(1, 1, 1)]
+
+    # Convert alm to Cartesian dipole vector
+    # T(θ,φ) = dx sinθ cosφ + dy sinθ sinφ + dz cosθ
+    #   a_{10} = dz · √(4π/3)
+    #   a_{11} = √(2π/3) · (−dx + i·dy)
+    s1 = np.sqrt(4.0 * np.pi / 3.0)
+    s2 = np.sqrt(2.0 * np.pi / 3.0)
+    dz = np.real(a10) / s1
+    dx = -np.real(a11) / s2
+    dy = np.imag(a11) / s2
+    d = np.array([dx, dy, dz])
+    amp = np.linalg.norm(d)
+
+    if amp &lt; 1e-30:
+        return 0.5  # no dipole detected; return isotropic expectation
+
+    d_hat = d / amp
+
+    # Steps 4–5: Ecliptic pole in Galactic Cartesian coordinates
+    l_ep, b_ep = np.radians(96.3), np.radians(-29.8)
+    ep = np.array([
+        np.cos(b_ep) * np.cos(l_ep),
+        np.cos(b_ep) * np.sin(l_ep),
+        np.sin(b_ep),
+    ])
+
+    # |cos(angle)| between dipole direction and ecliptic pole
+    return float(np.abs(d_hat @ ep))
+
+
+def summarize_results(planck_stat, sim_results):
+    sim_arr = np.array(sim_results, dtype=np.float64)
+    finite_mask = np.isfinite(sim_arr)
+    n_finite = int(finite_mask.sum())
+
+    if n_finite &gt; 0:
+        valid = sim_arr[finite_mask]
+        sim_median = float(np.median(valid))
+        p_upper = float(np.sum(valid &gt;= planck_stat) / n_finite)
+        p_lower = float(np.sum(valid &lt;= planck_stat) / n_finite)
+        p_value = min(p_upper, p_lower)
+        rank_upper = int(np.sum(valid &gt;= planck_stat))
+        rank_lower = int(np.sum(valid &lt;= planck_stat))
+    else:
+        p_value = float(&quot;nan&quot;)
+        rank_upper = rank_lower = 0
+        sim_median = float(&quot;nan&quot;)
+
+    sim_mean = float(np.nanmean(sim_arr))
+    sim_std = float(np.nanstd(sim_arr))
+
+    if n_finite &gt; 0 and not np.isnan(p_value):
+        if p_upper &lt;= p_lower:
+            direction, rank = &quot;high&quot;, rank_upper
+        else:
+            direction, rank = &quot;low&quot;, rank_lower
+    else:
+        direction, rank = &quot;unknown&quot;, 0
+
+    # Build interpretation
+    parts = [
+        f&quot;|cos(angle to ecliptic pole)| = {planck_stat:.4f}. &quot;
+        f&quot;Low values indicate the low-ℓ power dipole lies near the ecliptic plane; &quot;
+        f&quot;high values indicate it points toward the ecliptic pole.&quot;,
+        f&quot;Two-sided p = {p_value:.3f} ({rank}/{n_finite} simulations &quot;
+        f&quot;at least as extreme in the {direction} direction).&quot;,
+        f&quot;Simulation mean = {sim_mean:.4f} ± {sim_std:.4f}, &quot;
+        f&quot;median = {sim_median:.4f}.&quot;,
+    ]
+
+    if not np.isnan(p_value) and p_value &lt; 0.05:
+        if direction == &quot;low&quot;:
+            parts.append(
+                &quot;Anomalous: the low-ℓ power dipole direction is unusually close to &quot;
+                &quot;the ecliptic plane compared to ΛCDM simulations, potentially &quot;
+                &quot;indicating a systematic effect or non-standard cosmological signal.&quot;
+            )
+        else:
+            parts.append(
+                &quot;Anomalous: the low-ℓ power dipole direction is unusually close to &quot;
+                &quot;the ecliptic pole (anti-aligned with the ecliptic plane) relative &quot;
+                &quot;to ΛCDM simulations.&quot;
+            )
+    else:
+        parts.append(
+            &quot;The ecliptic alignment of the low-ℓ power dipole direction is &quot;
+            &quot;consistent with ΛCDM simulation expectations.&quot;
+        )
+
+    result = {
+        &quot;test_description&quot;: test_description,
+        &quot;planck_stat&quot;: float(planck_stat),
+        &quot;p_value&quot;: float(p_value),
+        &quot;rank&quot;: rank,
+        &quot;n_simulations&quot;: len(sim_results),
+        &quot;n_valid&quot;: n_finite,
+        &quot;sim_mean&quot;: sim_mean,
+        &quot;sim_std&quot;: sim_std,
+        &quot;sim_median&quot;: sim_median,
+        &quot;exceeds_95th_percentile&quot;: bool(p_value &lt; 0.05) if not np.isnan(p_value) else False,
+        &quot;anomaly_direction&quot;: direction,
+        &quot;interpretation&quot;: &quot; &quot;.join(parts),
+        &quot;ell_range&quot;: &quot;2-6&quot;,
+    }
+
+    result[&quot;plot_spec&quot;] = {
+        &quot;kind&quot;: &quot;histogram&quot;,
+        &quot;title&quot;: &quot;Low-ℓ Dipole–Ecliptic Alignment&quot;,
+        &quot;xlabel&quot;: &quot;|cos(angle to ecliptic pole)|&quot;,
+        &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+        &quot;bins&quot;: 50,
+        &quot;caption&quot;: (
+            f&quot;Histogram of |cos(angle to ecliptic pole)| from {n_finite} &quot;
+            f&quot;ΛCDM simulations. Planck value = {planck_stat:.4f} &quot;
+            f&quot;(two-sided p = {p_value:.3f}, rank {rank}/{n_finite}, &quot;
+            f&quot;{direction} tail). Simulation mean = {sim_mean:.4f} ± {sim_std:.4f}. &quot;
+            f&quot;Low values → power dipole in the ecliptic plane (anomalous alignment); &quot;
+            f&quot;high values → dipole toward the ecliptic pole.&quot;
+        ),
+    }
+
+    return result</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-13-low-dipole-modulation-ecliptic-alignment.png" alt="Statistic distribution for Low-ℓ Dipole Modulation Ecliptic Alignment">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.39</td></tr>
+<tr><th>One-tailed p-value</th><td>0.195</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.39</td></tr>
+<tr><th>Sigma</th><td>0.86</td></tr>
+<tr><th>Planck statistic</th><td>0.215</td></tr>
+<tr><th>Simulation mean</th><td>0.509</td></tr>
+<tr><th>Simulation std.</th><td>0.287</td></tr>
+<tr><th>Simulation median</th><td>0.519</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>alignment</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-13-low-dipole-modulation-ecliptic-alignment.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-13-low-dipole-modulation-ecliptic-alignment.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-13-low-dipole-modulation-ecliptic-alignment.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-13-low-dipole-modulation-ecliptic-alignment.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-13-low-dipole-modulation-ecliptic-alignment.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-13-low-dipole-modulation-ecliptic-alignment.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

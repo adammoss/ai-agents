@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Cold Spot Depth · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 16 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Cold Spot Depth</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The observed cold spot depth statistic D (|T_min|/σ) at low multipoles (ℓ=2-20) is larger than expected from ΛCDM simulations, indicating an unusually deep cold spot.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Measures the depth of the coldest feature in the CMB temperature map filtered to large angular scales (multipoles ℓ=2-20). The statistic is D = |T_min|/σ, where T_min is the minimum temperature in the filtered map and σ is its standard deviation, compared to 1000 ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The observed Planck statistic D = 3.594 lies above the simulation mean (3.245±0.385) with a z-score of 0.97σ. The one-tailed upper p-value is 0.167, meaning ~16.7% of simulations show an equal or greater cold spot depth.</p>
+          <p>While the observed cold spot at low ℓ is deeper than the median simulation value (3.19), it is not statistically extreme. The result is consistent with the standard ΛCDM model at the ~1σ level.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test description explicitly states that a value significantly higher than the simulation median would indicate an unusually deep cold spot, indicating a directional expectation. Therefore, the anomaly test should focus on whether D is unusually large, making it a one-tailed test in the upper direction.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Studies of the CMB&#x27;s low-multipole anomalies, including the prominent non-Gaussian cold spot, typically analyze spatial isotropy or alignments rather than this specific depth-normalized statistic. Khan &amp; Saha (2022) find no general anomaly in the clustering of hot/cold spots on the full sky, though partial-sky analyses show some signatures.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Cold Spot Depth. Applies a low-pass filter to the CMB temperature map &quot;
+    &quot;keeping only multipoles ℓ = 2 through 20. Identifies the minimum temperature &quot;
+    &quot;value T_min across the filtered map. Computes the standard deviation σ of the &quot;
+    &quot;filtered map over the unmasked sky. The cold spot depth statistic is &quot;
+    &quot;D = |T_min| / σ, measuring how extreme the coldest low-ℓ feature is relative &quot;
+    &quot;to the overall large-scale temperature fluctuations. A value significantly &quot;
+    &quot;higher than the simulation median would indicate an unusually deep cold spot.&quot;
+)
+
+
+def analyze_map(m):
+    m = np.asarray(m, dtype=np.float64)
+    mask = np.isfinite(m)
+    m_clean = np.where(mask, m, 0.0)
+
+    lmax = 20
+
+    # Extract alm up to lmax=20
+    alm = hp.map2alm(m_clean, lmax=lmax)
+
+    # Zero out monopole (ℓ=0) and dipole (ℓ=1) so only ℓ=2..20 survive
+    for ell in range(0, 2):
+        for mm in range(ell + 1):
+            idx = hp.Alm.getidx(lmax, ell, mm)
+            alm[idx] = 0.0
+
+    # Reconstruct filtered map (now contains only ℓ=2..20)
+    nside = hp.npix2nside(len(m))
+    m_filtered = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Evaluate only over unmasked pixels
+    valid_pixels = m_filtered[mask]
+
+    if len(valid_pixels) == 0:
+        return 0.0
+
+    T_min = np.min(valid_pixels)
+    sigma = np.std(valid_pixels)
+
+    if sigma == 0.0:
+        return 0.0
+
+    D = abs(T_min) / sigma
+    return float(D)
+
+
+def summarize_results(planck_stat, sim_results):
+    sim_arr = np.array(sim_results, dtype=np.float64)
+    finite_mask = np.isfinite(sim_arr)
+    n_finite = int(finite_mask.sum())
+
+    if n_finite &gt; 0:
+        valid = sim_arr[finite_mask]
+        sim_median = float(np.median(valid))
+        p_upper = float(np.sum(valid &gt;= planck_stat) / n_finite)
+        p_lower = float(np.sum(valid &lt;= planck_stat) / n_finite)
+        p_value = min(p_upper, p_lower)
+        rank_upper = int(np.sum(valid &gt;= planck_stat))
+        rank_lower = int(np.sum(valid &lt;= planck_stat))
+    else:
+        p_value = float(&quot;nan&quot;)
+        rank_upper = rank_lower = 0
+        sim_median = float(&quot;nan&quot;)
+
+    sim_mean = float(np.nanmean(sim_arr))
+    sim_std = float(np.nanstd(sim_arr))
+
+    if n_finite &gt; 0 and not np.isnan(p_value):
+        if p_upper &lt;= p_lower:
+            direction, rank = &quot;high&quot;, rank_upper
+        else:
+            direction, rank = &quot;low&quot;, rank_lower
+    else:
+        direction, rank = &quot;unknown&quot;, 0
+
+    parts = [
+        f&quot;Planck cold spot depth D = |T_min|/σ at low ℓ (2–20) is {planck_stat:.4f}.&quot;,
+        f&quot;Two-sided p = {p_value:.3f} ({rank}/{n_finite} simulations &quot;
+        f&quot;at least as extreme in the {direction} direction).&quot;,
+        f&quot;Simulation mean = {sim_mean:.4f} ± {sim_std:.4f}, &quot;
+        f&quot;median = {sim_median:.4f}.&quot;,
+    ]
+
+    if not np.isnan(p_value) and p_value &lt; 0.05:
+        parts.append(
+            &quot;Anomalous: the cold spot depth at low ℓ is unusually large, &quot;
+            &quot;suggesting the deepest large-scale temperature feature is &quot;
+            &quot;more extreme than expected under ΛCDM.&quot;
+        )
+    else:
+        parts.append(
+            &quot;The cold spot depth at low ℓ is consistent with ΛCDM simulation &quot;
+            &quot;expectations — no evidence for an unusually deep cold spot.&quot;
+        )
+
+    result = {
+        &quot;test_description&quot;: test_description,
+        &quot;planck_stat&quot;: float(planck_stat),
+        &quot;p_value&quot;: float(p_value),
+        &quot;rank&quot;: rank,
+        &quot;n_simulations&quot;: len(sim_results),
+        &quot;n_valid&quot;: n_finite,
+        &quot;sim_mean&quot;: sim_mean,
+        &quot;sim_std&quot;: sim_std,
+        &quot;sim_median&quot;: sim_median,
+        &quot;exceeds_95th_percentile&quot;: bool(p_value &lt; 0.05) if not np.isnan(p_value) else False,
+        &quot;anomaly_direction&quot;: direction,
+        &quot;interpretation&quot;: &quot; &quot;.join(parts),
+    }
+
+    result[&quot;plot_spec&quot;] = {
+        &quot;kind&quot;: &quot;histogram&quot;,
+        &quot;title&quot;: &quot;Low-ℓ Cold Spot Depth&quot;,
+        &quot;xlabel&quot;: &quot;Cold spot depth D = |T_min|/σ&quot;,
+        &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+        &quot;bins&quot;: 50,
+        &quot;caption&quot;: (
+            f&quot;Histogram of cold spot depths from {n_finite} ΛCDM simulations. &quot;
+            f&quot;Planck value = {planck_stat:.4f} &quot;
+            f&quot;(two-sided p = {p_value:.3f}, rank {rank}/{n_finite}, &quot;
+            f&quot;{direction} tail). Simulation mean = {sim_mean:.4f} ± {sim_std:.4f}. &quot;
+            f&quot;A large value indicates the coldest low-ℓ feature is unusually deep.&quot;
+        ),
+    }
+
+    return result</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-16-low-cold-spot-depth.png" alt="Statistic distribution for Low-ℓ Cold Spot Depth">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.167</td></tr>
+<tr><th>One-tailed p-value</th><td>0.167</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.334</td></tr>
+<tr><th>Sigma</th><td>0.966</td></tr>
+<tr><th>Planck statistic</th><td>3.594</td></tr>
+<tr><th>Simulation mean</th><td>3.245</td></tr>
+<tr><th>Simulation std.</th><td>0.385</td></tr>
+<tr><th>Simulation median</th><td>3.19</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-16-low-cold-spot-depth.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-16-low-cold-spot-depth.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-16-low-cold-spot-depth.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-16-low-cold-spot-depth.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-16-low-cold-spot-depth.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-16-low-cold-spot-depth.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

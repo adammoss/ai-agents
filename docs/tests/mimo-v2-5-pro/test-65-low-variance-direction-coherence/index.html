@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Variance-Direction Coherence · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 65 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Variance-Direction Coherence</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · variance · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The low-ℓ variance direction coherence (mean resultant length of dipole axes across multipole scales) is greater than expected from isotropic Gaussian fluctuations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>For each multipole ℓ=2 through 20, a local variance map is computed using a 30° Gaussian beam-weighted aperture, and a dipole is fitted to extract the preferred axis of maximal variance. The 19 resulting dipole directions are combined into a mean resultant vector; its magnitude (normalized by bin count) measures how consistently variance directions align across multipole scales. Values near 1 indicate coherent alignment; values near 0 indicate random orientations (expected ~0.23 for 19 random directions).</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck statistic = 0.3195. Simulation mean ± σ = 0.3243 ± 0.1363. Z-score = −0.03. One-tailed upper p-value = 0.487 (49% of simulations exceed the Planck value). The observed coherence is essentially at the simulation mean, well within the 1σ expectation from isotropic Gaussian skies.</p>
+          <p>The low-ℓ variance dipole directions across multipole bins show no evidence of preferential alignment in the Planck data. The result is entirely consistent with random orientation as expected under isotropy, with no deviation from the null distribution.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test statistic is specifically designed to detect consistent alignment of variance directions, with a high value (near 1) indicating alignment and being anomalous. The code&#x27;s interpretation states a high value is anomalous, and the expected random value (~0.23) serves as the null expectation. There is no indication that low values are anomalous, so only upper-tail departures are of interest.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Low-ℓ alignment anomalies (e.g., quadrupole–octupole alignment, the &quot;axis of evil&quot;) have been extensively studied in CMB literature. However, this specific statistic—testing coherence of variance-map dipole directions rather than the multipole moments themselves—did not appear in the search results. It addresses a related but distinct observable, and no directly comparable prior analysis was identified.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Variance-Direction Coherence: &quot;
+    &quot;For each multipole ℓ=2 through 20, compute a local variance map using a &quot;
+    &quot;30° Gaussian beam-weighted aperture, fit a dipole to extract the preferred &quot;
+    &quot;axis of maximal variance, and collect the 19 dipole directions. &quot;
+    &quot;The statistic is the magnitude of the mean resultant vector of these 19 &quot;
+    &quot;unit vectors, measuring how consistently the variance direction aligns &quot;
+    &quot;across multipole scales.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return mean resultant length of per-ℓ variance-map dipole directions.&quot;&quot;&quot;
+    lmax = 20
+    nside_target = 32  # sufficient for lmax=20
+
+    finite_mask = np.isfinite(m)
+    if not np.any(finite_mask):
+        return 0.0
+
+    m_clean = np.where(finite_mask, m, 0.0)
+    nside_orig = hp.npix2nside(len(m))
+    nside_work = min(nside_orig, nside_target)
+
+    # Downgrade map and mask to working resolution for speed
+    if nside_orig &gt; nside_work:
+        m_work = hp.ud_grade(m_clean, nside_work)
+        mask_low = hp.ud_grade(finite_mask.astype(float), nside_work)
+        valid = mask_low &gt; 0.5
+    else:
+        m_work = m_clean
+        valid = finite_mask.copy()
+
+    # Spherical harmonic coefficients at working resolution
+    alm = hp.map2alm(m_work, lmax=lmax)
+
+    valid_idx = np.where(valid)[0]
+    n_valid = len(valid_idx)
+    if n_valid &lt; 4:
+        return 0.0
+
+    # 30° FWHM Gaussian beam window function
+    sigma_beam = np.radians(30.0) / (2.0 * np.sqrt(2.0 * np.log(2.0)))
+    ell_arr = np.arange(lmax + 1, dtype=float)
+    beam = np.exp(-ell_arr * (ell_arr + 1.0) * sigma_beam ** 2 / 2.0)
+
+    # Dipole design matrix [monopole, x, y, z] at valid pixels
+    theta, phi = hp.pix2ang(nside_work, valid_idx)
+    A = np.column_stack([
+        np.ones(n_valid),
+        np.sin(theta) * np.cos(phi),
+        np.sin(theta) * np.sin(phi),
+        np.cos(theta),
+    ])
+    pinv_A = np.linalg.pinv(A)  # (4, n_valid)
+
+    directions = []
+
+    for ell in range(2, 21):
+        # Extract single-ℓ alm
+        alm_ell = np.zeros_like(alm)
+        idx = hp.Alm.getidx(lmax, ell, np.arange(ell + 1))
+        alm_ell[idx] = alm[idx]
+
+        # Reconstruct single-ℓ map
+        T = hp.alm2map(alm_ell, nside_work, lmax=lmax, verbose=False)
+
+        # Smoothed T: for single-ℓ, just scale by beam window
+        T_smooth = beam[ell] * T
+
+        # Smoothed T²: transform T² to alm, apply beam, transform back
+        T_sq = T ** 2
+        alm_sq = hp.map2alm(T_sq, lmax=lmax)
+        T_sq_smooth = hp.alm2map(
+            hp.almxfl(alm_sq, beam), nside_work, lmax=lmax, verbose=False
+        )
+
+        # Local variance map
+        var_map = T_sq_smooth - T_smooth ** 2
+
+        # Fit dipole via least-squares at valid pixels
+        coeffs = pinv_A @ var_map[valid_idx]
+        dipole = coeffs[1:4]
+        norm = np.linalg.norm(dipole)
+
+        if norm &gt; 1e-30:
+            directions.append(dipole / norm)
+        else:
+            directions.append(np.array([1.0, 0.0, 0.0]))
+
+    # Mean resultant vector length = magnitude of average unit vector
+    directions = np.array(directions)  # (19, 3)
+    mean_vec = np.mean(directions, axis=0)
+    return float(np.linalg.norm(mean_vec))
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret variance-direction coherence relative to simulation ensemble.&quot;&quot;&quot;
+    sims = np.array(sim_results, dtype=float)
+    sims_finite = sims[np.isfinite(sims)]
+    n_sims = len(sims_finite)
+
+    if n_sims == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims_finite))
+    std_s = float(np.std(sims_finite, ddof=1)) if n_sims &gt; 1 else 0.0
+    p_value = float(np.mean(sims_finite &gt;= planck_stat))
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else np.nan
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value&quot;: p_value,
+        &quot;n_sims&quot;: n_sims,
+        &quot;interpretation&quot;: (
+            &quot;A high value indicates that the direction of maximal low-ℓ power &quot;
+            &quot;variance is consistently aligned across multipole scales, which &quot;
+            &quot;would be anomalous for isotropic Gaussian fluctuations.&quot;
+        ),
+        &quot;expected_random&quot;: &quot;~0.23 for 19 random directions (1/sqrt(19))&quot;,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Variance-Direction Coherence&quot;,
+            &quot;xlabel&quot;: &quot;Mean resultant length of dipole axes&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck stat = {planck_stat:.4f}. &quot;
+                f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, p = {p_value:.3f} &quot;
+                f&quot;(fraction of sims ≥ Planck). &quot;
+                f&quot;Values near 1 indicate aligned variance directions; &quot;
+                f&quot;values near 0 indicate random orientations.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-65-low-variance-direction-coherence.png" alt="Statistic distribution for Low-ℓ Variance-Direction Coherence">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.487</td></tr>
+<tr><th>One-tailed p-value</th><td>0.487</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.974</td></tr>
+<tr><th>Sigma</th><td>0.0326</td></tr>
+<tr><th>Planck statistic</th><td>0.32</td></tr>
+<tr><th>Simulation mean</th><td>0.324</td></tr>
+<tr><th>Simulation std.</th><td>0.136</td></tr>
+<tr><th>Simulation median</th><td>0.314</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>variance</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-65-low-variance-direction-coherence.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-65-low-variance-direction-coherence.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-65-low-variance-direction-coherence.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-65-low-variance-direction-coherence.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-65-low-variance-direction-coherence.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-65-low-variance-direction-coherence.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

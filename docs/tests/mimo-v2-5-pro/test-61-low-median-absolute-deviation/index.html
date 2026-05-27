@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Median Absolute Deviation · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 61 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Median Absolute Deviation</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The median absolute deviation (MAD) of the low-ℓ (ℓ ≤ 30) CMB temperature fluctuations from Planck is different from the distribution expected under the ΛCDM model.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The median absolute deviation (MAD) of the low-ℓ (ℓ ≤ 30) SMICA CMB temperature map is computed. For each valid pixel, the absolute deviation from the median temperature is calculated; the statistic is the median of these deviations. This provides a robust, outlier-insensitive measure of typical large-scale temperature fluctuation amplitude.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck MAD = 28.67 μK, compared to simulations with mean 32.68 ± 2.64 μK. The observed value lies at z = −1.52σ (percentile 3.4%, two-tailed p = 0.068). The anomaly strength is classified as negligible.</p>
+          <p>The MAD of large-scale temperature fluctuations is consistent with ΛCDM predictions. The typical amplitude of temperature scatter around the median is neither unusually low nor high, indicating no anomalous uniformity or variability at the largest angular scales. While the Planck value is modestly lower than the simulation mean, it does not reach statistical significance.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect both unusually low MAD (indicating smoother-than-expected large-scale temperature patterns) and unusually high MAD (indicating more variable-than-expected patterns). The interpretation in the code considers both directions, and there is no clear prior expectation for a specific direction. Therefore, a two-tailed test is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No prior studies specifically testing the median absolute deviation of low-ℓ CMB temperature maps were found in the literature or through searches. Related work on low-multipole anomalies typically examines angular power spectra or specific multipole moments rather than robust pixel-space dispersion measures.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;For the low-ℓ SMICA map (ℓ ≤ 30), compute the median temperature T_med across valid &quot;
+    &quot;pixels. Then for each valid pixel, compute the absolute deviation |T - T_med|. The &quot;
+    &quot;statistic is the median of these absolute deviations (MAD). This provides a robust &quot;
+    &quot;measure of typical temperature fluctuation amplitude at large angular scales, with &quot;
+    &quot;low sensitivity to extreme outliers such as the CMB cold spot. Anomalous MAD values &quot;
+    &quot;could indicate unexpected uniformity or variability in large-scale temperature patterns.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the median absolute deviation of temperature in the ℓ ≤ 30 filtered map.&quot;&quot;&quot;
+    mask = np.isfinite(m)
+    n_valid = int(mask.sum())
+    if n_valid &lt; 10:
+        return 0.0
+
+    # Replace NaN with 0 for healpy transforms
+    m_filled = np.where(mask, m, 0.0)
+
+    # Low-pass filter to ℓ ≤ 30
+    alm = hp.map2alm(m_filled, lmax=30)
+    m_filtered = hp.alm2map(alm, nside=hp.npix2nside(len(m)), lmax=30, verbose=False)
+
+    # Extract valid (unmasked) pixels from the filtered map
+    valid_temps = m_filtered[mask]
+
+    # Compute median temperature
+    T_med = np.median(valid_temps)
+
+    # Compute median absolute deviation
+    mad = np.median(np.abs(valid_temps - T_med))
+
+    return float(mad)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Median Absolute Deviation test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value_two_sided&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Median Absolute Deviation&quot;,
+                &quot;xlabel&quot;: &quot;MAD (μK)&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 50,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    rank_below = int(np.sum(sim &lt;= planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    dev_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    strength = (
+        &quot;strong&quot; if p_two &lt;= 0.01
+        else &quot;moderate&quot; if p_two &lt;= 0.05
+        else &quot;negligible&quot;
+    )
+
+    interp = (
+        f&quot;Median absolute deviation (MAD) = {planck_stat:.4f} μK. &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} ± {std_sim:.4f} μK ({dev_sigma:+.2f}σ). &quot;
+        f&quot;Percentile = {percentile:.1f}%, two-sided p = {p_two:.4f}. &quot;
+        f&quot;Strength: {strength}. &quot;
+    )
+
+    if planck_stat &lt; mean_sim - 2 * std_sim:
+        interp += (
+            &quot;Planck has UNUSUALLY UNIFORM large-scale temperature fluctuations (lower MAD), &quot;
+            &quot;suggesting the ℓ ≤ 30 sky is smoother than expected from ΛCDM. This could be &quot;
+            &quot;related to the anomalously low large-scale power observed in Planck, or to a &quot;
+            &quot;suppression of variance that makes the CMB appear more homogeneous at the &quot;
+            &quot;largest angular scales.&quot;
+        )
+    elif planck_stat &gt; mean_sim + 2 * std_sim:
+        interp += (
+            &quot;Planck has UNUSUALLY VARIABLE large-scale temperature fluctuations (higher MAD), &quot;
+            &quot;suggesting enhanced scatter in the ℓ ≤ 30 map relative to ΛCDM expectations. &quot;
+            &quot;This robust (outlier-insensitive) measure implies the excess variability is not &quot;
+            &quot;driven solely by extreme features like the cold spot, but reflects a broader &quot;
+            &quot;pattern of elevated temperature contrasts across the sky.&quot;
+        )
+    else:
+        interp += (
+            &quot;The median absolute deviation of large-scale (ℓ ≤ 30) temperature fluctuations &quot;
+            &quot;is consistent with ΛCDM predictions. The typical amplitude of temperature &quot;
+            &quot;scatter around the median is neither unusually low nor high, indicating no &quot;
+            &quot;anomalous uniformity or variability at the largest angular scales.&quot;
+        )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value_one_sided_upper&quot;: p_upper,
+        &quot;p_value_one_sided_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: dev_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Median Absolute Deviation&quot;,
+            &quot;xlabel&quot;: &quot;MAD (μK)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 50,
+            &quot;caption&quot;: (
+                &quot;Histogram of the median absolute deviation (MAD) of temperature across &quot;
+                &quot;ΛCDM simulations for the ℓ ≤ 30 filtered map. Lower values indicate &quot;
+                &quot;more uniform large-scale temperature patterns; higher values indicate &quot;
+                &quot;greater typical fluctuation amplitude. The red line marks the Planck &quot;
+                &quot;observed value.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-61-low-median-absolute-deviation.png" alt="Statistic distribution for Low-ℓ Median Absolute Deviation">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.068</td></tr>
+<tr><th>One-tailed p-value</th><td>0.034</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.068</td></tr>
+<tr><th>Sigma</th><td>1.825</td></tr>
+<tr><th>Planck statistic</th><td>28.67</td></tr>
+<tr><th>Simulation mean</th><td>32.68</td></tr>
+<tr><th>Simulation std.</th><td>2.64</td></tr>
+<tr><th>Simulation median</th><td>32.38</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-61-low-median-absolute-deviation.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-61-low-median-absolute-deviation.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-61-low-median-absolute-deviation.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-61-low-median-absolute-deviation.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-61-low-median-absolute-deviation.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-61-low-median-absolute-deviation.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

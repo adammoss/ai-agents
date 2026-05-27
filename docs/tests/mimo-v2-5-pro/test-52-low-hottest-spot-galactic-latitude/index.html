@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Hottest Spot Galactic Latitude · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 52 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Hottest Spot Galactic Latitude</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · lower tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The hottest spot in the low-ℓ (ℓ≤10) smoothed CMB temperature map is located closer to the Galactic plane than expected from Gaussian simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The test identifies the Galactic latitude of the pixel with the maximum temperature in the CMB map smoothed to ℓ_max ≤ 10. It checks if this hottest spot is preferentially located closer to the Galactic plane than expected in ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The hottest spot in the Planck data is at a Galactic latitude of -55.1°. From 1000 Gaussian simulations, the mean latitude is 0.5° ± 44.5°. The observed value is 1.25σ from the mean. The one-tailed p-value (for a spot closer to the plane) is 0.783, indicating no significant concentration toward the Galactic plane.</p>
+          <p>The observed hottest spot is at a mid-latitude in the southern Galactic hemisphere. Its location is statistically consistent with the distribution expected from Gaussian, isotropic realizations of the ΛCDM model. There is no evidence for an anomalous Galactic plane alignment.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is specifically designed to check for Galactic plane concentration, as indicated by the description focusing on proximity to the Galactic plane and the code computing p-value for smaller absolute Galactic latitude (p(|b| ≤ observed)). The interpretation in the code explicitly mentions that a small p-value suggests the hottest spot is unusually close to the Galactic plane, indicating a directional prediction that the observed absolute latitude will be smaller than expected from simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>This specific test (hottest spot latitude in low-ℓ) is not commonly reported, but related analyses of low-ℓ multipole alignment with the Galactic plane or &quot;axis of evil&quot; are standard in CMB anomaly studies (e.g., Land &amp; Magueijo, 2005). This null result is consistent with some studies finding no strong alignment for the hottest spot.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Smooth the CMB temperature map to a maximum multipole of ℓ_max=10 using &quot;
+    &quot;spherical harmonic decomposition. Identify the unmasked pixel with the &quot;
+    &quot;highest temperature value in the smoothed map. The statistic is the &quot;
+    &quot;Galactic latitude (in degrees) of that pixel. Values near 0° indicate &quot;
+    &quot;the hottest spot lies close to the Galactic plane; values near ±90° &quot;
+    &quot;indicate alignment with the Galactic poles.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return Galactic latitude (degrees) of the hottest pixel in the low-ℓ (ℓ≤10) smoothed map.&quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 500:
+        return 0.0  # Neutral value for severely masked maps
+
+    # Fill masked pixels with 0 for healpy compatibility
+    m_filled = np.where(mask, m, 0.0)
+
+    # Decompose into spherical harmonics up to lmax=10
+    alm = hp.map2alm(m_filled, lmax=10, iter=0)
+
+    # Reconstruct the smoothed low-ℓ map
+    m_smooth = hp.alm2map(alm, nside, lmax=10, verbose=False)
+
+    # Set masked pixels to -inf so they cannot be selected as the maximum
+    m_smooth_valid = np.where(mask, m_smooth, -np.inf)
+
+    # Find the pixel with the highest temperature
+    max_pix = np.argmax(m_smooth_valid)
+    max_temp = m_smooth[max_pix]
+
+    if not np.isfinite(max_temp):
+        return 0.0
+
+    # Convert pixel index to angular coordinates (theta=colatitude, phi=longitude)
+    theta, phi = hp.pix2ang(nside, max_pix)
+
+    # Convert colatitude to latitude: Galactic lat = pi/2 - theta
+    gal_lat_rad = np.pi / 2.0 - theta
+    gal_lat_deg = float(np.degrees(gal_lat_rad))
+
+    if not np.isfinite(gal_lat_deg):
+        return 0.0
+
+    return gal_lat_deg
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Hottest Spot Galactic Latitude test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Hottest Spot Galactic Latitude&quot;,
+                &quot;xlabel&quot;: &quot;Galactic latitude (degrees)&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 50,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    # Absolute latitude (distance from Galactic plane)
+    abs_planck = abs(planck_stat)
+    abs_sim = np.abs(sim)
+
+    # Deviation from simulation mean in terms of latitude
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    # P-value: probability of finding a hotter spot closer to the Galactic plane
+    # (smaller |latitude|) — tests for Galactic plane concentration
+    p_value_plane = float(np.mean(abs_sim &lt;= abs_planck))
+
+    # Two-sided p-value: probability of being as extreme or more so
+    p_value_two_sided = 2.0 * min(p_value_plane, 1.0 - p_value_plane)
+    p_value_two_sided = min(p_value_two_sided, 1.0)
+
+    # Rank and percentile
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    if p_value_two_sided &lt;= 0.01:
+        strength = &quot;strong&quot;
+    elif p_value_two_sided &lt;= 0.05:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    # Interpret the location
+    if abs_planck &lt; 10:
+        location_desc = &quot;very close to the Galactic plane&quot;
+    elif abs_planck &lt; 30:
+        location_desc = &quot;at low Galactic latitude&quot;
+    elif abs_planck &lt; 60:
+        location_desc = &quot;at mid-Galactic latitude&quot;
+    else:
+        location_desc = &quot;near a Galactic pole&quot;
+
+    if planck_stat &gt;= 0:
+        hemisphere = &quot;northern&quot;
+    else:
+        hemisphere = &quot;southern&quot;
+
+    direction = (
+        f&quot;The hottest spot in the low-ℓ (ℓ≤10) smoothed map is {location_desc} &quot;
+        f&quot;in the {hemisphere} Galactic hemisphere (latitude ≈ {planck_stat:.1f}°). &quot;
+    )
+
+    if p_value_plane &lt;= 0.05:
+        direction += (
+            &quot;This proximity to the Galactic plane is statistically unusual compared &quot;
+            &quot;to Gaussian simulations, potentially suggesting residual foreground &quot;
+            &quot;contamination or an anomalous large-scale temperature structure aligned &quot;
+            &quot;with Galactic coordinates.&quot;
+        )
+    else:
+        direction += (
+            &quot;This location is consistent with expectations from Gaussian simulations. &quot;
+            &quot;No significant Galactic latitude preference is detected in the hottest spot.&quot;
+        )
+
+    interp = (
+        f&quot;Galactic latitude = {planck_stat:.2f}°. &quot;
+        f&quot;Sim mean = {mean_sim:.2f}° ± {std_sim:.2f}° &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value_two_sided:.4f}, &quot;
+        f&quot;p(|b|≤observed) = {p_value_plane:.4f}. &quot;
+        f&quot;Strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of Galactic latitude (degrees) of the hottest pixel in the &quot;
+        &quot;low-ℓ (ℓ≤10) smoothed CMB temperature map across FFP simulations. &quot;
+        &quot;Values near 0° indicate concentration near the Galactic plane; values &quot;
+        &quot;near ±90° indicate alignment with Galactic poles. Red line marks the &quot;
+        &quot;Planck observed value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;planck_abs_latitude&quot;: abs_planck,
+        &quot;p_value_two_sided&quot;: p_value_two_sided,
+        &quot;p_value_galactic_plane&quot;: p_value_plane,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Hottest Spot Galactic Latitude&quot;,
+            &quot;xlabel&quot;: &quot;Galactic latitude (degrees)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 50,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-52-low-hottest-spot-galactic-latitude.png" alt="Statistic distribution for Low-ℓ Hottest Spot Galactic Latitude">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.103</td></tr>
+<tr><th>One-tailed p-value</th><td>0.103</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.206</td></tr>
+<tr><th>Sigma</th><td>1.265</td></tr>
+<tr><th>Planck statistic</th><td>-55.11</td></tr>
+<tr><th>Simulation mean</th><td>0.515</td></tr>
+<tr><th>Simulation std.</th><td>44.46</td></tr>
+<tr><th>Simulation median</th><td>15.09</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>lower</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-52-low-hottest-spot-galactic-latitude.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-52-low-hottest-spot-galactic-latitude.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-52-low-hottest-spot-galactic-latitude.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-52-low-hottest-spot-galactic-latitude.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-52-low-hottest-spot-galactic-latitude.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-52-low-hottest-spot-galactic-latitude.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

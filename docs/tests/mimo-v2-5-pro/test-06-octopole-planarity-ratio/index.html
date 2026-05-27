@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Octopole Planarity Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 06 · Mimo V2.5 Pro</p>
+      <h1>Octopole Planarity Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · alignment · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The octopole planarity ratio (λ₂/λ₃) observed in the Planck CMB map is anomalously high, indicating the octopole is more planar than predicted by ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Computes the 3×3 power tensor of the ℓ=3 octopole field on the sphere, whose eigenvalues λ₁ ≥ λ₂ ≥ λ₃ quantify how octopole energy is distributed across three orthogonal spatial directions. The statistic λ₂/λ₃ measures &quot;planarity&quot;: values near 1 indicate isotropic octopole energy, while significantly larger values indicate power concentrated in a single plane. Compared against 1000 lensed-ΛCDM simulations (one-tailed upper test).</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck yields λ₂/λ₃ = 2.785 versus a simulation mean of 2.068 ± 0.649 (median 1.943). The one-sided p-value is 0.162, corresponding to a tension of approximately 1.0σ. The Planck value lies comfortably within the simulated distribution and does not exceed the 95th percentile.</p>
+          <p>The observed octopole planarity ratio is elevated relative to the simulation mean but remains well within the expected ΛCDM scatter. Roughly 16% of simulated universes produce an equal or greater planarity ratio, indicating no statistically significant departure from the standard model. The octopole&#x27;s internal structure is not anomalously planar.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect if the octopole is &quot;planar&quot; with power concentrated in a single plane, which corresponds to a high λ₂/λ₃ ratio. The analysis code computes a one-sided p-value by ranking the Planck statistic against simulations only for values greater than or equal to it, and the interpretation explicitly flags anomalously high ratios. This directional preference makes it a one-tailed upper test.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No prior studies using this specific λ₂/λ₃ eigenvalue-ratio statistic for the octopole alone were identified in the literature. Related work includes analyses of multipole planarity via multipole vectors (Copi et al. 2010), the quadrupole–octopole alignment (de Oliveira-Costa et al. 2004; Planck 2018 VII), and general low-multipole geometry studies, but the internal planarity of the ℓ=3 multipole as a standalone scalar test does not appear to have been previously published.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (&quot;Octopole Planarity Ratio. Extracts the ℓ=3 spherical harmonic &quot;
+    &quot;coefficients a₃ₘ from the temperature map, reconstructs the octopole field, &quot;
+    &quot;and computes a 3×3 power tensor M_ij = Σ_pixels n_i n_j T²(θ,φ) whose &quot;
+    &quot;eigenvalues λ₁≥λ₂≥λ₃ measure how the octopole energy is distributed across &quot;
+    &quot;three orthogonal spatial directions. The statistic λ₂/λ₃ is returned: a value &quot;
+    &quot;near 1 indicates roughly isotropic octopole energy, while a value significantly &quot;
+    &quot;greater than 1 indicates a &#x27;planar&#x27; octopole whose power is concentrated in a &quot;
+    &quot;single plane with the third axis suppressed.&quot;)
+
+
+def analyze_map(m):
+    m = np.asarray(m, dtype=np.float64)
+    nside = hp.npix2nside(len(m))
+    npix = hp.nside2npix(nside)
+
+    # Replace NaN (masked) pixels with 0.0 for healpy transforms
+    m_clean = np.where(np.isfinite(m), m, 0.0)
+
+    # Extract spherical harmonic coefficients up to ℓ=3
+    lmax = 3
+    alm = hp.map2alm(m_clean, lmax=lmax)
+
+    # Zero out all coefficients except ℓ=3 (indices for ℓ=3, m=-3..3)
+    # In healpy&#x27;s triangular indexing, a₃ₘ starts at index 6 (ℓ(ℓ+1)/2 + m)
+    alm_new = np.zeros_like(alm)
+    for m_idx in range(-3, 4):
+        idx = hp.Alm.getidx(lmax, 3, abs(m_idx))
+        alm_new[idx] = alm[idx]
+
+    # Reconstruct the octopole-only map
+    octo_map = hp.alm2map(alm_new, nside, lmax=3)
+
+    # Get Cartesian pixel coordinates (unit vectors on the sphere)
+    theta, phi = hp.pix2ang(nside, np.arange(npix))
+    nx = np.sin(theta) * np.cos(phi)
+    ny = np.sin(theta) * np.sin(phi)
+    nz = np.cos(theta)
+
+    # Compute the 3×3 power tensor: M_ij = Σ_pixels n_i * n_j * T²(θ,φ)
+    # This captures the directional distribution of octopole energy
+    T2 = octo_map ** 2
+    coords = np.array([nx, ny, nz])  # shape (3, npix)
+
+    M = np.zeros((3, 3))
+    for i in range(3):
+        for j in range(i, 3):
+            M[i, j] = np.sum(coords[i] * coords[j] * T2)
+            M[j, i] = M[i, j]
+
+    # Normalize so eigenvalues represent relative power fractions
+    trace = np.trace(M)
+    if trace &gt; 0:
+        M /= trace
+
+    # Diagonalize and sort eigenvalues descending
+    eigenvalues = np.linalg.eigvalsh(M)
+    eigenvalues = np.sort(eigenvalues)[::-1]  # λ₁ ≥ λ₂ ≥ λ₃
+
+    lam1, lam2, lam3 = eigenvalues
+
+    # Return the planarity ratio λ₂/λ₃
+    # Guard against division by zero (would indicate a perfectly linear octopole)
+    if lam3 &gt; 0:
+        ratio = float(lam2 / lam3)
+    else:
+        ratio = float(&#x27;inf&#x27;)
+
+    return float(ratio)
+
+
+def summarize_results(planck_stat, sim_results):
+    sim_arr = np.array(sim_results, dtype=np.float64)
+    finite_mask = np.isfinite(sim_arr)
+    n_finite = int(finite_mask.sum())
+
+    if n_finite &gt; 0:
+        valid = sim_arr[finite_mask]
+        # Count simulations with ratio &gt;= Planck (one-sided: is Planck more planar?)
+        rank = int(np.sum(valid &gt;= planck_stat))
+        p_value = rank / n_finite
+    else:
+        rank = 0
+        p_value = float(&#x27;nan&#x27;)
+
+    sim_median = float(np.nanmedian(sim_arr))
+    sim_mean = float(np.nanmean(sim_arr))
+    sim_std = float(np.nanstd(sim_arr))
+
+    interpretation = (
+        &quot;Anomalous: octopole is unusually planar compared to ΛCDM simulations&quot;
+        if p_value &lt; 0.05
+        else &quot;Octopole planarity ratio consistent with ΛCDM expectations&quot;
+    )
+
+    result = {
+        &quot;test_description&quot;: test_description,
+        &quot;planck_stat&quot;: float(planck_stat),
+        &quot;p_value&quot;: float(p_value),
+        &quot;rank&quot;: rank,
+        &quot;n_simulations&quot;: len(sim_results),
+        &quot;n_valid&quot;: n_finite,
+        &quot;sim_mean&quot;: sim_mean,
+        &quot;sim_std&quot;: sim_std,
+        &quot;sim_median&quot;: sim_median,
+        &quot;exceeds_95th_percentile&quot;: bool(p_value &lt; 0.05),
+        &quot;interpretation&quot;: interpretation,
+        &quot;expected_random_ratio&quot;: &quot;≈1 for isotropic octopole; &gt;1 indicates planar concentration&quot;,
+    }
+
+    result[&quot;plot_spec&quot;] = {
+        &quot;kind&quot;: &quot;histogram&quot;,
+        &quot;title&quot;: &quot;Octopole Planarity Ratio (λ₂/λ₃)&quot;,
+        &quot;xlabel&quot;: &quot;λ₂ / λ₃  (octopole planarity ratio)&quot;,
+        &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+        &quot;bins&quot;: 50,
+        &quot;caption&quot;: (
+            f&quot;Histogram of octopole planarity ratio λ₂/λ₃ from {n_finite} &quot;
+            f&quot;lensed-ΛCDM simulations. Planck value = {planck_stat:.4f} &quot;
+            f&quot;(one-sided p = {p_value:.3f}, rank {rank}/{n_finite}). &quot;
+            f&quot;A ratio of 1 indicates isotropic octopole energy; values &quot;
+            f&quot;significantly exceeding 1 indicate a planar octopole whose &quot;
+            f&quot;power is concentrated in a single plane.&quot;
+        ),
+    }
+
+    return result</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-06-octopole-planarity-ratio.png" alt="Statistic distribution for Octopole Planarity Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.162</td></tr>
+<tr><th>One-tailed p-value</th><td>0.162</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.324</td></tr>
+<tr><th>Sigma</th><td>0.986</td></tr>
+<tr><th>Planck statistic</th><td>2.785</td></tr>
+<tr><th>Simulation mean</th><td>2.068</td></tr>
+<tr><th>Simulation std.</th><td>0.649</td></tr>
+<tr><th>Simulation median</th><td>1.943</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>alignment</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-06-octopole-planarity-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-06-octopole-planarity-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-06-octopole-planarity-ratio.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-06-octopole-planarity-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-06-octopole-planarity-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-06-octopole-planarity-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Temperature–Ecliptic-Latitude Cross-Correlation Coefficient · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 66 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Temperature–Ecliptic-Latitude Cross-Correlation Coefficient</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · cross correlation · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Pearson correlation coefficient between low-ℓ CMB temperature and |sin(ecliptic latitude)| is not zero; i.e., there is a linear association.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The Planck SMICA temperature map is low-pass filtered to ℓ_max = 30, and the Pearson correlation coefficient is computed between the filtered temperature values and |sin(β)|, where β is ecliptic latitude, over unmasked pixels. This quantifies whether low-ℓ CMB temperature is systematically enhanced or suppressed near the ecliptic plane. The observed statistic is compared to 1000 ΛCDM simulations processed identically.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The observed Pearson coefficient is 0.0653, with a simulation mean of 0.0032 and standard deviation of 0.1818. The z-score is 0.34, yielding a two-tailed p-value of 0.732. The observed value lies well within the expected ΛCDM distribution.</p>
+          <p>There is no detectable linear association between low-ℓ CMB temperature and distance from the ecliptic plane. The observed correlation is entirely consistent with statistical fluctuations in an isotropic Gaussian sky, showing no evidence of ecliptic-plane–related temperature modulation at large angular scales.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is exploratory, checking for any deviation from zero correlation, as indicated by the summary function computing both upper and lower p-values and taking the minimum for a two-sided p-value. The interpretation explicitly mentions both negative and &quot;&quot;00 and0 mean-</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Ecliptic-related anomalies at low multipoles have been studied extensively, including the quadrupole–octopole alignment near the ecliptic axis (e.g., Copi et al. 2004; Abramo et al. 2006 noted potential ecliptic pole connections). However, the specific Pearson correlation statistic between filtered low-ℓ temperature and |sin(ecliptic latitude)| does not appear to be a standard test in the literature. No directly comparable published results were found in available searches.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Temperature–Ecliptic-Latitude Cross-Correlation Coefficient: &quot;
+    &quot;Low-pass filter the Planck SMICA temperature map to ℓ_max = 30. &quot;
+    &quot;Compute the absolute ecliptic latitude |sin(β)| for each pixel, where β is the ecliptic latitude. &quot;
+    &quot;Compute the Pearson correlation coefficient between the filtered temperature values and |sin(β)| &quot;
+    &quot;over all pixels outside the Planck common mask. The resulting scalar measures the linear association &quot;
+    &quot;between low-ℓ temperature and distance from the ecliptic plane.&quot;
+)
+
+# Module-level cache for ecliptic latitude
+_ecliptic_cache = {}
+
+
+def _get_ecliptic_sin_beta(nside):
+    &quot;&quot;&quot;Compute and cache |sin(ecliptic latitude)| for given nside.&quot;&quot;&quot;
+    if nside not in _ecliptic_cache:
+        npix = hp.nside2npix(nside)
+        theta_gal, phi_gal = hp.pix2ang(nside, np.arange(npix))
+        rot = hp.Rotator(coord=&#x27;GE&#x27;)
+        theta_ecl, phi_ecl = rot(theta_gal, phi_gal)
+        # Ecliptic latitude β = π/2 - θ_ecl, so |sin(β)| = |cos(θ_ecl)|
+        sin_beta_abs = np.abs(np.cos(theta_ecl))
+        _ecliptic_cache[nside] = sin_beta_abs
+    return _ecliptic_cache[nside]
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return Pearson correlation between low-ℓ temperature and |sin(ecliptic latitude)|.&quot;&quot;&quot;
+    lmax = 30
+
+    finite_mask = np.isfinite(m)
+    if not np.any(finite_mask):
+        return 0.0
+
+    nside = hp.npix2nside(len(m))
+
+    # Replace NaN with 0 for healpy transforms
+    m_clean = np.where(finite_mask, m, 0.0)
+
+    # Low-pass filter to ℓ_max = 30
+    alm = hp.map2alm(m_clean, lmax=lmax)
+    T_filtered = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Get |sin(ecliptic latitude)| - compute inline to avoid namespace issues
+    npix = hp.nside2npix(nside)
+    theta_gal, phi_gal = hp.pix2ang(nside, np.arange(npix))
+    rot = hp.Rotator(coord=&#x27;GE&#x27;)
+    theta_ecl, phi_ecl = rot(theta_gal, phi_gal)
+    sin_beta_abs = np.abs(np.cos(theta_ecl))
+
+    # Pearson correlation over valid (unmasked) pixels
+    valid = finite_mask
+    n_valid = np.sum(valid)
+    if n_valid &lt; 3:
+        return 0.0
+
+    T_valid = T_filtered[valid]
+    sb_valid = sin_beta_abs[valid]
+
+    # Vectorized Pearson correlation
+    mean_T = np.mean(T_valid)
+    mean_sb = np.mean(sb_valid)
+    dT = T_valid - mean_T
+    dsb = sb_valid - mean_sb
+    cov = np.dot(dT, dsb)
+    norm_T = np.sqrt(np.dot(dT, dT))
+    norm_sb = np.sqrt(np.dot(dsb, dsb))
+
+    if norm_T &lt; 1e-30 or norm_sb &lt; 1e-30:
+        return 0.0
+
+    result = cov / (norm_T * norm_sb)
+    return float(result)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret temperature–ecliptic-latitude correlation relative to simulations.&quot;&quot;&quot;
+    sims = np.array(sim_results, dtype=float)
+    sims_finite = sims[np.isfinite(sims)]
+    n_sims = len(sims_finite)
+
+    if n_sims == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims_finite))
+    std_s = float(np.std(sims_finite, ddof=1)) if n_sims &gt; 1 else 0.0
+    p_value = float(np.mean(sims_finite &gt;= planck_stat))
+    p_value_lower = float(np.mean(sims_finite &lt;= planck_stat))
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else np.nan
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value_upper&quot;: p_value,
+        &quot;p_value_lower&quot;: p_value_lower,
+        &quot;p_value_two_sided&quot;: min(p_value, p_value_lower),
+        &quot;n_sims&quot;: n_sims,
+        &quot;interpretation&quot;: (
+            &quot;A significantly negative correlation indicates that low-ℓ CMB temperature &quot;
+            &quot;is preferentially suppressed near the ecliptic plane (low |sin(β)|), &quot;
+            &quot;which is anomalous for isotropic Gaussian fluctuations. &quot;
+            &quot;A significantly positive correlation would indicate enhancement near the ecliptic plane.&quot;
+        ),
+        &quot;expected_random&quot;: &quot;Near 0 with spread ~1/sqrt(N_pixels) for ΛCDM&quot;,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Temperature–Ecliptic Latitude Correlation&quot;,
+            &quot;xlabel&quot;: &quot;Pearson correlation coefficient&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck stat = {planck_stat:.6f}. &quot;
+                f&quot;Sim mean ± σ = {mean_s:.6f} ± {std_s:.6f}. &quot;
+                f&quot;z = {z_score:.2f}, p(two-sided) = {min(p_value, p_value_lower):.3f}. &quot;
+                f&quot;Negative values indicate temperature suppression near ecliptic plane; &quot;
+                f&quot;positive values indicate enhancement.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-66-low-temperature-ecliptic-latitude-cross-correlation-coefficient.png" alt="Statistic distribution for Low-ℓ Temperature–Ecliptic-Latitude Cross-Correlation Coefficient">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.732</td></tr>
+<tr><th>One-tailed p-value</th><td>0.366</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.732</td></tr>
+<tr><th>Sigma</th><td>0.342</td></tr>
+<tr><th>Planck statistic</th><td>0.0653</td></tr>
+<tr><th>Simulation mean</th><td>0.00321</td></tr>
+<tr><th>Simulation std.</th><td>0.182</td></tr>
+<tr><th>Simulation median</th><td>0.00292</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>cross correlation</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-66-low-temperature-ecliptic-latitude-cross-correlation-coefficient.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-66-low-temperature-ecliptic-latitude-cross-correlation-coefficient.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-66-low-temperature-ecliptic-latitude-cross-correlation-coefficient.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-66-low-temperature-ecliptic-latitude-cross-correlation-coefficient.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-66-low-temperature-ecliptic-latitude-cross-correlation-coefficient.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-66-low-temperature-ecliptic-latitude-cross-correlation-coefficient.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

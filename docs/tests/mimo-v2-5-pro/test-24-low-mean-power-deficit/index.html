@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Mean Power Deficit · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 24 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Mean Power Deficit</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · power · lower tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The CMB temperature map exhibits a significant deficit in power at large scales (ℓ = 2 to 10) compared to ΛCDM predictions, as indicated by a negative weighted mean normalized deviation D.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Computes the (2ℓ+1)-weighted mean normalized deviation D between the observed pseudo-Cℓ power spectrum and the Planck 2018 best-fit ΛCDM theoretical spectrum across multipoles ℓ = 2–10. A significantly negative D would indicate large-scale power suppression relative to ΛCDM expectations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The Planck SMICA map yields D = −0.7737, compared to a simulation mean of −0.7238 ± 0.0419 (1σ). The observed value falls at the 10.4th percentile of the ΛCDM simulation distribution, corresponding to z = −1.26σ. The one-tailed (lower) p-value is 0.104, and the two-sided p-value is 0.208. Anomaly strength is classified as negligible.</p>
+          <p>While the Planck map shows a mildly negative D consistent with a slight power deficit at low multipoles, the deviation is well within the expected ΛCDM fluctuation range. At ~1.3σ below the simulation mean, this does not reach statistical significance. The result is consistent with isotropic ΛCDM expectations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is explicitly designed to detect a &quot;power deficit&quot; anomaly, and the description highlights that a significantly negative D indicates large-scale power suppression. This directional expectation (deficit, not excess) makes a one-tailed lower test appropriate for testing the hypothesis of suppressed large-scale power.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The low-ℓ power deficit is one of the longest-standing CMB anomalies, first noted with COBE and extensively studied with WMAP and Planck (e.g., Planck Collaboration 2020, Paper VII; Copi et al. 2010). Previous works have reported deficits in the quadrupole and octupole, as well correlations like the quadrupole–octupole alignment and the &quot;axis of evil.&quot; The present test&#x27;s measured D is consistent with prior reports showing mild but not highly significant suppression, and is broadly consistent with the ~10% tension level reported in comprehensive Planck anomaly analyses.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Mean Power Deficit: Compute the pseudo-Cℓ power spectrum from &quot;
+    &quot;the processed temperature map for multipoles ℓ = 2 to 10. Compare to &quot;
+    &quot;a reference ΛCDM theoretical spectrum (Planck 2018 best-fit). For each &quot;
+    &quot;ℓ, compute the normalized deviation dℓ = (Cℓ − Cℓ^ref) / Cℓ^ref, then &quot;
+    &quot;compute the weighted mean D = Σ(2ℓ+1)·dℓ / Σ(2ℓ+1) over ℓ = 2 to 10. &quot;
+    &quot;A significantly negative D indicates large-scale power suppression &quot;
+    &quot;relative to ΛCDM expectations.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute the weighted mean normalized power deficit D at ℓ=2–10.
+
+    Compares the pseudo-Cℓ of the (masked) map to the Planck 2018
+    best-fit ΛCDM TT power spectrum and returns the (2ℓ+1)-weighted
+    mean of normalized deviations as a single scalar.
+    &quot;&quot;&quot;
+
+    # Replace masked (NaN) pixels with 0.0 for healpy compatibility
+    m_filled = np.where(np.isfinite(m), m, 0.0)
+
+    # Compute pseudo-Cℓ power spectrum up to ℓ=10
+    lmax = 10
+    cl = hp.anafast(m_filled, lmax=lmax)
+
+    # Reference ΛCDM D_ℓ values from Planck 2018 best-fit (TT, μK²)
+    # D_ℓ = ℓ(ℓ+1)C_ℓ/(2π)
+    # Source: Planck 2018 best-fit base_plikHM_TTTEEE_lowl_lowE_lensing
+    dl_ref = np.array([
+        0.0,     # ℓ=0 (unused)
+        0.0,     # ℓ=1 (unused, monopole/dipole removed)
+        1760.0,  # ℓ=2
+        2350.0,  # ℓ=3
+        2570.0,  # ℓ=4
+        2510.0,  # ℓ=5
+        2630.0,  # ℓ=6
+        2740.0,  # ℓ=7
+        2690.0,  # ℓ=8
+        2630.0,  # ℓ=9
+        2600.0,  # ℓ=10
+    ])
+
+    # Convert D_ℓ to C_ℓ: C_ℓ = D_ℓ * 2π / (ℓ(ℓ+1))
+    ell = np.arange(lmax + 1, dtype=float)
+    ell[0] = 1.0  # avoid division by zero; cl_ref[0] set explicitly below
+    cl_ref = dl_ref * 2.0 * np.pi / (ell * (ell + 1))
+    cl_ref[0] = 0.0
+    cl_ref[1] = 0.0
+
+    # Compute (2ℓ+1)-weighted mean of normalized deviations for ℓ = 2 to 10
+    ell_idx = np.arange(2, lmax + 1)
+    weights = 2.0 * ell_idx + 1.0
+    d_ell = (cl[ell_idx] - cl_ref[ell_idx]) / cl_ref[ell_idx]
+
+    D = float(np.sum(weights * d_ell) / np.sum(weights))
+    return D
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Mean Power Deficit test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results to compare.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Mean Power Deficit&quot;,
+                &quot;xlabel&quot;: &quot;Weighted mean normalized deviation D&quot;,
+                &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data available.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    interp = (
+        f&quot;Weighted mean normalized deviation D = {planck_stat:.4f}. &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} \u00b1 {std_sim:.4f}. &quot;
+        f&quot;Percentile = {percentile:.1f}%, two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. &quot;
+    )
+
+    if planck_stat &lt; mean_sim - 2 * std_sim:
+        interp += (
+            &quot;Planck shows a significantly negative D, indicating a deficit &quot;
+            &quot;of large-scale power (\u2113=2\u201310) compared to \u039bCDM &quot;
+            &quot;expectations. This is consistent with the well-known low-\u2113 &quot;
+            &quot;CMB power deficit anomaly.&quot;
+        )
+    elif planck_stat &gt; mean_sim + 2 * std_sim:
+        interp += (
+            &quot;Planck shows a significantly positive D, indicating excess &quot;
+            &quot;large-scale power compared to \u039bCDM expectations.&quot;
+        )
+    else:
+        interp += (
+            &quot;The statistic is consistent with isotropic \u039bCDM expectations, &quot;
+            &quot;showing no significant low-\u2113 power deficit.&quot;
+        )
+
+    caption = (
+        &quot;Histogram of the weighted mean normalized power deviation D at &quot;
+        &quot;\u2113=2\u201310 from \u039bCDM simulations. D compares the &quot;
+        &quot;pseudo-C\u2113 spectrum to the Planck 2018 best-fit \u039bCDM &quot;
+        &quot;theoretical spectrum with (2\u2113+1) weighting. Under \u039bCDM, &quot;
+        &quot;D fluctuates around a value set by masking and cosmic variance; &quot;
+        &quot;a significantly more negative Planck value indicates large-scale &quot;
+        &quot;power suppression. The red line marks the Planck SMICA value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-\u2113 Mean Power Deficit&quot;,
+            &quot;xlabel&quot;: &quot;Weighted mean normalized deviation D&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-24-low-mean-power-deficit.png" alt="Statistic distribution for Low-ℓ Mean Power Deficit">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.104</td></tr>
+<tr><th>One-tailed p-value</th><td>0.104</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.208</td></tr>
+<tr><th>Sigma</th><td>1.259</td></tr>
+<tr><th>Planck statistic</th><td>-0.774</td></tr>
+<tr><th>Simulation mean</th><td>-0.724</td></tr>
+<tr><th>Simulation std.</th><td>0.0419</td></tr>
+<tr><th>Simulation median</th><td>-0.728</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>lower</td></tr>
+<tr><th>Family</th><td>power</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-24-low-mean-power-deficit.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-24-low-mean-power-deficit.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-24-low-mean-power-deficit.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-24-low-mean-power-deficit.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-24-low-mean-power-deficit.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-24-low-mean-power-deficit.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

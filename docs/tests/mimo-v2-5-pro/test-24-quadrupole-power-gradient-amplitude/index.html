@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quadrupole Power Gradient Amplitude · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 24 · Mimo V2.5 Pro</p>
+      <h1>Quadrupole Power Gradient Amplitude</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · direction · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The quadrupole power gradient amplitude in the Planck CMB map is consistent with the distribution predicted by ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>This statistic computes the RMS amplitude of the directional gradient of the quadrupole (ℓ=2) temperature field across the sphere, normalized by the mean absolute quadrupole temperature. It captures the overall spatial coherence and directional structure of the quadrupole, probing whether it exhibits anomalously strong or weak modulation patterns compared to ΛCDM expectations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The Planck SMICA map yields a gradient amplitude of 2.889, compared to a simulation mean of 2.901 ± 0.063 (1σ). The z-score is −0.18σ, with a two-sided p-value of 0.782 and Planck falling at the 39.1st percentile of the simulated distribution. Anomaly strength is classified as negligible.</p>
+          <p>Planck&#x27;s quadrupole gradient amplitude is completely consistent with ΛCDM predictions, lying well within 1σ of the simulation mean. This indicates that the quadrupole&#x27;s spatial structure—its directional modulation pattern—is unremarkable and shows no evidence of anomalous alignment or unusual coherence at this level of characterization.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect any anomalous deviation in the gradient amplitude, whether higher or lower than expected, as indicated by the two-sided p-value calculation in the code and the interpretation that considers both directions of deviation (e.g., unusually strong or weak spatial structure). There is no clear directional preference specified in the test description or code.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Previous studies have focused on quadrupole power deficit, quadrupole-octopole alignment (e.g., Copi et al. 2004; Weeks 2004), and multipole vector statistics. No prior work specifically examines the RMS gradient amplitude of the quadrupole temperature field as an anomaly probe. The negative result here is consistent with the broader picture: while some directional statistics of low-ℓ modes show mild anomalies, this particular spatial-coherence measure does not.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Quadrupole Power Gradient Amplitude: For each map, compute the quadrupole &quot;
+    &quot;(ℓ=2) spherical harmonic coefficients a_{2m}, then evaluate the quadrupole &quot;
+    &quot;temperature field on the nside=256 map. Compute the directional gradient of &quot;
+    &quot;this quadrupole field across the sphere using a finite-difference scheme on &quot;
+    &quot;the pixel grid. The statistic is the root-mean-square (RMS) amplitude of &quot;
+    &quot;this gradient vector field across all pixels, normalized by the mean &quot;
+    &quot;absolute temperature of the quadrupole component. This single scalar &quot;
+    &quot;captures the overall strength and spatial coherence of any dipole-like &quot;
+    &quot;modulation pattern imprinted specifically on the quadrupole moment, which &quot;
+    &quot;is a low-ℓ structure that could be anomalously aligned or prominent.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute RMS gradient amplitude of the quadrupole temperature field,
+    normalized by mean absolute quadrupole temperature.
+
+    Steps:
+    1. Replace masked (NaN) pixels with 0 for healpy compatibility.
+    2. Extract spherical harmonic coefficients a_{lm} up to l=2.
+    3. Isolate the quadrupole (l=2) coefficients and reconstruct the
+       quadrupole-only temperature map on the full sphere.
+    4. Compute the gradient of the quadrupole field using central finite
+       differences with healpy bilinear interpolation (get_interp_val).
+    5. Return RMS(|∇T₂|) / mean(|T₂|).
+    &quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    npix = len(m)
+
+    # Step 1: Replace NaN with 0 for healpy transforms
+    valid = np.isfinite(m)
+    m_filled = np.where(valid, m, 0.0)
+
+    # Step 2: Extract a_{lm} up to l=2
+    alm = hp.map2alm(m_filled, lmax=2)
+
+    # Step 3: Keep only l=2 (healpy alm ordering: idx = l*(l+1)/2 + m)
+    #   idx 0: (0,0), idx 1: (1,0), idx 2: (1,1),
+    #   idx 3: (2,0), idx 4: (2,1), idx 5: (2,2)
+    alm_q = np.zeros_like(alm)
+    alm_q[3:] = alm[3:]
+
+    # Reconstruct quadrupole-only temperature map
+    quad = hp.alm2map(alm_q, nside=nside, lmax=2)
+
+    # Step 4: Compute gradient via central finite differences
+    theta, phi = hp.pix2ang(nside, np.arange(npix))
+    delta = 0.01  # finite-difference step in radians (~0.57°)
+
+    # Theta positions for central difference (clipped to stay on sphere)
+    theta_p = np.clip(theta - delta, 1e-10, np.pi - 1e-10)
+    theta_m = np.clip(theta + delta, 1e-10, np.pi - 1e-10)
+
+    # Evaluate quadrupole at all offset positions in a single vectorized call
+    all_theta = np.concatenate([theta_p, theta_m, theta, theta])
+    all_phi = np.concatenate([phi, phi, phi + delta, phi - delta])
+    all_vals = hp.get_interp_val(quad, all_theta, all_phi)
+    T_tp, T_tm, T_pp, T_pm = np.split(all_vals, 4)
+
+    # Partial derivatives
+    dT_dtheta = (T_tp - T_tm) / (theta_p - theta_m)
+    dT_dphi = (T_pp - T_pm) / (2.0 * delta)
+
+    # Physical gradient components on the sphere:
+    #   grad_theta = dT/dθ
+    #   grad_phi   = (1/sinθ) * dT/dφ
+    sin_theta = np.sin(theta)
+    safe_sin = np.maximum(sin_theta, 1e-10)
+    grad_theta = dT_dtheta
+    grad_phi = dT_dphi / safe_sin
+
+    # Step 5: RMS gradient magnitude normalized by mean |T₂|
+    grad_mag_sq = grad_theta ** 2 + grad_phi ** 2
+    rms_grad = np.sqrt(np.mean(grad_mag_sq))
+    mean_abs_quad = np.mean(np.abs(quad))
+
+    if mean_abs_quad &lt; 1e-30:
+        return 0.0
+
+    return float(rms_grad / mean_abs_quad)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Quadrupole Power Gradient Amplitude anomaly test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results to compare.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Quadrupole Power Gradient Amplitude&quot;,
+                &quot;xlabel&quot;: &quot;RMS gradient / mean |T₂|&quot;,
+                &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data available.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    # Two-sided p-value
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    # Rank and percentile
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    # Anomaly classification
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    # Contextual direction
+    if planck_stat &gt; mean_sim + std_sim:
+        direction = (
+            f&quot;Planck&#x27;s gradient amplitude ({planck_stat:.4f}) exceeds the &quot;
+            f&quot;simulation mean by more than 1σ, indicating the quadrupole has &quot;
+            f&quot;an unusually strong directional structure or modulation pattern.&quot;
+        )
+    elif planck_stat &lt; mean_sim - std_sim:
+        direction = (
+            f&quot;Planck&#x27;s gradient amplitude ({planck_stat:.4f}) is more than 1σ &quot;
+            f&quot;below the simulation mean, suggesting an unusually uniform &quot;
+            f&quot;quadrupole with less spatial structure than typical realizations.&quot;
+        )
+    else:
+        direction = (
+            f&quot;Planck&#x27;s gradient amplitude is within 1σ of the simulation mean, &quot;
+            f&quot;consistent with isotropic ΛCDM expectations.&quot;
+        )
+
+    interp = (
+        f&quot;Quadrupole gradient amplitude = {planck_stat:.4f}. &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} ± {std_sim:.4f}. &quot;
+        f&quot;Percentile = {percentile:.1f}%, two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the RMS gradient amplitude of the quadrupole (ℓ=2) &quot;
+        &quot;temperature field, normalized by the mean absolute quadrupole &quot;
+        &quot;temperature, across simulated CMB maps. This statistic probes the &quot;
+        &quot;spatial coherence and directional structure of the quadrupole: a &quot;
+        &quot;higher value indicates stronger angular variation (e.g., power &quot;
+        &quot;concentrated in higher-m modes), while a lower value indicates a &quot;
+        &quot;more uniform pattern. Anomalously high or low values could signal &quot;
+        &quot;alignment or non-standard physics at large angular scales. &quot;
+        &quot;The red line marks the Planck SMICA value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Quadrupole Power Gradient Amplitude&quot;,
+            &quot;xlabel&quot;: &quot;RMS gradient / mean |T₂|&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-24-quadrupole-power-gradient-amplitude.png" alt="Statistic distribution for Quadrupole Power Gradient Amplitude">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.782</td></tr>
+<tr><th>One-tailed p-value</th><td>0.391</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.782</td></tr>
+<tr><th>Sigma</th><td>0.277</td></tr>
+<tr><th>Planck statistic</th><td>2.889</td></tr>
+<tr><th>Simulation mean</th><td>2.901</td></tr>
+<tr><th>Simulation std.</th><td>0.0634</td></tr>
+<tr><th>Simulation median</th><td>2.909</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>direction</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-24-quadrupole-power-gradient-amplitude.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-24-quadrupole-power-gradient-amplitude.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-24-quadrupole-power-gradient-amplitude.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-24-quadrupole-power-gradient-amplitude.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-24-quadrupole-power-gradient-amplitude.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-24-quadrupole-power-gradient-amplitude.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

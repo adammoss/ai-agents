@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Gradient Magnitude Dipole Amplitude · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 56 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Gradient Magnitude Dipole Amplitude</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The normalized dipole amplitude of the low-ℓ CMB temperature gradient magnitude is consistent with the distribution from simulated isotropic Gaussian LCDM random fields.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The low-ℓ CMB temperature map (ℓ=2–10) is extracted and the temperature gradient magnitude computed at each pixel via finite differences on the HEALPix grid, properly accounting for sin(θ) scaling. The dipole of the gradient magnitude map is then extracted and normalized by its monopole (median), yielding a dimensionless ratio that quantifies directional preference in large-scale temperature variation patterns.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The observed normalized dipole amplitude is 0.1414, compared to a simulation mean of 0.0665 ± 0.0443, placing it at the 94.1st percentile (~1.69σ above the mean). The two-tailed p-value is 0.118, with anomaly strength classified as negligible.</p>
+          <p>The Planck gradient magnitude dipole is mildly elevated relative to LCDM simulations but remains well within the expected distribution. No significant preferred direction is detected in the large-scale temperature gradient pattern. The ~1.7σ excess, while notable, does not reach statistical significance and is consistent with normal cosmic variance.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is explicitly designed to check for any anomaly (either significantly large or significantly small) in the gradient magnitude dipole, which would indicate a break from statistical isotropy in the low-ℓ temperature field. The code computes both upper and lower tail p-values, and the interpretation handles both directions of deviation. This is a general exploratory test without a prior directional prediction, making a two-tailed approach appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No prior studies were found examining the dipole of the CMB gradient magnitude field as a statistical isotropy probe. Related work on CMB dipole alignments (e.g., Luongo et al. 2022) and bipolar power spectrum analyses (Ghosh et al. 2007) address different statistics applied to large-scale CMB structure, but do not directly test this gradient-based observable.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Compute the low-ell temperature map (multipoles ell=2 to ell=10) from the &quot;
+    &quot;CMB map. At each pixel, calculate the magnitude of the temperature gradient &quot;
+    &quot;using finite differences on the HEALPix grid, accounting for the sin(theta) &quot;
+    &quot;scaling of the azimuthal component. Then compute the dipole (ell=1) of this &quot;
+    &quot;gradient magnitude map. The statistic is the amplitude of this dipole &quot;
+    &quot;normalized by the monopole (median gradient magnitude), i.e., &quot;
+    &quot;sqrt(d1^2 + d2^2 + d3^2) / a0. For isotropic Gaussian random fields the &quot;
+    &quot;gradient field should be statistically isotropic, yielding a dipole &quot;
+    &quot;consistent with cosmic variance. A large normalized dipole amplitude &quot;
+    &quot;indicates an anisotropic gradient pattern in the low-ell temperature field, &quot;
+    &quot;which could signal a preferred direction of temperature variation (e.g., &quot;
+    &quot;aligned with the CMB dipole or the ecliptic). Compare the observed value &quot;
+    &quot;against the distribution from simulated LCDM maps to assess significance.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the dipole amplitude of the low-ell gradient magnitude map,
+    normalized by the monopole (median gradient magnitude).&quot;&quot;&quot;
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 500:
+        return 0.0
+
+    nside = hp.npix2nside(len(m))
+    m_filled = np.where(mask, m, 0.0)
+
+    # Band-limit to ell = 2-10
+    lmin, lmax = 2, 10
+    alm = hp.map2alm(m_filled, lmax=lmax, iter=0)
+    # Zero out ell &lt; lmin (monopole and dipole)
+    for l in range(lmin):
+        for i in range(2 * l + 1):
+            idx = l * l + i
+            alm[idx] = 0.0
+    m_low = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Compute gradient magnitude using finite differences
+    npix = hp.nside2npix(nside)
+    res = hp.nside2resol(nside)  # radians per pixel
+    theta, phi = hp.pix2ang(nside, np.arange(npix))
+    stheta = np.sin(theta)
+
+    # theta-derivative: (T_south - T_north) / (2 * res)
+    # phi-derivative: (T_east - T_west) / (2 * res * sin(theta))
+    # Gradient magnitude: sqrt((dT/dtheta)^2 + (1/sin(theta) * dT/dphi)^2)
+    r = 1
+    p_north = hp.get_interp_weights(nside, theta - res, phi, lonlat=False)[0][0].astype(int)
+    p_south = hp.get_interp_weights(nside, theta + res, phi, lonlat=False)[0][0].astype(int)
+
+    # Wrap phi with proper spherical geometry
+    dphi = res / np.where(stheta &gt; 1e-6, stheta, 1e-6)
+    phi_east = phi + dphi
+    phi_west = phi - dphi
+    p_east = hp.get_interp_weights(nside, theta, phi_east, lonlat=False)[0][0].astype(int)
+    p_west = hp.get_interp_weights(nside, theta, phi_west, lonlat=False)[0][0].astype(int)
+
+    gt = (m_low[p_south] - m_low[p_north]) / (2.0 * res)
+    gp = (m_low[p_east] - m_low[p_west]) / (2.0 * dphi)  # already includes 1/sin(theta)
+    grad_mag = np.sqrt(gt**2 + gp**2)
+
+    # Normalize by median to get a dimensionless anisotropy measure
+    finite_gm = grad_mag[np.isfinite(grad_mag)]
+    if len(finite_gm) == 0:
+        return 0.0
+    med_gm = float(np.median(finite_gm))
+    if med_gm &lt; 1e-20:
+        return 0.0
+
+    gm_norm = grad_mag / med_gm
+    gm_norm = np.where(np.isfinite(gm_norm), gm_norm, 1.0)
+
+    # Extract dipole and monopole of the gradient magnitude map
+    alm_gm = hp.map2alm(gm_norm, lmax=1, iter=0)
+    a0 = alm_gm[0]  # monopole coefficient
+    a1_r = alm_gm[1]  # real dipole
+    a1_i = alm_gm[2]  # imaginary dipole
+    # The m=1 mode has two components (real and imaginary)
+    # Total dipole amplitude: sqrt(a1_real^2 + a1_imag^2)
+    dipole_amp = np.sqrt(a1_r**2 + a1_i**2)
+
+    # Normalize: dipole amplitude / monopole (a0)
+    if abs(a0) &lt; 1e-20:
+        return 0.0
+
+    stat = float(dipole_amp / abs(a0))
+    if not np.isfinite(stat):
+        return 0.0
+    return stat
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ell Gradient Magnitude Dipole Amplitude test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Gradient Magnitude Dipole Amplitude&quot;,
+                &quot;xlabel&quot;: &quot;Dipole amplitude / monopole&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 50,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    p_value_upper = float(np.mean(sim &gt;= planck_stat))
+    p_value_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value_two_sided = min(2.0 * min(p_value_upper, p_value_lower), 1.0)
+
+    rank_above = int(np.sum(sim &gt;= planck_stat))
+    rank_below = int(np.sum(sim &lt;= planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    if p_value_two_sided &lt;= 0.01:
+        strength = &quot;strong&quot;
+    elif p_value_two_sided &lt;= 0.05:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    interp = (
+        f&quot;Gradient magnitude dipole amplitude / monopole = {planck_stat:.6f}. &quot;
+        f&quot;Sim mean = {mean_sim:.6f} ± {std_sim:.6f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value_two_sided:.4f}. Strength: {strength}. &quot;
+    )
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        interp += (
+            &quot;The Planck map shows an anomalously large directional preference &quot;
+            &quot;in the gradient magnitude of the low-ℓ temperature field compared &quot;
+            &quot;to Gaussian LCDM expectations. This indicates that temperature &quot;
+            &quot;variations at large angular scales are significantly stronger along &quot;
+            &quot;one preferred direction than would be expected from a statistically &quot;
+            &quot;isotropic field. Such an anisotropy could reflect alignment between &quot;
+            &quot;large-scale temperature gradients and a preferred axis (e.g., the &quot;
+            &quot;CMB dipole direction or the ecliptic pole).&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        interp += (
+            &quot;The Planck map shows an anomalously small directional preference &quot;
+            &quot;in the gradient magnitude of the low-ℓ temperature field compared &quot;
+            &quot;to Gaussian LCDM expectations. This suggests unusually uniform &quot;
+            &quot;gradient magnitudes across the sky, potentially indicating an &quot;
+            &quot;unexpectedly isotropic large-scale temperature structure.&quot;
+        )
+    else:
+        interp += (
+            &quot;The gradient magnitude dipole amplitude is consistent with Gaussian &quot;
+            &quot;LCDM expectations. No significant preferred direction detected in &quot;
+            &quot;the large-scale temperature gradient pattern.&quot;
+        )
+
+    caption = (
+        &quot;Histogram of the normalized gradient magnitude dipole amplitude &quot;
+        &quot;(dipole / monopole ratio) for the ℓ=2–10 band-limited CMB temperature &quot;
+        &quot;map across LCDM simulations. Higher values indicate a stronger preferred &quot;
+        &quot;direction of temperature variation at large angular scales. &quot;
+        &quot;The red line marks the Planck observed value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value_one_sided_upper&quot;: p_value_upper,
+        &quot;p_value_one_sided_lower&quot;: p_value_lower,
+        &quot;p_value_two_sided&quot;: p_value_two_sided,
+        &quot;rank_above&quot;: rank_above,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Gradient Magnitude Dipole Amplitude&quot;,
+            &quot;xlabel&quot;: &quot;Dipole amplitude / monopole&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 50,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-56-low-gradient-magnitude-dipole-amplitude.png" alt="Statistic distribution for Low-ℓ Gradient Magnitude Dipole Amplitude">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.118</td></tr>
+<tr><th>One-tailed p-value</th><td>0.059</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.118</td></tr>
+<tr><th>Sigma</th><td>1.563</td></tr>
+<tr><th>Planck statistic</th><td>0.141</td></tr>
+<tr><th>Simulation mean</th><td>0.0665</td></tr>
+<tr><th>Simulation std.</th><td>0.0443</td></tr>
+<tr><th>Simulation median</th><td>0.0622</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-56-low-gradient-magnitude-dipole-amplitude.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-56-low-gradient-magnitude-dipole-amplitude.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-56-low-gradient-magnitude-dipole-amplitude.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-56-low-gradient-magnitude-dipole-amplitude.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-56-low-gradient-magnitude-dipole-amplitude.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-56-low-gradient-magnitude-dipole-amplitude.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

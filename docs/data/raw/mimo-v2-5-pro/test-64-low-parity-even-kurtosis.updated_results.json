@@ -1,0 +1,50 @@
+{
+  "results": {
+    "test_name": "Low-ℓ Parity-Even Kurtosis",
+    "test_description": "For the band-limited CMB temperature map containing multipoles ℓ=2 through 10, compute the parity-even field T_even(n) defined as the sum over all even-ℓ spherical harmonic components: T_even(n) = sum_{ℓ even} sum_m a_{ℓm} Y_{ℓm}(n). Calculate the kurtosis (the fourth standardized moment) of the pixel values of T_even over the full unmasked sky. The statistic is this single scalar kurtosis value.",
+    "test_hypothesis": "The CMB temperature map exhibits excess kurtosis in its parity-even low-ℓ components compared to Gaussian random field expectations.",
+    "test_type": "one-tailed, upper",
+    "justification": "The analysis code explicitly computes the p-value as the fraction of simulations with kurtosis greater than or equal to the observed value, indicating a directional interest in detecting unusually high kurtosis.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 2.5568735586710063,
+    "mean_sim_stat": 2.8730701419105693,
+    "std_sim_stat": 0.45960294999954404,
+    "median_sim_stat": 2.8069431048726794,
+    "sigma": 0.6158401887479719,
+    "p_value_one_tailed": 0.731,
+    "tail": "upper"
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Low-ℓ Parity-Even Kurtosis: \"\n    \"For the band-limited CMB temperature map containing multipoles ℓ=2 through 10, \"\n    \"compute the parity-even field T_even(n) defined as the sum over all even-ℓ \"\n    \"spherical harmonic components (ℓ = 2, 4, 6, 8, 10). \"\n    \"Calculate the kurtosis (the fourth standardized moment) of the pixel values of \"\n    \"T_even over the full unmasked sky. The statistic is this single scalar kurtosis value.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return the kurtosis (4th standardized moment) of the parity-even low-ℓ CMB field.\"\"\"\n\n    # Identify unmasked pixels\n    finite_mask = np.isfinite(m)\n\n    # Replace NaN with 0 for healpy transforms (never pass NaN to healpy)\n    m_clean = np.where(finite_mask, m, 0.0)\n\n    nside = hp.npix2nside(len(m))\n    lmax = 10\n\n    # Compute spherical harmonic coefficients\n    alm = hp.map2alm(m_clean, lmax=lmax)\n\n    # Zero out all components except even ℓ in {2, 4, 6, 8, 10}\n    for ell in range(lmax + 1):\n        if ell < 2 or ell % 2 == 1:\n            for em in range(ell + 1):\n                idx = hp.Alm.getidx(lmax, ell, em)\n                alm[idx] = 0.0\n\n    # Reconstruct parity-even map\n    T_even = hp.alm2map(alm, nside, lmax=lmax, verbose=False)\n\n    # Extract pixel values on unmasked sky only\n    values = T_even[finite_mask]\n\n    # Compute kurtosis (fourth standardized moment): μ₄ / σ⁴\n    n = len(values)\n    mean = np.mean(values)\n    diff = values - mean\n    m2 = np.mean(diff ** 2)\n    m4 = np.mean(diff ** 4)\n\n    # Guard against degenerate case (negligible variance)\n    if m2 < 1e-30:\n        return 3.0  # Default to Gaussian expectation\n\n    kurtosis = m4 / (m2 * m2)\n\n    return float(kurtosis)\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Interpret the parity-even kurtosis relative to the simulation ensemble.\"\"\"\n    sims = np.array(sim_results, dtype=float)\n    sims_finite = sims[np.isfinite(sims)]\n    n_sims = len(sims_finite)\n\n    if n_sims == 0:\n        return {\"planck_stat\": planck_stat, \"note\": \"No finite simulation results.\"}\n\n    mean_s = float(np.mean(sims_finite))\n    std_s = float(np.std(sims_finite, ddof=1)) if n_sims > 1 else 0.0\n    p_value = float(np.mean(sims_finite >= planck_stat)) if n_sims > 0 else np.nan\n    z_score = (planck_stat - mean_s) / std_s if std_s > 0 else np.nan\n\n    # For a Gaussian field the fourth standardized moment is exactly 3\n    excess_kurtosis = planck_stat - 3.0\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"excess_kurtosis\": excess_kurtosis,\n        \"sim_mean\": mean_s,\n        \"sim_std\": std_s,\n        \"z_score\": z_score,\n        \"p_value\": p_value,\n        \"n_sims\": n_sims,\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-ℓ Parity-Even Kurtosis\",\n            \"xlabel\": \"Kurtosis (4th standardized moment)\",\n            \"ylabel\": \"Count\",\n            \"bins\": 30,\n            \"caption\": (\n                f\"Planck kurtosis = {planck_stat:.4f} (excess = {excess_kurtosis:.4f}).  \"\n                f\"Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}.  \"\n                f\"z = {z_score:.2f}, p = {p_value:.3f}  \"\n                f\"(fraction of sims ≥ Planck).\"\n            ),\n        },\n    }\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": 1.9097418161507436,
+    "sim_max": 5.241500429960571,
+    "z_score": -0.6876336311677486,
+    "thresholds": [
+      2.196275157641716,
+      4.025191039745995
+    ],
+    "excess_kurtosis": -0.4431264413289937,
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-ℓ Parity-Even Kurtosis",
+      "xlabel": "Kurtosis (4th standardized moment)",
+      "ylabel": "Count",
+      "bins": 30,
+      "caption": "Planck kurtosis = 2.5569 (excess = -0.4431).  Sim mean ± σ = 2.8731 ± 0.4598.  z = -0.69, p = 0.731  (fraction of sims ≥ Planck)."
+    }
+  },
+  "updated_summary": {
+    "Test name": "Low-ℓ Parity-Even Kurtosis",
+    "Description": "Computes the kurtosis of the parity-even field formed from CMB temperature multipoles ℓ=2 to 10 over the full sky.",
+    "Results": "The observed kurtosis is 2.557 (excess kurtosis = -0.443). Simulation mean ± σ = 2.873 ± 0.460. The Planck value is 0.69σ below the simulation mean, with a one-tailed p-value of 0.731 (fraction of sims ≥ observed).",
+    "Interpretation": "The observed kurtosis is slightly lower than, but consistent with, the distribution expected from Gaussian realizations. The negative z-score indicates the Planck map is less kurtotic than average simulations, not more.",
+    "Meets hypothesis?": "No",
+    "Comparison to literature": "Previous studies have examined parity asymmetry in power and multipole alignments (e.g., Aluri et al. 2017, Copi et al. 2004), but no prior work was found that specifically analyzes the kurtosis of the parity-even low-ℓ field.",
+    "Test novelty": "Novel",
+    "Verdict": "No anomalies found"
+  }
+}

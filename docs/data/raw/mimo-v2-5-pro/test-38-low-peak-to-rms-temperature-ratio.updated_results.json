@@ -1,0 +1,55 @@
+{
+  "results": {
+    "test_name": "Low-ℓ Peak-to-RMS Temperature Ratio",
+    "test_description": "Band-limit the temperature map to ℓ ≤ 20 using an alm cutoff. Compute the RMS temperature over all unmasked pixels. Find the maximum absolute temperature value among the same unmasked pixels. The statistic is the ratio of the maximum absolute temperature to the RMS temperature. For a Gaussian random field this ratio has a well-defined expectation (typically 3–4 depending on resolution and mask), so a measured value far from the LCDM-simulated distribution would indicate anomalous concentration of extreme temperature features at large angular scales.",
+    "test_hypothesis": "The peak-to-RMS temperature ratio for the CMB at ℓ ≤ 20 is consistent with the distribution predicted by isotropic Gaussian LCDM simulations.",
+    "test_type": "two-tailed",
+    "justification": "The test is exploratory, checking for any significant deviation from the expected Gaussian random field behavior, as indicated by the two-sided p-value calculation in the code and the description's focus on detecting values \"far from the LCDM-simulated distribution\" without specifying a direction (e.g., only higher or lower).",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 3.5190513947615494,
+    "mean_sim_stat": 3.4815791443199426,
+    "std_sim_stat": 0.3558551093669157,
+    "median_sim_stat": 3.432591700505504,
+    "sigma": 0.2533471031357997,
+    "p_value_two_tailed": 0.8
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Low-ℓ Peak-to-RMS Temperature Ratio: \"\n    \"Band-limit the temperature map to ℓ ≤ 20 using an alm cutoff. \"\n    \"Compute the RMS temperature over all unmasked pixels. Find the maximum \"\n    \"absolute temperature value among the same unmasked pixels. The statistic \"\n    \"is the ratio of the maximum absolute temperature to the RMS temperature. \"\n    \"For a Gaussian random field this ratio has a well-defined expectation \"\n    \"(typically 3–4 depending on resolution and mask), so a measured value far \"\n    \"from the LCDM-simulated distribution would indicate anomalous concentration \"\n    \"of extreme temperature features at large angular scales.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Compute the peak-to-RMS ratio of the low-ℓ (ℓ ≤ 20) temperature map.\n\n    Steps:\n      1. Identify unmasked (finite) pixels.\n      2. Fill masked pixels with 0 for healpy compatibility.\n      3. Band-limit to ℓ ≤ 20 via map2alm with lmax=20 → alm2map with lmax=20.\n      4. Compute RMS temperature over unmasked pixels.\n      5. Compute max absolute temperature over unmasked pixels.\n      6. Return ratio max|T| / RMS.\n\n    Returns\n    -------\n    float\n        Peak-to-RMS ratio of the low-ℓ map.\n    \"\"\"\n    nside = hp.get_nside(m)\n    mask = np.isfinite(m)\n    n_valid = int(np.sum(mask))\n\n    if n_valid < 100:\n        return 0.0\n\n    # Fill masked pixels with 0 for healpy transforms\n    m_filled = np.where(mask, m, 0.0)\n\n    # Band-limit to ell <= 20 using consistent lmax for both transforms\n    lmax = 20\n\n    alm = hp.map2alm(m_filled, lmax=lmax)\n\n    # Transform back to map with the same lmax\n    m_low = hp.alm2map(alm, nside, lmax=lmax, verbose=False)\n\n    # Extract unmasked pixel values\n    vals = m_low[mask]\n\n    # RMS temperature\n    rms = np.sqrt(np.mean(vals ** 2))\n\n    if rms == 0.0:\n        return 0.0\n\n    # Maximum absolute temperature\n    max_abs = np.max(np.abs(vals))\n\n    # Peak-to-RMS ratio\n    ratio = float(max_abs / rms)\n\n    return ratio\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Summarize the Low-ℓ Peak-to-RMS Temperature Ratio test.\"\"\"\n    sim = np.array(sim_results, dtype=float)\n    sim = sim[np.isfinite(sim)]\n    n_sims = len(sim)\n\n    if n_sims == 0:\n        return {\n            \"planck_stat\": planck_stat,\n            \"p_value\": float(\"nan\"),\n            \"n_sims\": 0,\n            \"interpretation\": \"No simulation results available for comparison.\",\n            \"plot_spec\": {\n                \"kind\": \"histogram\",\n                \"title\": \"Low-ℓ Peak-to-RMS Temperature Ratio\",\n                \"xlabel\": \"Peak / RMS ratio\",\n                \"ylabel\": \"Number of simulations\",\n                \"bins\": 40,\n                \"caption\": \"No simulation data available.\",\n            },\n        }\n\n    mean_sim = float(np.mean(sim))\n    std_sim = float(np.std(sim))\n\n    # Two-sided empirical p-value\n    p_upper = float(np.mean(sim >= planck_stat))\n    p_lower = float(np.mean(sim <= planck_stat))\n    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))\n\n    rank_below = int(np.sum(sim < planck_stat))\n    percentile = 100.0 * rank_below / n_sims\n\n    if std_sim > 0:\n        deviation_sigma = (planck_stat - mean_sim) / std_sim\n    else:\n        deviation_sigma = 0.0\n\n    if p_value <= 0.02:\n        strength = \"strong\"\n    elif p_value <= 0.10:\n        strength = \"moderate\"\n    else:\n        strength = \"negligible\"\n\n    if planck_stat > mean_sim + 2 * std_sim:\n        direction = (\n            \"Planck's peak-to-RMS ratio at low multipoles is unusually high \"\n            \"compared to typical LCDM realizations. This suggests the largest \"\n            \"temperature excursions at ℓ ≤ 20 are more extreme relative to the \"\n            \"overall RMS than expected from a Gaussian random field, indicating \"\n            \"possible anomalous concentration of power in localized hot or cold \"\n            \"spots at large angular scales.\"\n        )\n    elif planck_stat < mean_sim - 2 * std_sim:\n        direction = (\n            \"Planck's peak-to-RMS ratio at low multipoles is unusually low \"\n            \"compared to typical LCDM realizations. This indicates the extreme \"\n            \"temperature features at large angular scales are less pronounced \"\n            \"than expected, suggesting a more uniform temperature field than \"\n            \"predicted by the standard model.\"\n        )\n    else:\n        direction = (\n            \"The peak-to-RMS ratio at low multipoles is consistent with \"\n            \"isotropic Gaussian LCDM expectations. The most extreme temperature \"\n            \"features at ℓ ≤ 20 are neither unusually large nor unusually small.\"\n        )\n\n    interp = (\n        f\"Peak-to-RMS ratio = {planck_stat:.4f}. \"\n        f\"Simulation mean = {mean_sim:.4f} ± {std_sim:.4f} \"\n        f\"({deviation_sigma:+.2f}σ from mean). \"\n        f\"Percentile = {percentile:.1f}%, two-sided p = {p_value:.4f}. \"\n        f\"Anomaly strength: {strength}. {direction}\"\n    )\n\n    caption = (\n        \"Histogram of the peak-to-RMS temperature ratio for the band-limited \"\n        \"(ℓ ≤ 20) CMB temperature map, computed from isotropic LCDM simulations. \"\n        \"The ratio measures how extreme the largest temperature excursion is \"\n        \"relative to the overall RMS fluctuation. For a Gaussian random field \"\n        \"this ratio typically falls between 3 and 4. \"\n        \"The red line marks the Planck value.\"\n    )\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"p_value\": p_value,\n        \"p_value_upper\": p_upper,\n        \"p_value_lower\": p_lower,\n        \"rank_below\": rank_below,\n        \"n_sims\": n_sims,\n        \"percentile\": percentile,\n        \"sim_mean\": mean_sim,\n        \"sim_std\": std_sim,\n        \"deviation_sigma\": deviation_sigma,\n        \"anomaly_strength\": strength,\n        \"interpretation\": interp,\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-ℓ Peak-to-RMS Temperature Ratio\",\n            \"xlabel\": \"Peak / RMS ratio\",\n            \"ylabel\": \"Number of simulations\",\n            \"bins\": 40,\n            \"caption\": caption,\n        },\n    }\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": 2.7126117930774125,
+    "sim_max": 5.038961324417472,
+    "z_score": 0.10530198795872783,
+    "thresholds": [
+      2.925903122789418,
+      4.284707504677645
+    ],
+    "p_value_upper": 0.4,
+    "p_value_lower": 0.6,
+    "rank_below": 600,
+    "percentile": 60.0,
+    "deviation_sigma": 0.10530198795872783,
+    "anomaly_strength": "negligible",
+    "interpretation": "Peak-to-RMS ratio = 3.5191. Simulation mean = 3.4816 ± 0.3559 (+0.11σ from mean). Percentile = 60.0%, two-sided p = 0.8000. Anomaly strength: negligible. The peak-to-RMS ratio at low multipoles is consistent with isotropic Gaussian LCDM expectations. The most extreme temperature features at ℓ ≤ 20 are neither unusually large nor unusually small.",
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-ℓ Peak-to-RMS Temperature Ratio",
+      "xlabel": "Peak / RMS ratio",
+      "ylabel": "Number of simulations",
+      "bins": 40,
+      "caption": "Histogram of the peak-to-RMS temperature ratio for the band-limited (ℓ ≤ 20) CMB temperature map, computed from isotropic LCDM simulations. The ratio measures how extreme the largest temperature excursion is relative to the overall RMS fluctuation. For a Gaussian random field this ratio typically falls between 3 and 4. The red line marks the Planck value."
+    }
+  },
+  "updated_summary": {
+    "Test name": "Low-ℓ Peak-to-RMS Temperature Ratio",
+    "Description": "Band-limit the CMB temperature map to ℓ ≤ 20 via an alm cutoff. Compute the RMS temperature and the maximum absolute temperature over unmasked pixels. The statistic is max|T| / RMS, which for a Gaussian random field has a well-defined expectation (~3–4). Deviations would signal anomalous concentration of extreme temperature features at large angular scales.",
+    "Results": "Observed peak-to-RMS ratio = 3.52. LCDM simulation mean = 3.48 ± 0.36, yielding z = +0.11σ. Two-tailed p = 0.80 (percentile = 60%). Anomaly strength: negligible.",
+    "Interpretation": "The peak-to-RMS ratio at low multipoles is fully consistent with isotropic Gaussian LCDM expectations. The most extreme temperature features at ℓ ≤ 20 are neither unusually large nor unusually small relative to the overall RMS fluctuation, indicating no anomalous clustering of hot or cold spots at the largest angular scales.",
+    "Meets hypothesis?": "Yes",
+    "Comparison to literature": "Low-ℓ CMB anomalies are extensively studied, including the quadrupole–octupole alignment (Tegmark et al., 2003; de Oliveira-Costa et al., 2004), the power deficit at ℓ ≲ 30 (Planck Collaboration XXIII, 2014), and the CMB Cold Spot (Cruz et al., 2005; Vielva et al., 2004). However, the specific peak-to-RMS ratio as a test statistic is not a standard probe in the anomaly literature; related work typically focuses on angular power spectrum anomalies, multipole alignments, or non-Gaussian signatures via Minkowski functionals or needlet analyses (e.g., Planck 2018 results VII).",
+    "Test novelty": "Variation",
+    "Verdict": "No anomalies found"
+  }
+}

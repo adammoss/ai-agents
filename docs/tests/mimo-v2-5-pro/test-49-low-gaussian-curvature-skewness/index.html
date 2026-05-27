@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Gaussian Curvature Skewness · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 49 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Gaussian Curvature Skewness</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The skewness of the Gaussian curvature K of the low-ℓ (ℓ ≤ 20) CMB temperature field is significantly different from zero, indicating a departure from the symmetric distribution expected for a statistically isotropic Gaussian random field.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Compute the Gaussian curvature K = T_θθ·T_φφ − (T_θφ)² of the low-ℓ (ℓ ≤ 20) SMICA temperature surface at each pixel (nside=256) via finite-difference Hessian approximations, then measure the spatial skewness γ_K of K across unmasked pixels. For a Gaussian random field, the distribution of K is symmetric (γ_K ≈ 0); significant skewness indicates preferential concentration of elliptic (peak/valley) versus saddle-point regions, probing geometric non-Gaussianity in contour topology.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck γ_K = −60.18. Simulation mean = −98.02 ± 74.19 (z = +0.51σ). Percentile = 86.3%, two-tailed p = 0.274. Anomaly strength: negligible.</p>
+          <p>The Gaussian curvature skewness of the low-ℓ temperature field is fully consistent with ΛCDM Gaussian expectations. The balance between elliptic and saddle-point regions shows no significant anomaly in the geometric structure of temperature contours. The result lies well within the simulation envelope.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect any significant deviation (positive or negative) from the null expectation of zero skewness, as stated in the description: &quot;For a statistically isotropic Gaussian random field, the distribution of K is symmetric and γ_K ≈ 0; a significant departure indicates preferential concentration of either convex/concave structure or saddle-like structure.&quot; There is no prior directional hypothesis (e.g., expecting an excess of peaks over saddle points); it is a general geometric non-Gaussianity probe. The code also computes a two-sided p-value, confirming the exploratory, two-tailed nature.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Barreiro et al. (2000, astro-ph/0004218) studied the Gaussian curvature of CMB excursion sets as a non-Gaussianity estimator and found it effective for detecting perturbations with skewness/kurtosis. However, that work examined the topology of excursion set surfaces at specific thresholds, whereas this test measures the skewness of the pixel-by-pixel Gaussian curvature of the temperature field itself—a related but distinct statistic. No prior studies using this specific skewness-of-K approach were identified in the literature.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Gaussian Curvature Skewness: Compute the Hessian matrix of the &quot;
+    &quot;temperature field T(θ,φ) at each pixel on the low-ℓ SMICA map (ℓ ≤ 20) &quot;
+    &quot;on nside=256, using finite-difference approximations for the second spatial &quot;
+    &quot;derivatives (T_θθ, T_φφ, T_θφ). At each pixel, calculate the Gaussian &quot;
+    &quot;curvature K = T_θθ · T_φφ − (T_θφ)², which measures the intrinsic curvature &quot;
+    &quot;of the temperature surface as a 2D manifold embedded in 3D space. K &gt; 0 &quot;
+    &quot;indicates elliptic points (concave or convex regions), while K &lt; 0 indicates &quot;
+    &quot;saddle points. Then compute the skewness of K across all unmasked pixels: &quot;
+    &quot;γ_K = ⟨(K − ⟨K⟩)³⟩ / σ_K³. For a statistically isotropic Gaussian random &quot;
+    &quot;field, γ_K ≈ 0; a significant departure indicates preferential concentration &quot;
+    &quot;of either convex/concave structure or saddle-like structure.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute skewness of Gaussian curvature K of the low-ℓ temperature surface.&quot;&quot;&quot;
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 500:
+        return 0.0
+
+    nside = hp.npix2nside(len(m))
+    npix = len(m)
+    lmax = 20
+
+    # Replace NaN with 0 for healpy operations
+    clean = np.where(mask, m, 0.0)
+
+    # Reconstruct band-limited map (ℓ ≤ 20)
+    alm = hp.map2alm(clean, lmax=lmax, iter=0)
+    m_low = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Get pixel coordinates (colatitude θ, longitude φ)
+    theta, phi = hp.pix2ang(nside, np.arange(npix))
+
+    # Get all 8 neighbors for every pixel
+    # hp.get_all_neighbours returns (8, npix) when given an array of pixels
+    neighbors = hp.get_all_neighbours(nside, np.arange(npix))  # shape: (8, npix)
+
+    # Extract neighbor indices for cardinal and diagonal directions
+    # HEALPix neighbor ordering: 0=SW, 1=S, 2=SE, 3=W, 4=E, 5=NW, 6=N, 7=NE
+    n_idx = neighbors[6]   # North
+    s_idx = neighbors[1]   # South
+    e_idx = neighbors[4]   # East
+    w_idx = neighbors[3]   # West
+    ne_idx = neighbors[7]  # North-East
+    nw_idx = neighbors[5]  # North-West
+    se_idx = neighbors[2]  # South-East
+    sw_idx = neighbors[0]  # South-West
+
+    # Create safe indices (clip to valid range for array access)
+    n_safe = np.clip(n_idx, 0, npix - 1)
+    s_safe = np.clip(s_idx, 0, npix - 1)
+    e_safe = np.clip(e_idx, 0, npix - 1)
+    w_safe = np.clip(w_idx, 0, npix - 1)
+    ne_safe = np.clip(ne_idx, 0, npix - 1)
+    nw_safe = np.clip(nw_idx, 0, npix - 1)
+    se_safe = np.clip(se_idx, 0, npix - 1)
+    sw_safe = np.clip(sw_idx, 0, npix - 1)
+
+    # Create masks for valid neighbors (exists AND unmasked)
+    valid_n = (n_idx &gt;= 0) &amp; mask[n_safe]
+    valid_s = (s_idx &gt;= 0) &amp; mask[s_safe]
+    valid_e = (e_idx &gt;= 0) &amp; mask[e_safe]
+    valid_w = (w_idx &gt;= 0) &amp; mask[w_safe]
+    valid_ne = (ne_idx &gt;= 0) &amp; mask[ne_safe]
+    valid_nw = (nw_idx &gt;= 0) &amp; mask[nw_safe]
+    valid_se = (se_idx &gt;= 0) &amp; mask[se_safe]
+    valid_sw = (sw_idx &gt;= 0) &amp; mask[sw_safe]
+
+    # Pixels where all 4 cardinal neighbors are valid
+    valid_hess = mask &amp; valid_n &amp; valid_s &amp; valid_e &amp; valid_w
+
+    # Pixels where all 8 neighbors are valid (for diagonal derivatives)
+    valid_diag = valid_hess &amp; valid_ne &amp; valid_nw &amp; valid_se &amp; valid_sw
+
+    # Get neighbor temperature values
+    T_n = m_low[n_safe]
+    T_s = m_low[s_safe]
+    T_e = m_low[e_safe]
+    T_w = m_low[w_safe]
+    T_ne = m_low[ne_safe]
+    T_nw = m_low[nw_safe]
+    T_se = m_low[se_safe]
+    T_sw = m_low[sw_safe]
+    T_c = m_low
+
+    # Get neighbor coordinates
+    theta_n = theta[n_safe]; phi_n = phi[n_safe]
+    theta_s = theta[s_safe]; phi_s = phi[s_safe]
+    theta_e = theta[e_safe]; phi_e = phi[e_safe]
+    theta_w = theta[w_safe]; phi_w = phi[w_safe]
+    theta_ne = theta[ne_safe]; phi_ne = phi[ne_safe]
+    theta_nw = theta[nw_safe]; phi_nw = phi[nw_safe]
+    theta_se = theta[se_safe]; phi_se = phi[se_safe]
+    theta_sw = theta[sw_safe]; phi_sw = phi[sw_safe]
+
+    # Compute step sizes for finite differences
+    # For colatitude (θ): north has larger θ
+    dtheta_n = theta_n - theta
+    dtheta_s = theta - theta_s
+    # Average step size for central differences
+    dtheta = 0.5 * (dtheta_n + dtheta_s)
+    dtheta = np.where(dtheta &gt; 1e-10, dtheta, 1e-10)
+
+    # For longitude (φ): handle wrap-around
+    dphi_e = phi_e - phi
+    dphi_e = (dphi_e + np.pi) % (2 * np.pi) - np.pi
+    dphi_w = phi - phi_w
+    dphi_w = (dphi_w + np.pi) % (2 * np.pi) - np.pi
+    dphi = 0.5 * (np.abs(dphi_e) + np.abs(dphi_w))
+    dphi = np.where(dphi &gt; 1e-10, dphi, 1e-10)
+
+    # Second derivatives using central finite differences
+    # T_θθ = (T_n - 2*T_c + T_s) / dtheta²
+    T_tt = (T_n - 2.0 * T_c + T_s) / (dtheta ** 2)
+
+    # T_φφ = (T_e - 2*T_c + T_w) / dphi²
+    T_pp = (T_e - 2.0 * T_c + T_w) / (dphi ** 2)
+
+    # Mixed derivative T_θφ using diagonal neighbors
+    # For diagonal step sizes, use actual coordinate differences
+    dtheta_diag = 0.5 * ((theta_ne - theta_sw) + (theta_nw - theta_se))
+    dphi_diag_ne = phi_ne - phi_nw
+    dphi_diag_ne = (dphi_diag_ne + np.pi) % (2 * np.pi) - np.pi
+    dphi_diag_se = phi_se - phi_sw
+    dphi_diag_se = (dphi_diag_se + np.pi) % (2 * np.pi) - np.pi
+    dphi_diag = 0.5 * (np.abs(dphi_diag_ne) + np.abs(dphi_diag_se))
+    dphi_diag = np.where(dphi_diag &gt; 1e-10, dphi_diag, 1e-10)
+    dtheta_diag = np.where(np.abs(dtheta_diag) &gt; 1e-10, dtheta_diag, dtheta)
+
+    # Mixed derivative using 4 diagonal neighbors: (NE - NW - SE + SW) / (4 * dθ * dφ)
+    T_tp_diag = (T_ne - T_nw - T_se + T_sw) / (4.0 * dtheta_diag * dphi_diag)
+
+    # Fallback: use cardinal neighbors when diagonals unavailable
+    # T_θφ ≈ (T_n - T_s)(T_e - T_w) / (4 dθ dφ)
+    T_tp_cardinal = ((T_n - T_s) * (T_e - T_w)) / (4.0 * dtheta * dphi)
+
+    # Use diagonal version where available, cardinal otherwise
+    T_tp = np.where(valid_diag, T_tp_diag, T_tp_cardinal)
+
+    # Gaussian curvature: K = T_θθ * T_φφ - (T_θφ)²
+    K = T_tt * T_pp - T_tp ** 2
+
+    # Only use pixels where Hessian is valid (all 4 cardinal neighbors valid)
+    K_valid = K[valid_hess]
+
+    if len(K_valid) &lt; 100:
+        return 0.0
+
+    # Compute skewness: γ_K = ⟨(K - ⟨K⟩)³⟩ / σ_K³
+    K_mean = np.mean(K_valid)
+    K_centered = K_valid - K_mean
+    K_std = np.std(K_valid)
+
+    if K_std &lt; 1e-30:
+        return 0.0
+
+    skewness = float(np.mean(K_centered ** 3) / (K_std ** 3))
+
+    if not np.isfinite(skewness):
+        return 0.0
+
+    return skewness
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Gaussian Curvature Skewness test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Gaussian Curvature Skewness&quot;,
+                &quot;xlabel&quot;: &quot;γ_K (skewness of Gaussian curvature)&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    # Two-sided p-value
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck shows a significant positive skewness in the Gaussian curvature &quot;
+            &quot;of the low-ℓ temperature field, beyond what ΛCDM simulations predict. &quot;
+            &quot;This indicates an excess of elliptic (convex/concave) points relative &quot;
+            &quot;to saddle points in the temperature surface, suggesting preferential &quot;
+            &quot;concentration of peaks or troughs — a geometric non-Gaussianity &quot;
+            &quot;signature that may reflect intrinsic anomalies or systematic effects.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck shows a significant negative skewness in the Gaussian curvature &quot;
+            &quot;of the low-ℓ temperature field, beyond what ΛCDM simulations predict. &quot;
+            &quot;This indicates an excess of saddle points relative to elliptic &quot;
+            &quot;(convex/concave) points, suggesting the temperature surface has &quot;
+            &quot;unusually complex contour topology — a geometric non-Gaussianity &quot;
+            &quot;probe that may indicate departures from Gaussian random field statistics.&quot;
+        )
+    else:
+        direction = (
+            &quot;The Gaussian curvature skewness of the low-ℓ temperature field is &quot;
+            &quot;consistent with ΛCDM Gaussian expectations. The balance between &quot;
+            &quot;elliptic (convex/concave) and saddle-point regions shows no significant &quot;
+            &quot;anomaly in the geometric structure of temperature contours.&quot;
+        )
+
+    interp = (
+        f&quot;γ_K = {planck_stat:.4f}. &quot;
+        f&quot;Sim mean = {mean_sim:.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value:.4f}. &quot;
+        f&quot;Strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the Gaussian curvature skewness γ_K for the low-ℓ &quot;
+        &quot;(ℓ ≤ 20) CMB temperature field. K = T_θθ·T_φφ − (T_θφ)² is computed &quot;
+        &quot;from finite-difference Hessian approximations at each pixel. K &gt; 0 &quot;
+        &quot;corresponds to elliptic points (peaks/valleys); K &lt; 0 to saddle points. &quot;
+        &quot;The skewness γ_K = ⟨(K−⟨K⟩)³⟩/σ_K³ measures the asymmetry between &quot;
+        &quot;these regions. For a Gaussian random field, γ_K ≈ 0. Red line marks &quot;
+        &quot;the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Gaussian Curvature Skewness&quot;,
+            &quot;xlabel&quot;: &quot;γ_K (skewness of Gaussian curvature)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-49-low-gaussian-curvature-skewness.png" alt="Statistic distribution for Low-ℓ Gaussian Curvature Skewness">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.274</td></tr>
+<tr><th>One-tailed p-value</th><td>0.137</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.274</td></tr>
+<tr><th>Sigma</th><td>1.094</td></tr>
+<tr><th>Planck statistic</th><td>-60.18</td></tr>
+<tr><th>Simulation mean</th><td>-98.02</td></tr>
+<tr><th>Simulation std.</th><td>74.19</td></tr>
+<tr><th>Simulation median</th><td>-79.52</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-49-low-gaussian-curvature-skewness.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-49-low-gaussian-curvature-skewness.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-49-low-gaussian-curvature-skewness.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-49-low-gaussian-curvature-skewness.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-49-low-gaussian-curvature-skewness.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-49-low-gaussian-curvature-skewness.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

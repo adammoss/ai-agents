@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Local Texture Diversity Entropy · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 44 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Local Texture Diversity Entropy</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label borderline">Borderline</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Shannon entropy of the 8-bit LBP code distribution in the low-ℓ (ℓ=2–32) CMB temperature map deviates from the mean expected under standard ΛCDM simulations, indicating anomalous local texture diversity.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The masked Planck temperature map is band-pass filtered to multipoles 2 ≤ ℓ ≤ 32 and downgraded to nside=32. For each unmasked pixel, an 8-bit Local Binary Pattern (LBP) code is computed from the 8 HEALPix neighbors. A normalized histogram of 256 possible codes is constructed, and its Shannon entropy H = −Σ pᵢ log₂(pᵢ) serves as the anomaly statistic, quantifying diversity and uniformity of local texture patterns in the low-ℓ CMB field.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck LBP entropy = 5.796 bits (72.4% of the theoretical maximum 8.0). Simulation mean = 5.745 ± 0.028 bits. The Planck value falls at the 95.8th percentile, yielding z ≈ 1.82σ and a two-tailed p-value of 0.084. Anomaly strength is classified as moderate.</p>
+          <p>The low-ℓ Planck map shows moderately elevated LBP texture diversity compared to ΛCDM simulations, suggesting slightly richer local pattern configurations than expected. However, the deviation does not reach conventional statistical significance (2σ / p &lt; 0.05). This could hint at subtle large-scale spatial organization (e.g., hemispherical asymmetry or localized features) but is consistent with Gaussian fluctuations at marginal levels.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test description and implementation do not specify a directional expectation (e.g., predicting only higher or only lower entropy). The anomaly statistic measures &quot;diversity and uniformity,&quot; which could deviate in either direction—excess entropy (unusually diverse textures) or deficit entropy (unusually homogeneous textures). The summarize_results function explicitly computes both upper and lower p-values and combines them into a two-sided p-value, confirming the two-tailed nature. Since no prior physical or observational evidence points specifically to one direction, a two-tailed test is appropriate for general anomaly detection.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No prior studies applying Local Binary Pattern texture analysis or Shannon entropy of LBP code distributions to CMB anomaly testing were identified. LBP is a well-established tool in computer vision and texture analysis but its use in CMB statistical isotropy studies appears unexplored in the literature.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Local Texture Diversity Entropy: &quot;
+    &quot;Filter the masked temperature map to retain only multipoles 2 ≤ ℓ ≤ 32. &quot;
+    &quot;On this band-limited map, compute the Local Binary Pattern (LBP) code for &quot;
+    &quot;each unmasked pixel using a radius of 1.5 pixels (3×3 neighborhood). &quot;
+    &quot;Construct a normalized histogram of the 8-bit LBP codes (256 bins) across &quot;
+    &quot;all unmasked pixels. The anomaly statistic is the Shannon entropy of this &quot;
+    &quot;histogram, H = -Σ p_i log2(p_i), where p_i is the probability of the &quot;
+    &quot;i-th LBP code. This single scalar measures the diversity and uniformity &quot;
+    &quot;of local texture patterns in the low-ℓ CMB map.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Low-ℓ Local Texture Diversity Entropy.
+
+    Band-pass filter the CMB temperature map to ℓ=2–32, downgrade to nside=32
+    (band-limit means all spatial info is captured), compute 8-bit LBP codes
+    for each unmasked pixel using the 8 HEALPix neighbors, then return the
+    Shannon entropy of the LBP code histogram.
+    &quot;&quot;&quot;
+    nside = hp.get_nside(m)
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 100:
+        return 0.0
+
+    # Step 1: Band-pass filter to ℓ = 2–32 at original nside
+    clean = np.where(mask, m, 0.0)
+    lmax = 32
+    alm = hp.map2alm(clean, lmax=lmax)
+    # Zero monopole (ℓ=0) and dipole (ℓ=1)
+    alm[0] = 0.0
+    alm[1] = 0.0
+    alm[2] = 0.0
+    filtered = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Step 2: Downgrade to nside=32 for LBP computation
+    # Band-limit ℓ≤32 means nside=32 (Nyquist ℓ≈96) captures all info
+    tns = 32
+    tnpix = 12 * tns ** 2
+
+    filt_filled = np.where(mask, filtered, 0.0)
+    filt_ds = hp.ud_grade(filt_filled, tns)
+    wt_ds = hp.ud_grade(mask.astype(np.float64), tns)
+
+    # Only keep coarse pixels where majority of fine pixels were valid
+    ok = wt_ds &gt; 0.5
+    n_ok = int(np.sum(ok))
+    if n_ok &lt; 50:
+        return 0.0
+
+    corrected = np.full(tnpix, np.nan)
+    corrected[ok] = filt_ds[ok] / wt_ds[ok]
+
+    # Step 3: Compute LBP codes using HEALPix 8-neighbor topology
+    all_neigh = hp.get_all_neighbours(tns, np.arange(tnpix))
+
+    vpix = np.where(ok)[0]
+    temps = corrected[vpix]
+
+    # Map global pixel index → local index for valid pixels
+    p2i = np.full(tnpix, -1, dtype=np.int32)
+    p2i[vpix] = np.arange(n_ok, dtype=np.int32)
+
+    # Build LBP codes vectorized over all valid pixels
+    lbp_codes = np.zeros(n_ok, dtype=np.int32)
+    for bit in range(8):
+        neigh_global = all_neigh[bit, vpix]  # neighbor pixel indices
+        # Check if neighbor exists and is valid
+        valid = (neigh_global &gt;= 0) &amp; ok[neigh_global]
+        # Default: comparison is False (0) for invalid neighbors
+        # Compare neighbor value &gt;= center value
+        # Use -inf for invalid neighbors so they never satisfy &gt;= condition
+        neigh_vals = np.where(valid, corrected[neigh_global], -np.inf)
+        bit_set = neigh_vals &gt;= temps
+        lbp_codes[bit_set] += (1 &lt;&lt; bit)
+
+    # Step 4: Build histogram of LBP codes (256 bins for 8-bit)
+    code_counts = np.bincount(lbp_codes, minlength=256).astype(np.float64)
+    total = code_counts.sum()
+    if total == 0:
+        return 0.0
+
+    probs = code_counts / total
+
+    # Step 5: Compute Shannon entropy H = -Σ p_i log2(p_i)
+    # Only consider bins with non-zero probability
+    nz = probs &gt; 0
+    entropy = -np.sum(probs[nz] * np.log2(probs[nz]))
+
+    return float(entropy) if np.isfinite(entropy) else 0.0
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Local Texture Diversity Entropy test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ LBP Texture Entropy&quot;,
+                &quot;xlabel&quot;: &quot;Shannon Entropy (bits)&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    max_entropy = 8.0  # max possible for 256-bin distribution
+    uniformity_pct = 100.0 * planck_stat / max_entropy if max_entropy &gt; 0 else 0.0
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck shows significantly higher LBP texture entropy than LCDM &quot;
+            &quot;simulations, indicating unusually diverse local texture patterns &quot;
+            &quot;in the low-ℓ field — possibly reflecting non-standard spatial &quot;
+            &quot;organization such as hemispherical asymmetry, localized cold/hot &quot;
+            &quot;spots, or anisotropic features that create a richer variety of &quot;
+            &quot;local intensity configurations.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck shows significantly lower LBP texture entropy than LCDM &quot;
+            &quot;simulations, indicating unusually homogeneous local texture &quot;
+            &quot;patterns — the low-ℓ field may have fewer distinct local &quot;
+            &quot;intensity configurations than expected, suggesting large-scale &quot;
+            &quot;coherence or reduced small-scale structure.&quot;
+        )
+    else:
+        direction = (
+            &quot;The LBP texture entropy is consistent with Gaussian LCDM &quot;
+            &quot;expectations, indicating standard diversity of local texture &quot;
+            &quot;patterns in the low-ℓ CMB field.&quot;
+        )
+
+    interp = (
+        f&quot;LBP texture entropy = {planck_stat:.4f} bits &quot;
+        f&quot;(max possible = {max_entropy:.1f}, uniformity = {uniformity_pct:.1f}%). &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the Shannon entropy of the 8-bit LBP code distribution &quot;
+        &quot;from the low-ℓ (ℓ=2–32) CMB temperature field. Higher entropy &quot;
+        &quot;indicates more diverse local texture patterns (codes are more &quot;
+        &quot;uniformly distributed), while lower entropy indicates a few &quot;
+        &quot;dominant texture patterns. The maximum possible entropy is 8 bits &quot;
+        &quot;(all 256 codes equally likely). Red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;max_entropy&quot;: max_entropy,
+        &quot;uniformity_pct&quot;: uniformity_pct,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ LBP Texture Diversity Entropy&quot;,
+            &quot;xlabel&quot;: &quot;Shannon Entropy of LBP Code Histogram (bits)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-44-low-local-texture-diversity-entropy.png" alt="Statistic distribution for Low-ℓ Local Texture Diversity Entropy">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.084</td></tr>
+<tr><th>One-tailed p-value</th><td>0.042</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.084</td></tr>
+<tr><th>Sigma</th><td>1.728</td></tr>
+<tr><th>Planck statistic</th><td>5.796</td></tr>
+<tr><th>Simulation mean</th><td>5.745</td></tr>
+<tr><th>Simulation std.</th><td>0.0281</td></tr>
+<tr><th>Simulation median</th><td>5.743</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-44-low-local-texture-diversity-entropy.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-44-low-local-texture-diversity-entropy.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-44-low-local-texture-diversity-entropy.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-44-low-local-texture-diversity-entropy.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-44-low-local-texture-diversity-entropy.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-44-low-local-texture-diversity-entropy.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

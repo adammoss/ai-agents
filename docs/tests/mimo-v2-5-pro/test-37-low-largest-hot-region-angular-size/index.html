@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Largest Hot Region Angular Size · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 37 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Largest Hot Region Angular Size</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The angular diameter of the largest connected hot region in the low-ℓ CMB temperature map is consistent with the distribution predicted by the isotropic Gaussian ΛCDM model.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Threshold the band-limited (ℓ=2–10) CMB temperature map at its mean to identify hot pixels. Using 4-connectivity on the nside=256 HEALPix grid, find connected components of hot pixels and compute the area of each. The statistic is the angular diameter (= 2√(area/π)) of the largest connected hot region.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck&#x27;s largest hot region diameter = 102.50°, compared to a simulation mean of 100.12° ± 8.80° (z = +0.27σ). Two-tailed empirical p-value = 0.902, placing Planck at the 54.9th percentile. Anomaly strength is negligible.</p>
+          <p>The angular extent of the largest connected hot region in the low-ℓ CMB temperature field is fully consistent with isotropic Gaussian ΛCDM expectations. The observed value sits comfortably within the bulk of the simulated distribution, showing no tendency toward unusually large or fragmented hot structures at large angular scales.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test description and code do not specify a directional preference; the summarize function explicitly computes a two-sided empirical p-value by considering both upper and lower tails, and the interpretation examines deviations in both directions (unusually large or small). This approach is standard for exploratory anomaly tests where no prior directional hypothesis exists, allowing detection of any departure from the ΛCDM expectations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Studies of CMB spot morphology at large scales have examined ellipticity (Gurzadyan et al. 2003) and hot/cold spot spatial uniformity via orientation matrices (Khan &amp; Saha 2022). Abramo et al. (2006) discussed extended foregrounds linked to low-ℓ anomalies. However, none of these specifically quantify the angular diameter of the largest connected hot component using graph-based connected-component analysis. The specific statistic tested here does not appear to have a direct precedent in the literature.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Largest Hot Region Angular Size: &quot;
+    &quot;Compute the mean temperature of the low-ℓ (ℓ = 2–10) temperature map. &quot;
+    &quot;Threshold the map at this mean to create a binary mask where pixels with &quot;
+    &quot;temperature above the mean are labeled as hot. On the nside=256 HEALPix grid, &quot;
+    &quot;identify connected components of hot pixels using 4-connectivity (neighboring &quot;
+    &quot;pixels sharing an edge). For each connected component, calculate its area in &quot;
+    &quot;square degrees by summing the solid angles of its constituent pixels. The final &quot;
+    &quot;statistic is the angular diameter (in degrees) of the largest connected hot region, &quot;
+    &quot;defined as 2 × √(area/π).&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute the angular diameter of the largest connected hot region in the low-ell map.
+
+    Steps:
+      1. Identify unmasked pixels; bail out if too few.
+      2. Fill masked pixels with 0 for healpy compatibility.
+      3. Band-limit the map to ell = 2-10 via spherical harmonic transform,
+         zeroing out ell=0 (monopole) and ell=1 (dipole) coefficients.
+      4. Compute mean temperature over unmasked pixels of the band-limited map.
+      5. Threshold: hot pixels are those strictly above the mean AND unmasked.
+      6. Identify 4-connected neighbors (edge-sharing) using HEALPix neighbor
+         indices [0, 2, 4, 6] corresponding to S, E, N, W cardinal directions.
+      7. Build sparse adjacency matrix for hot pixels and find connected components
+         using scipy.sparse.csgraph.connected_components.
+      8. Compute area of each component (n_pixels x pixel_area) and angular
+         diameter = 2*sqrt(area/pi) of the largest.
+
+    Returns
+    -------
+    float
+        Angular diameter in degrees of the largest connected hot region.
+    &quot;&quot;&quot;
+    from scipy import sparse
+
+    nside = hp.get_nside(m)
+    npix = hp.nside2npix(nside)
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+
+    if n_valid &lt; 100:
+        return 0.0
+
+    # Fill masked pixels with 0 for healpy transforms
+    m_filled = np.where(mask, m, 0.0)
+
+    # Band-limit to ell = 2-10
+    lmax = 10
+    alm = hp.map2alm(m_filled, lmax=lmax)
+    # Zero out ell=0 (monopole) and ell=1 (dipole): indices 0, 1, 2
+    alm[:3] = 0.0
+    m_low = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Compute mean temperature over unmasked pixels
+    mean_temp = np.mean(m_low[mask])
+
+    # Binary hot mask: strictly above mean AND originally unmasked
+    hot = (m_low &gt; mean_temp) &amp; mask
+
+    # Get all 8 neighbors for every pixel (shape: 8 x npix)
+    all_neighbors = hp.get_all_neighbours(nside, np.arange(npix))
+    # 4 edge-sharing (cardinal) neighbors: S, E, N, W at indices 0, 2, 4, 6
+    edge_neighbors = all_neighbors[[0, 2, 4, 6], :]  # shape: (4, npix)
+
+    # Identify hot pixel indices
+    hot_indices = np.where(hot)[0]
+    n_hot = len(hot_indices)
+    if n_hot == 0:
+        return 0.0
+
+    # Map from pixel index to hot-pixel ordinal index
+    hot_map = -np.ones(npix, dtype=np.int64)
+    hot_map[hot_indices] = np.arange(n_hot)
+
+    # Get edge-neighbor pixel indices for hot pixels only
+    hot_neighbors = edge_neighbors[:, hot_indices]  # shape: (4, n_hot)
+
+    # Determine which neighbors are also hot
+    neighbor_hot_idx = np.full(hot_neighbors.shape, -1, dtype=np.int64)
+    valid_nb = hot_neighbors &gt;= 0
+    neighbor_hot_idx[valid_nb] = hot_map[hot_neighbors[valid_nb]]
+    valid_edge = valid_nb &amp; (neighbor_hot_idx &gt;= 0)
+
+    # Build edge list (directed edges; each undirected edge appears twice)
+    src_dir, dst_hot = np.where(valid_edge)
+    rows = dst_hot
+    cols = neighbor_hot_idx[src_dir, dst_hot]
+
+    # Build sparse adjacency matrix and find connected components
+    data = np.ones(len(rows), dtype=np.int8)
+    adj = sparse.csr_matrix((data, (rows, cols)), shape=(n_hot, n_hot))
+    n_components, labels = sparse.csgraph.connected_components(adj, directed=False)
+
+    # Count pixels per component
+    component_sizes = np.bincount(labels, minlength=n_components)
+
+    # Angular diameter of the largest component
+    pixel_area_sq_deg = hp.nside2pixarea(nside, degrees=True)
+    max_area = float(np.max(component_sizes)) * pixel_area_sq_deg
+    angular_diameter = 2.0 * np.sqrt(max_area / np.pi)
+
+    return float(angular_diameter)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ell Largest Hot Region Angular Size test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available for comparison.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ell Largest Hot Region Angular Size&quot;,
+                &quot;xlabel&quot;: &quot;Angular diameter (degrees)&quot;,
+                &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data available.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    # Two-sided empirical p-value
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    if std_sim &gt; 0:
+        deviation_sigma = (planck_stat - mean_sim) / std_sim
+    else:
+        deviation_sigma = 0.0
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck&#x27;s largest connected hot region at low multipoles is unusually large &quot;
+            &quot;compared to typical LCDM realizations. This could indicate an anomalous &quot;
+            &quot;concentration of hot power in the large-scale temperature field, potentially &quot;
+            &quot;related to large-scale CMB anomalies such as the cold spot&#x27;s counterpart &quot;
+            &quot;or a preferred direction in the temperature pattern.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck&#x27;s largest connected hot region at low multipoles is unusually small &quot;
+            &quot;compared to typical LCDM realizations, indicating that hot regions at large &quot;
+            &quot;angular scales are more fragmented than expected.&quot;
+        )
+    else:
+        direction = (
+            &quot;The angular size of the largest hot region at low multipoles is consistent &quot;
+            &quot;with isotropic Gaussian LCDM expectations.&quot;
+        )
+
+    interp = (
+        f&quot;Largest hot region angular diameter = {planck_stat:.2f} deg. &quot;
+        f&quot;Simulation mean = {mean_sim:.2f} deg +/- {std_sim:.2f} deg &quot;
+        f&quot;({deviation_sigma:+.2f} sigma from mean). &quot;
+        f&quot;Percentile = {percentile:.1f}%, two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the angular diameter (degrees) of the largest connected hot &quot;
+        &quot;region in the low-ell (ell = 2-10) band-limited temperature map, computed from &quot;
+        &quot;isotropic LCDM simulations. Hot pixels are those strictly above the mean &quot;
+        &quot;temperature; connected components use 4-connectivity (edge-sharing neighbors) &quot;
+        &quot;on the HEALPix grid. Angular diameter = 2*sqrt(area/pi). &quot;
+        &quot;The red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ell Largest Hot Region Angular Size&quot;,
+            &quot;xlabel&quot;: &quot;Angular diameter (degrees)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-37-low-largest-hot-region-angular-size.png" alt="Statistic distribution for Low-ℓ Largest Hot Region Angular Size">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.902</td></tr>
+<tr><th>One-tailed p-value</th><td>0.451</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.902</td></tr>
+<tr><th>Sigma</th><td>0.123</td></tr>
+<tr><th>Planck statistic</th><td>102</td></tr>
+<tr><th>Simulation mean</th><td>100</td></tr>
+<tr><th>Simulation std.</th><td>8.8</td></tr>
+<tr><th>Simulation median</th><td>102</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-37-low-largest-hot-region-angular-size.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-37-low-largest-hot-region-angular-size.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-37-low-largest-hot-region-angular-size.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-37-low-largest-hot-region-angular-size.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-37-low-largest-hot-region-angular-size.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-37-low-largest-hot-region-angular-size.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Angular Momentum of Gradient Field · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 83 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Angular Momentum of Gradient Field</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The observed CMB temperature map exhibits an anomalous low-ℓ angular momentum of its gradient field, indicating a statistically significant deviation in the expected Gaussian, isotropic pattern.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The CMB temperature map is filtered to ℓ ≤ 10 and its surface gradient ∇T computed at each pixel. A vector field V = r × ∇T is integrated over the sphere to yield total angular momentum L. The anomaly statistic is |L|. For a real scalar field, |L| = 2√(2π)|Im(a₁,₁)|, so it depends solely on the ℓ=1 dipole mode and measures any net directional circulation in the low-ℓ gradient pattern.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck |L| = 5.905. Simulation mean ± std = 14.24 ± 10.95. The observed value lies below the simulation mean with z = −0.76 and an upper-tail p-value of 0.735. The anomaly ratio (Planck/sim mean) is 0.415.</p>
+          <p>The Planck angular momentum magnitude is entirely unremarkable—slelow the median expectation from isotropic Gaussian realizations but well within the central 68% of simulations. There is no evidence of an anomalous dipole alignment or directional preference in the low-ℓ temperature gradient field.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test statistic |L| measures the magnitude of a vector, which is intrinsically non-negative. The described anomaly is explicitly directional—an &quot;unexpected directional preference&quot; or &quot;anomalous dipole alignment&quot;—and the analysis code&#x27;s interpretation and p-value focus are on whether Planck&#x27;s value is anomalously *large* compared to simulations. The physics indicates that |L| directly amplifies the imaginary part of the ℓ=1 coefficient, making an unexpectedly high value a clear indicator of a preferred axis or non-Gaussianity. There is no physical motivation to consider an abnormally *low* value as the primary anomaly; thus, a one-tailed (upper tail) test is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The specific angular-momentum-of-gradient statistic does not appear in the searched literature. Related work examines low-ℓ multipole alignments using multipole vectors (Abramo et al. 2006, arXiv:astro-ph/0604361; Das &amp; Souradeep 2012, arXiv:1210.2861), but those test inter-multipole correlations rather than a global circulation integral. Since |L| reduces to a dipole test, it connects loosely to existing dipole-anomaly studies but uses a distinct mathematical construction.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;For the temperature map filtered to multipoles l &lt;= 10, compute the surface gradient &quot;
+    &quot;dT at each pixel. Construct the vector field V = r x dT, where r is the unit radial &quot;
+    &quot;vector. Integrate V over the full sphere to obtain the total angular momentum vector L. &quot;
+    &quot;The anomaly statistic is the magnitude |L|. &quot;
+    &quot;Key physics: for a scalar field on the sphere, the angular momentum integral picks out &quot;
+    &quot;only the l=1 (dipole) mode of the gradient field. For real T, |L| = 2*sqrt(2*pi) * |Im(a_{1,1})|.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the magnitude of total angular momentum |L| of the gradient field.
+    
+    L = integral of r x grad(T) over the sphere.
+    For a real scalar field, this depends only on the l=1, m=+/-1 spherical harmonic coefficients.
+    &quot;&quot;&quot;
+    # --- 1. Identify valid (non-masked) pixels ---
+    valid = np.isfinite(m)
+    if not np.any(valid):
+        return 0.0
+    
+    m_clean = np.where(valid, m, 0.0)
+    nside = hp.npix2nside(len(m_clean))
+    
+    # --- 2. Filter to l &lt;= 10 ---
+    lmax = 10
+    alm = hp.map2alm(m_clean, lmax=lmax)
+    
+    # --- 3. Extract a_{1,1} coefficient ---
+    # In healpy&#x27;s alm layout for lmax=10:
+    # Index 0: (l=0, m=0)
+    # Index 1: (l=1, m=0)
+    # Index 2: (l=1, m=1)
+    # ...
+    ell_arr, m_arr = hp.Alm.getlm(lmax=lmax)
+    
+    # Find index for (l=1, m=1)
+    idx_11 = np.where((ell_arr == 1) &amp; (m_arr == 1))[0]
+    if len(idx_11) == 0:
+        return 0.0
+    
+    a11 = alm[idx_11[0]]
+    
+    # --- 4. Compute angular momentum magnitude ---
+    # For a real scalar field:
+    # L_z = 0 (from reality condition)
+    # L_x = L_y = -2*sqrt(pi) * Im(a_{1,1})
+    # |L| = sqrt(L_x^2 + L_y^2) = 2*sqrt(2*pi) * |Im(a_{1,1})|
+    
+    L_magnitude = 2.0 * np.sqrt(2.0 * np.pi) * np.abs(a11.imag)
+    
+    return float(L_magnitude)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the Low-l Angular Momentum of Gradient Field statistic.&quot;&quot;&quot;
+    sims = np.asarray(sim_results, dtype=float)
+    sims = sims[np.isfinite(sims)]
+    n = len(sims)
+    
+    if n == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+    
+    mean_s = float(np.mean(sims))
+    std_s = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    median_s = float(np.median(sims))
+    
+    # P-values: upper tail (anomalously large |L|) and lower tail
+    p_value_upper = float(np.mean(sims &gt;= planck_stat))
+    p_value_lower = float(np.mean(sims &lt;= planck_stat))
+    p_two = min(2.0 * min(p_value_upper, p_value_lower), 1.0)
+    
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else 0.0
+    anomaly_ratio = planck_stat / mean_s if mean_s &gt; 0 else float(&quot;inf&quot;)
+    
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;planck_angular_momentum&quot;: planck_stat,
+        &quot;anomaly_ratio&quot;: anomaly_ratio,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;sim_median&quot;: median_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value_upper&quot;: p_value_upper,
+        &quot;p_value_lower&quot;: p_value_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n,
+        &quot;interpretation&quot;: (
+            f&quot;Angular momentum |L| measures the net circulation of the low-l temperature &quot;
+            f&quot;gradient field (l&lt;=10). For a real scalar field, |L| = 2*sqrt(2*pi) * |Im(a_{{1,1}})| &quot;
+            f&quot;depends only on the l=1 dipole mode of the temperature field. A large |L| indicates &quot;
+            f&quot;an unexpected directional preference in the temperature gradient pattern. &quot;
+            f&quot;Planck |L| = {planck_stat:.4f}. &quot;
+            f&quot;Sim mean +/- std = {mean_s:.4f} +/- {std_s:.4f}. &quot;
+            f&quot;Anomaly ratio (Planck/sim_mean) = {anomaly_ratio:.4f}. &quot;
+            f&quot;z = {z_score:.2f}, two-sided p = {p_two:.4f}. &quot;
+            f&quot;A significantly high value would suggest an anomalous dipole alignment in the &quot;
+            f&quot;low-l temperature pattern.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-l Angular Momentum of Gradient Field&quot;,
+            &quot;xlabel&quot;: &quot;Angular Momentum |L|&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck |L| = {planck_stat:.4f}. &quot;
+                f&quot;Sim mean +/- std = {mean_s:.4f} +/- {std_s:.4f}. &quot;
+                f&quot;Anomaly ratio = {anomaly_ratio:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, P(two-sided) = {p_two:.4f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-83-low-angular-momentum-of-gradient-field.png" alt="Statistic distribution for Low-ℓ Angular Momentum of Gradient Field">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.735</td></tr>
+<tr><th>One-tailed p-value</th><td>0.735</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.53</td></tr>
+<tr><th>Sigma</th><td>0.628</td></tr>
+<tr><th>Planck statistic</th><td>5.905</td></tr>
+<tr><th>Simulation mean</th><td>14.24</td></tr>
+<tr><th>Simulation std.</th><td>10.95</td></tr>
+<tr><th>Simulation median</th><td>11.83</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-83-low-angular-momentum-of-gradient-field.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-83-low-angular-momentum-of-gradient-field.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-83-low-angular-momentum-of-gradient-field.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-83-low-angular-momentum-of-gradient-field.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-83-low-angular-momentum-of-gradient-field.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-83-low-angular-momentum-of-gradient-field.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

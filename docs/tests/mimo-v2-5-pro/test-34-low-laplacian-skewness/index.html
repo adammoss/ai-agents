@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Laplacian Skewness · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 34 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Laplacian Skewness</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The low-ℓ (ℓ=2–10) Laplacian skewness of the observed CMB temperature map deviates from zero, indicating a non-Gaussian asymmetry in the spatial curvature distribution between hot and cold regions.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The angular Laplacian ∇²T is computed in harmonic space by multiplying each spherical harmonic coefficient T_{ℓm} (ℓ = 2–10) by −ℓ(ℓ+1), then synthesised to real space at nside=256. The skewness γ = ⟨(∇²T)³⟩ / ⟨(∇²T)²⟩^{3/2} measures asymmetry in the curvature distribution of the large-scale temperature pattern—e.g., whether cold spots have sharper curvature peaks than hot spots. This is distinct from raw temperature skewness, temperature–Laplacian cross-correlations, or gradient-magnitude statistics.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck skewness = −0.142; simulation mean = −0.002 ± 0.144. The observed value lies at −0.97σ from the simulation mean (percentile 16.2%), yielding a two-tailed p-value of 0.324. Anomaly strength is negligible.</p>
+          <p>The low-ℓ Laplacian skewness is fully consistent with isotropic Gaussian ΛCDM expectations. There is no evidence for asymmetric curvature structure between hot and cold regions at large angular scales. The result is unremarkable compared to the simulated ensemble.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is exploratory and designed to detect any significant deviation from Gaussian expectations (γ=0) without a strong prior directional prediction. The code implements a two-sided empirical p-value and interprets both negative and positive skewness as potential anomalies, indicating a two-tailed framework is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>CMB non-Gaussianity at large scales has been probed extensively using other statistics—temperature skewness, Minkowski functionals, bispectrum estimators, and multipole vectors—but the specific statistic of Laplacian-field skewness does not appear to have been previously studied. The present search returned no relevant prior work on this quantity. The result is consistent with the general finding that Planck large-scale data show no strong evidence for primordial non-Gaussianity of generic type.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Laplacian Skewness: &quot;
+    &quot;Compute the angular Laplacian of the band-limited temperature map (ℓ = 2–10) &quot;
+    &quot;and measure its skewness as a single scalar. The Laplacian is constructed in &quot;
+    &quot;harmonic space by multiplying each T_{ℓm} coefficient by −ℓ(ℓ+1), then synthesized &quot;
+    &quot;to real space at nside=256. The skewness γ = ⟨(∇²T)³⟩ / ⟨(∇²T)²⟩^{3/2} is &quot;
+    &quot;computed over sky-area-weighted unmasked pixels. This statistic probes non-Gaussian &quot;
+    &quot;spatial structure — specifically asymmetry in the curvature distribution of the &quot;
+    &quot;large-scale temperature pattern (e.g., whether cold spots have sharper curvature &quot;
+    &quot;than hot spots) — which is distinct from raw temperature skewness, temperature–&quot;
+    &quot;Laplacian cross-correlation, and gradient-magnitude spatial variability.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute the skewness of the angular Laplacian of the low-ℓ temperature map.
+
+    Steps:
+      1. Identify unmasked (finite) pixels; bail out if too few.
+      2. Fill masked pixels with 0 for healpy compatibility.
+      3. Extract alm coefficients for ℓ = 2 through 10.
+      4. Multiply each coefficient by −ℓ(ℓ+1) to get the Laplacian alm.
+      5. Synthesize the real-space Laplacian map.
+      6. Compute skewness γ = ⟨(∇²T)³⟩ / ⟨(∇²T)²⟩^{3/2} over unmasked pixels.
+
+    Returns
+    -------
+    float
+        Skewness of the Laplacian map (dimensionless scalar).
+    &quot;&quot;&quot;
+    mask = np.isfinite(m)
+    valid_idx = np.where(mask)[0]
+    n_valid = len(valid_idx)
+
+    if n_valid &lt; 100:
+        return 0.0
+
+    nside = hp.npix2nside(len(m))
+
+    # Fill masked pixels with 0 for healpy transforms
+    m_filled = np.where(mask, m, 0.0)
+
+    # Extract alm up to ℓ_max = 10
+    lmax = 10
+    alm = hp.map2alm(m_filled, lmax=lmax)
+
+    # Apply −ℓ(ℓ+1) Laplacian operator to each coefficient
+    l_arr, m_arr = hp.Alm.getlm(lmax)
+    lap_alm = alm.copy()
+    lap_alm *= -(l_arr * (l_arr + 1)).astype(np.float64)
+
+    # Zero out ℓ = 0 and ℓ = 1 explicitly (they contribute no Laplacian)
+    lap_alm[l_arr &lt; 2] = 0.0
+
+    # Synthesize real-space Laplacian map
+    lap_map = hp.alm2map(lap_alm, nside, lmax=lmax, verbose=False)
+
+    # Extract values at unmasked pixels
+    vals = lap_map[valid_idx]
+
+    # Compute area-weighted moments (unmasked pixels at fixed nside have equal area)
+    mean_v = np.mean(vals)
+    centered = vals - mean_v
+
+    m2 = np.mean(centered ** 2)
+    if m2 &lt;= 0.0:
+        return 0.0
+
+    m3 = np.mean(centered ** 3)
+
+    skewness = m3 / (m2 ** 1.5)
+
+    return float(skewness)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarise the Low-ℓ Laplacian Skewness test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available for comparison.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Laplacian Skewness&quot;,
+                &quot;xlabel&quot;: &quot;Laplacian skewness γ&quot;,
+                &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data available.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    # Two-sided empirical p-value
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    # Direction interpretation
+    if std_sim &gt; 0:
+        deviation_sigma = (planck_stat - mean_sim) / std_sim
+    else:
+        deviation_sigma = 0.0
+
+    if planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck&#x27;s low-ℓ Laplacian is significantly negatively skewed, meaning &quot;
+            &quot;cold spots exhibit sharper curvature peaks than hot spots. This asymmetry &quot;
+            &quot;in the curvature distribution could reflect non-Gaussian features such as &quot;
+            &quot;the Cold Spot or other large-scale anomalies in the temperature field.&quot;
+        )
+    elif planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck&#x27;s low-ℓ Laplacian is significantly positively skewed, meaning &quot;
+            &quot;hot spots exhibit sharper curvature peaks than cold spots — an atypical &quot;
+            &quot;configuration that may indicate asymmetric large-scale temperature structure.&quot;
+        )
+    else:
+        direction = (
+            &quot;The Laplacian skewness is consistent with isotropic Gaussian ΛCDM &quot;
+            &quot;expectations; the curvature distribution of the large-scale temperature &quot;
+            &quot;pattern shows no significant asymmetry between hot and cold regions.&quot;
+        )
+
+    interp = (
+        f&quot;Laplacian skewness = {planck_stat:.6f}. &quot;
+        f&quot;Simulation mean = {mean_sim:.6f} ± {std_sim:.6f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ from mean). &quot;
+        f&quot;Percentile = {percentile:.1f}%, two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the Laplacian skewness γ = ⟨(∇²T)³⟩ / ⟨(∇²T)²⟩^{3/2} of the &quot;
+        &quot;ℓ = 2–10 band-limited temperature map from isotropic ΛCDM simulations. &quot;
+        &quot;The angular Laplacian ∇²T is computed by multiplying each spherical harmonic &quot;
+        &quot;coefficient T_{ℓm} by −ℓ(ℓ+1), then transforming to real space. &quot;
+        &quot;For a statistically isotropic Gaussian field, γ ≈ 0 by symmetry. &quot;
+        &quot;Significantly negative γ indicates cold spots have sharper curvature than hot &quot;
+        &quot;spots (or vice versa for positive γ). &quot;
+        &quot;The red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Laplacian Skewness&quot;,
+            &quot;xlabel&quot;: &quot;Laplacian skewness γ&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-34-low-laplacian-skewness.png" alt="Statistic distribution for Low-ℓ Laplacian Skewness">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.324</td></tr>
+<tr><th>One-tailed p-value</th><td>0.162</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.324</td></tr>
+<tr><th>Sigma</th><td>0.986</td></tr>
+<tr><th>Planck statistic</th><td>-0.142</td></tr>
+<tr><th>Simulation mean</th><td>-0.00152</td></tr>
+<tr><th>Simulation std.</th><td>0.144</td></tr>
+<tr><th>Simulation median</th><td>-0.00307</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-34-low-laplacian-skewness.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-34-low-laplacian-skewness.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-34-low-laplacian-skewness.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-34-low-laplacian-skewness.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-34-low-laplacian-skewness.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-34-low-laplacian-skewness.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

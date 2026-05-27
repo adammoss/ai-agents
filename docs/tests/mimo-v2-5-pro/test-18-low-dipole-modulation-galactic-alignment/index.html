@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Dipole Modulation Galactic Alignment · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 18 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Dipole Modulation Galactic Alignment</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · alignment · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The low-ℓ (2-5) power-modulation dipole direction in the CMB temperature map is preferentially aligned with the galactic north pole.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Decomposes the CMB temperature map (ℓ = 2–5) into a squared-field map T², extracts its dipole to find the power-modulation direction n̂, and measures its alignment with the galactic north pole via the signed dot product n̂ · n̂_gal.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck SMICA value = -0.584 (z = -0.92). Two-sided p = 0.524; one-sided (upper) p = 0.738. The result lies at the 26.2nd percentile of simulations, indicating a south-pointing modulation axis.</p>
+          <p>The observed low-ℓ power modulation points strongly toward the galactic south pole, contrary to the hypothesis. However, this alignment is well within the range expected from random LCDM fluctuations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test statistic is defined as the signed dot product between the modulation direction and the galactic north pole, where a value of +1 indicates perfect alignment with galactic north, -1 indicates alignment with galactic south, and 0 indicates no preferred galactic direction. The description and interpretation code explicitly focus on testing for alignment in a specific direction (toward galactic north), with the alternative hypothesis being an excess of positive values (alignment toward north) rather than any general deviation from zero. Therefore, the test is directional and one-tailed, focusing on the upper tail of the distribution.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The specific statistic (low-ℓ T² dipole galactic alignment) is not widely studied. Standard dipole modulation analyses (e.g., Planck 2013, 2016) focus on full-sky or high-ℓ modulations and directional alignments with ecliptic or other axes, not this exact low-ℓ squared-field method. No directly comparable studies were identified.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (&quot;Low-ell Dipole Modulation Galactic Alignment: Decomposes the masked map &quot;
+    &quot;into spherical harmonics, isolates ell=2-5, constructs the squared-field map T^2 from &quot;
+    &quot;those multipoles, extracts the dipole of T^2 to find the power-modulation direction, &quot;
+    &quot;and measures its alignment with the galactic north pole via the signed dot product &quot;
+    &quot;n_hat . n_hat_gal. Values near +1 indicate modulation peak toward galactic north, &quot;
+    &quot;near -1 toward galactic south, and near 0 indicate no preferred galactic alignment.&quot;)
+
+
+def analyze_map(m):
+    nside = hp.npix2nside(len(m))
+    
+    # Step 1: Fill masked pixels with 0.0 for healpy compatibility
+    m_filled = np.where(np.isfinite(m), m, 0.0)
+    
+    # Step 2: Decompose into spherical harmonics up to ell=5
+    lmax = 5
+    alm = hp.map2alm(m_filled, lmax=lmax)
+    
+    # Step 3: Isolate low-ell range ell=2 to ell=5
+    # Zero out ell=0 and ell=1 components
+    alm_low = alm.copy()
+    # In HEALPix triangular scheme: index = m*(2*lmax+1-m)//2 + l
+    # For ell=0: index 0; for ell=1: indices 1,2 (m=0,1)
+    # Set ell=0 and ell=1 to zero
+    alm_low[0] = 0.0  # ell=0, m=0
+    alm_low[1] = 0.0  # ell=1, m=0
+    alm_low[2] = 0.0  # ell=1, m=1
+    
+    # Step 4: Construct the low-ell map
+    m_low = hp.alm2map(alm_low, nside=nside, lmax=lmax)
+    
+    # Step 5: Construct squared-field map T^2 restricted to low-ell multipoles
+    m_sq = m_low * m_low
+    
+    # Step 6: Compute spherical harmonic transform of T^2 and extract dipole (ell=1)
+    alm_sq = hp.map2alm(m_sq, lmax=1)
+    
+    # Step 7: Extract dipole components
+    # In HEALPix triangular indexing with lmax=1:
+    # index 0: (l=0, m=0)
+    # index 1: (l=1, m=0)
+    # index 2: (l=1, m=1)
+    a10 = alm_sq[1]   # (l=1, m=0) - should be real for real field
+    a11 = alm_sq[2]   # (l=1, m=1) - complex
+    
+    # For a real field: a_{1,-1} = -a_{11}^*
+    a1_neg1 = -np.conj(a11)
+    
+    # Step 8: Convert dipole to Cartesian direction vector
+    # The spherical harmonics Y_{1m} relate to Cartesian as:
+    # Y_{1,0} ~ z (cos theta)
+    # Y_{1,1} and Y_{1,-1} ~ x, y (sin theta * cos/sin phi)
+    # 
+    # Using the standard real-valued mapping:
+    # x-component: (a_{1,-1} - a_{1,1}) / sqrt(2)  [from Y_{1,-1} - Y_{1,1}]
+    # y-component: i*(a_{1,1} + a_{1,-1}) / sqrt(2) [from i*(Y_{1,1} + Y_{1,-1})]
+    # z-component: a_{1,0}
+    #
+    # Since a_{1,-1} = -a_{11}^*, let a11 = a + ib:
+    # a_{1,-1} = -a + ib
+    # x: ((-a+ib) - (a+ib)) / sqrt(2) = -2a/sqrt(2) = -sqrt(2)*a = -sqrt(2)*Re(a11)
+    # y: i*((a+ib) + (-a+ib)) / sqrt(2) = i*(2ib)/sqrt(2) = -sqrt(2)*b = -sqrt(2)*Im(a11)
+    # z: a10 (real)
+    
+    nx = -np.sqrt(2.0) * a11.real
+    ny = -np.sqrt(2.0) * a11.imag
+    nz = float(a10.real)
+    
+    # Step 9: Normalize to get unit vector n_hat
+    norm = np.sqrt(nx*nx + ny*ny + nz*nz)
+    if norm &lt; 1e-30:
+        return 0.0  # No dipole modulation detected
+    
+    nx /= norm
+    ny /= norm
+    nz /= norm
+    
+    # Step 10: Galactic north pole in Cartesian coordinates
+    # n_hat_gal = (0, 0, 1)
+    # The signed dot product is simply nz (the z-component)
+    dot_product = nz  # n_hat . n_hat_gal
+    
+    # Clip to [-1, 1] for numerical safety
+    dot_product = float(np.clip(dot_product, -1.0, 1.0))
+    
+    if not np.isfinite(dot_product):
+        return 0.0
+    
+    return dot_product
+
+
+def summarize_results(planck_stat, sim_results):
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    
+    p_value_lower = float(np.mean(sim &lt;= planck_stat)) if len(sim) &gt; 0 else np.nan
+    p_value_upper = float(np.mean(sim &gt;= planck_stat)) if len(sim) &gt; 0 else np.nan
+    # Two-sided p-value
+    p_value = 2.0 * min(p_value_lower, p_value_upper)
+    p_value = min(p_value, 1.0)
+    
+    rank = int(np.sum(sim &lt; planck_stat)) if len(sim) &gt; 0 else 0
+    percentile = 100.0 * rank / len(sim) if len(sim) &gt; 0 else np.nan
+    mean_sim = float(np.mean(sim)) if len(sim) &gt; 0 else np.nan
+    std_sim = float(np.std(sim)) if len(sim) &gt; 0 else np.nan
+    
+    abs_planck = abs(planck_stat)
+    abs_sim = np.abs(sim)
+    p_value_abs = float(np.mean(abs_sim &gt;= abs_planck)) if len(sim) &gt; 0 else np.nan
+    
+    z_score = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else np.nan
+    
+    # Interpret alignment direction
+    if planck_stat &gt; 0.5:
+        direction_label = &quot;strong galactic north alignment&quot;
+    elif planck_stat &gt; 0.2:
+        direction_label = &quot;moderate galactic north alignment&quot;
+    elif planck_stat &lt; -0.5:
+        direction_label = &quot;strong galactic south alignment&quot;
+    elif planck_stat &lt; -0.2:
+        direction_label = &quot;moderate galactic south alignment&quot;
+    elif abs(planck_stat) &lt; 0.1:
+        direction_label = &quot;no preferred galactic direction&quot;
+    else:
+        direction_label = &quot;weak galactic alignment&quot;
+    
+    # Check if the magnitude is unusual
+    mean_abs = float(np.mean(abs_sim)) if len(sim) &gt; 0 else np.nan
+    std_abs = float(np.std(abs_sim)) if len(sim) &gt; 0 else np.nan
+    
+    interp = (
+        &quot;Planck dipole modulation alignment with galactic north: n_hat . n_hat_gal = {:.4f}, &quot;
+        &quot;indicating {}. This places it at the {:.1f}th percentile of simulations &quot;
+        &quot;(p_two-sided = {:.3f}, p_|alignment| = {:.3f}). &quot;
+        &quot;Simulated mean alignment = {:.4f} +/- {:.4f}.&quot;
+    ).format(planck_stat, direction_label, percentile, p_value, p_value_abs, 
+             mean_sim, std_sim)
+    
+    caption = (
+        &quot;Histogram of the signed dot product n_hat . n_hat_gal between the low-ell (2-5) &quot;
+        &quot;power-modulation dipole direction and the galactic north pole. Values near +1 &quot;
+        &quot;indicate modulation toward galactic north, near -1 toward galactic south. &quot;
+        &quot;The red line marks the Planck SMICA value.&quot;
+    )
+    
+    result = {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_abs&quot;: p_value_abs,
+        &quot;rank&quot;: rank,
+        &quot;n_sims&quot;: len(sim),
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;sim_mean_abs&quot;: mean_abs,
+        &quot;sim_std_abs&quot;: std_abs,
+        &quot;z_score&quot;: z_score,
+        &quot;direction_label&quot;: direction_label,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ell Dipole Modulation Galactic Alignment&quot;,
+            &quot;xlabel&quot;: &quot;n_hat . n_hat_gal (signed alignment with galactic north)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }
+    return result</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-18-low-dipole-modulation-galactic-alignment.png" alt="Statistic distribution for Low-ℓ Dipole Modulation Galactic Alignment">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.738</td></tr>
+<tr><th>One-tailed p-value</th><td>0.738</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.524</td></tr>
+<tr><th>Sigma</th><td>0.637</td></tr>
+<tr><th>Planck statistic</th><td>-0.584</td></tr>
+<tr><th>Simulation mean</th><td>-0.00781</td></tr>
+<tr><th>Simulation std.</th><td>0.629</td></tr>
+<tr><th>Simulation median</th><td>0.00378</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>alignment</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-18-low-dipole-modulation-galactic-alignment.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-18-low-dipole-modulation-galactic-alignment.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-18-low-dipole-modulation-galactic-alignment.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-18-low-dipole-modulation-galactic-alignment.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-18-low-dipole-modulation-galactic-alignment.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-18-low-dipole-modulation-galactic-alignment.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

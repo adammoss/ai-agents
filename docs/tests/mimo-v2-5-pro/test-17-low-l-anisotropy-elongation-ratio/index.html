@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-l Anisotropy Elongation Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 17 · Mimo V2.5 Pro</p>
+      <h1>Low-l Anisotropy Elongation Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · direction · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The low-ℓ CMB temperature power is elongated along a preferred axis, leading to a significantly large elongation ratio λ₁/λ₃.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The SMICA temperature map is smoothed to ℓ_max = 15 via spherical harmonic decomposition after masking. A 3×3 second-moment tensor M_{ij} = Σ_p T²(n_p) n_p^i n_p^j is computed over unmasked pixels. The statistic is the ratio of the largest to smallest eigenvalue (λ₁/λ₃) of M, which equals 1 under isotropy and exceeds 1 when large-angle temperature power is elongated along a preferred axis.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The Planck SMICA elongation ratio is λ₁/λ₃ = 1.416. From 1000 ΛCDM simulations the mean is 1.885 ± 0.330, with median 1.846. The Planck value sits 1.74σ below the simulation mean. The one-tailed upper p-value is 0.959 (i.e., 95.9% of simulations have a ratio at least as large as Planck&#x27;s), indicating the Planck value is actually lower than typical simulations rather than higher.</p>
+          <p>The Planck low-ℓ elongation ratio is fully consistent with — and even slightly below — ΛCDM simulation expectations. There is no evidence that large-angle CMB temperature power is anomalously elongated along any preferred direction. The statistic is not elevated, so the hypothesis of directional anisotropy in the low-ℓ power is not supported.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The statistic λ₁/λ₃ is inherently ≥ 1, with values near 1 expected under isotropy. The test description explicitly states that values significantly above 1 indicate directional anisotropy, and no anomaly is mentioned for values below 1. Thus, the hypothesis is specifically about an excess in the upper tail, making a one-tailed upper test appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The specific statistic (eigenvalue ratio of the T²-weighted second-moment tensor at low ℓ) does not correspond closely to a well-established test in the literature. Related studies examine the quadrupole–octopole alignment or moment-based shape statistics, but this particular ratio formulation appears to be a novel construction. A search returned no directly comparable published analysis.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Anisotropy Elongation Ratio. Smooths the SMICA temperature map to &quot;
+    &quot;ℓ_max = 15 using spherical harmonic decomposition (after masking). &quot;
+    &quot;Computes the second-moment tensor M_{ij} = Σ_p T²(n_p) n_p^i n_p^j &quot;
+    &quot;summed over unmasked pixels p, where n_p^i are Cartesian components of &quot;
+    &quot;each pixel&#x27;s unit vector. Diagonalizes M to obtain three eigenvalues &quot;
+    &quot;λ₁ ≥ λ₂ ≥ λ₃. The statistic is the ratio λ₁/λ₃ (largest to smallest &quot;
+    &quot;eigenvalue). Under isotropy this ratio is near unity; values &quot;
+    &quot;significantly above 1 indicate that large-angle temperature power is &quot;
+    &quot;elongated along a preferred axis, capturing a directional anisotropy in &quot;
+    &quot;a single number.&quot;
+)
+
+
+def analyze_map(m):
+    m = np.asarray(m, dtype=np.float64)
+    mask = np.isfinite(m)
+
+    # Isotropic limit for no valid pixels
+    if not np.any(mask):
+        return 1.0
+
+    nside = hp.npix2nside(len(m))
+
+    # Fill masked pixels with 0 for healpy SHT operations
+    m_clean = np.where(mask, m, 0.0)
+
+    # Step 1: Band-limit to ℓ_max = 15 via spherical harmonic transform
+    lmax = 15
+    alm = hp.map2alm(m_clean, lmax=lmax)
+    m_low = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Step 2: Get pixel unit vectors for unmasked pixels only
+    idx = np.where(mask)[0]
+    theta, phi = hp.pix2ang(nside, idx)
+
+    # Cartesian components of unit vectors
+    nx = np.sin(theta) * np.cos(phi)
+    ny = np.sin(theta) * np.sin(phi)
+    nz = np.cos(theta)
+
+    # T² values at unmasked pixels from the smoothed map
+    T2 = m_low[idx] ** 2
+
+    # Step 3: Compute the 3x3 second-moment tensor
+    # M_{ij} = Σ_p T²(n_p) * n_p^i * n_p^j
+    # n_vectors shape: (N_pix, 3)
+    n_vecs = np.column_stack([nx, ny, nz])
+
+    # Vectorized: M = (n_vecs.T * T2) @ n_vecs
+    # This gives M[i,j] = Σ_p T2_p * n_p^i * n_p^j
+    M = (n_vecs.T * T2) @ n_vecs
+
+    # Step 4: Diagonalize to get eigenvalues
+    eigenvalues = np.linalg.eigvalsh(M)
+    eigenvalues = np.sort(eigenvalues)[::-1]  # descending: λ₁ ≥ λ₂ ≥ λ₃
+
+    lam1 = eigenvalues[0]
+    lam3 = eigenvalues[2]
+
+    # Guard against degenerate cases
+    if lam3 &lt;= 0 or not np.isfinite(lam3):
+        return 1.0
+
+    ratio = lam1 / lam3
+
+    # Return a single finite float
+    if not np.isfinite(ratio):
+        return 1.0
+
+    return float(ratio)
+
+
+def summarize_results(planck_stat, sim_results):
+    sim_arr = np.array(sim_results, dtype=np.float64)
+    finite_mask = np.isfinite(sim_arr)
+    n_finite = int(finite_mask.sum())
+
+    if n_finite &gt; 0:
+        valid = sim_arr[finite_mask]
+        sim_median = float(np.median(valid))
+        p_upper = float(np.sum(valid &gt;= planck_stat) / n_finite)
+        p_lower = float(np.sum(valid &lt;= planck_stat) / n_finite)
+        p_value = min(p_upper, p_lower)
+        rank_upper = int(np.sum(valid &gt;= planck_stat))
+        rank_lower = int(np.sum(valid &lt;= planck_stat))
+    else:
+        p_value = float(&quot;nan&quot;)
+        rank_upper = rank_lower = 0
+        sim_median = float(&quot;nan&quot;)
+
+    sim_mean = float(np.nanmean(sim_arr))
+    sim_std = float(np.nanstd(sim_arr))
+
+    if n_finite &gt; 0 and not np.isnan(p_value):
+        if p_upper &lt;= p_lower:
+            direction, rank = &quot;high&quot;, rank_upper
+        else:
+            direction, rank = &quot;low&quot;, rank_lower
+    else:
+        direction, rank = &quot;unknown&quot;, 0
+
+    # Compute additional useful quantities
+    p16 = float(np.percentile(valid, 16)) if n_finite &gt; 0 else float(&quot;nan&quot;)
+    p84 = float(np.percentile(valid, 84)) if n_finite &gt; 0 else float(&quot;nan&quot;)
+    p025 = float(np.percentile(valid, 2.5)) if n_finite &gt; 0 else float(&quot;nan&quot;)
+    p975 = float(np.percentile(valid, 97.5)) if n_finite &gt; 0 else float(&quot;nan&quot;)
+
+    parts = [
+        f&quot;Planck low-ℓ elongation ratio (λ₁/λ₃) is {planck_stat:.4f}.&quot;,
+        f&quot;Two-sided p = {p_value:.3f} ({rank}/{n_finite} simulations &quot;
+        f&quot;at least as extreme in the {direction} direction).&quot;,
+        f&quot;Simulation mean = {sim_mean:.4f} ± {sim_std:.4f}, &quot;
+        f&quot;median = {sim_median:.4f}.&quot;,
+    ]
+
+    if not np.isnan(p_value) and p_value &lt; 0.05:
+        parts.append(
+            &quot;Anomalous: the elongation ratio at low ℓ is unusually large, &quot;
+            &quot;indicating that large-angle temperature power is elongated along &quot;
+            &quot;a preferred axis — a signature of directional anisotropy in the &quot;
+            &quot;spatial distribution of CMB temperature fluctuations at angular &quot;
+            &quot;scales &gt; 12°, suggestive of a preferred direction violating &quot;
+            &quot;statistical isotropy.&quot;
+        )
+    else:
+        parts.append(
+            &quot;The low-ℓ elongation ratio is consistent with ΛCDM simulation &quot;
+            &quot;expectations — no evidence for anomalous directional elongation &quot;
+            &quot;of large-scale temperature power.&quot;
+        )
+
+    result = {
+        &quot;test_description&quot;: test_description,
+        &quot;planck_stat&quot;: float(planck_stat),
+        &quot;p_value&quot;: float(p_value),
+        &quot;rank&quot;: rank,
+        &quot;n_simulations&quot;: len(sim_results),
+        &quot;n_valid&quot;: n_finite,
+        &quot;sim_mean&quot;: sim_mean,
+        &quot;sim_std&quot;: sim_std,
+        &quot;sim_median&quot;: sim_median,
+        &quot;sim_p16&quot;: p16,
+        &quot;sim_p84&quot;: p84,
+        &quot;sim_p025&quot;: p025,
+        &quot;sim_p975&quot;: p975,
+        &quot;exceeds_95th_percentile&quot;: bool(p_value &lt; 0.05) if not np.isnan(p_value) else False,
+        &quot;anomaly_direction&quot;: direction,
+        &quot;interpretation&quot;: &quot; &quot;.join(parts),
+    }
+
+    result[&quot;plot_spec&quot;] = {
+        &quot;kind&quot;: &quot;histogram&quot;,
+        &quot;title&quot;: &quot;Low-ℓ Anisotropy Elongation Ratio (λ₁/λ₃)&quot;,
+        &quot;xlabel&quot;: &quot;Elongation ratio λ₁/λ₃&quot;,
+        &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+        &quot;bins&quot;: 50,
+        &quot;caption&quot;: (
+            f&quot;Histogram of elongation ratios (λ₁/λ₃ of the T²-weighted &quot;
+            f&quot;second-moment tensor at ℓ ≤ 15) from {n_finite} ΛCDM simulations. &quot;
+            f&quot;Planck value = {planck_stat:.4f} &quot;
+            f&quot;(two-sided p = {p_value:.3f}, rank {rank}/{n_finite}, &quot;
+            f&quot;{direction} tail). Simulation mean = {sim_mean:.4f} ± {sim_std:.4f}. &quot;
+            f&quot;A ratio of 1 corresponds to isotropic power; values &gt;&gt; 1 indicate &quot;
+            f&quot;temperature variance elongated along a preferred axis.&quot;
+        ),
+    }
+
+    return result</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-17-low-l-anisotropy-elongation-ratio.png" alt="Statistic distribution for Low-l Anisotropy Elongation Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.959</td></tr>
+<tr><th>One-tailed p-value</th><td>0.959</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.082</td></tr>
+<tr><th>Sigma</th><td>1.739</td></tr>
+<tr><th>Planck statistic</th><td>1.416</td></tr>
+<tr><th>Simulation mean</th><td>1.885</td></tr>
+<tr><th>Simulation std.</th><td>0.33</td></tr>
+<tr><th>Simulation median</th><td>1.846</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>direction</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-17-low-l-anisotropy-elongation-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-17-low-l-anisotropy-elongation-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-17-low-l-anisotropy-elongation-ratio.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-17-low-l-anisotropy-elongation-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-17-low-l-anisotropy-elongation-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-17-low-l-anisotropy-elongation-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

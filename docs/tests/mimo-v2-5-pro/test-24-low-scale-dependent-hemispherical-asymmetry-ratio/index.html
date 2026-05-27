@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Scale-Dependent Hemispherical Asymmetry Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 24 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Scale-Dependent Hemispherical Asymmetry Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · hemispherical · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The ratio of dipole amplitudes of local-variance maps between ℓ=11–30 and ℓ=2–10 deviates from the distribution expected under the isotropic ΛCDM model.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>For the SMICA CMB temperature map with a Galactic mask, the angular power spectrum is split into ℓ=2–10 and ℓ=11–30 bands. A Local Variance Estimator (LVE) with a 15° disc creates local-variance maps for each band, and a dipole is fit to each. The test statistic is the ratio of the dipole amplitude for ℓ=11–30 to that for ℓ=2–10.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck SMICA yields a ratio of 2.627. From 1000 isotropic ΛCDM simulations, the mean ratio is 2.373 ± 2.496. The two-tailed p-value is 0.578 (71.1st percentile).</p>
+          <p>The observed ratio is fully consistent with the distribution from isotropic simulations. There is no significant evidence that the hemispherical power asymmetry changes scale between the two multipole ranges.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is exploratory, aiming to detect any scale-dependent change in the hemispherical power asymmetry without a prior directional prediction. The analysis code explicitly computes a two-sided p-value, and the interpretation checks for both significantly higher and lower ratios, indicating a two-tailed framework.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The hemispherical power asymmetry is a known anomaly at low ℓ (e.g., Eriksen et al. 2004, *ApJ*; Planck 2016 results. VII). This test specifically probes scale dependence using a LVE-based ratio, a refinement of standard asymmetry statistics. The null result here aligns with some studies showing no strong scale dependence (e.g., arXiv:2309.03966), though other works report mild scale-dependent trends (e.g., arXiv:2309.06866).</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Scale-Dependent Hemispherical Asymmetry Ratio: For the SMICA &quot;
+    &quot;temperature map with Galactic mask applied, compute the angular power &quot;
+    &quot;spectrum for multipoles ℓ=2–10 and ℓ=11–30 separately. For each &quot;
+    &quot;multipole range, use the Local Variance Estimator (LVE) method with a &quot;
+    &quot;disc radius of 15° to create a map of the local variance. Fit a dipole &quot;
+    &quot;to each of the two local-variance maps. The scalar statistic is the &quot;
+    &quot;ratio of the dipole amplitude of the ℓ=11–30 local-variance map to the &quot;
+    &quot;dipole amplitude of the ℓ=2–10 local-variance map. This tests for a &quot;
+    &quot;scale-dependent change in the hemispherical power asymmetry signal.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute the ratio of dipole amplitudes of LVE local-variance maps
+    between the ℓ=11–30 and ℓ=2–10 multipole ranges.&quot;&quot;&quot;
+
+    def top_hat_beam(alpha_rad, lmax):
+        &quot;&quot;&quot;Beam window function for a top-hat disc of half-angle alpha_rad.&quot;&quot;&quot;
+        cos_a = np.cos(alpha_rad)
+        denom = 1.0 - cos_a
+        beam = np.zeros(lmax + 1)
+        beam[0] = 1.0
+        if denom &lt; 1e-15:
+            beam[:] = 1.0
+            return beam
+        P = np.zeros(lmax + 2)
+        P[0] = 1.0
+        P[1] = cos_a
+        for l in range(1, lmax + 1):
+            P[l + 1] = ((2 * l + 1) * cos_a * P[l] - l * P[l - 1]) / (l + 1)
+        for l in range(1, lmax + 1):
+            beam[l] = (P[l - 1] - P[l + 1]) / ((2 * l + 1) * denom)
+        return beam
+
+    def local_variance(m_band, mask_binary, alpha_rad, lmax_smooth):
+        &quot;&quot;&quot;Compute local variance map using LVE with top-hat disc smoothing.&quot;&quot;&quot;
+        m_filled = np.where(mask_binary &gt; 0.5, m_band, 0.0)
+
+        beam = top_hat_beam(alpha_rad, lmax_smooth)
+
+        s_mask = hp.smoothing(mask_binary.astype(np.float64), beam_window=beam, lmax=lmax_smooth, iter=0)
+        s_m = hp.smoothing(m_filled, beam_window=beam, lmax=lmax_smooth, iter=0)
+        s_m2 = hp.smoothing(m_filled ** 2, beam_window=beam, lmax=lmax_smooth, iter=0)
+
+        safe_s = np.maximum(np.abs(s_mask), 1e-10)
+        local_mean = s_m / safe_s
+        local_var = s_m2 / safe_s - local_mean ** 2
+
+        return local_var
+
+    def fit_dipole_amplitude(m, mask_binary):
+        &quot;&quot;&quot;Fit a dipole (monopole + ℓ=1) to the map on valid pixels.
+        Returns the dipole amplitude sqrt(Bx² + By² + Bz²).&quot;&quot;&quot;
+        valid = mask_binary &gt; 0.5
+        m_v = m[valid]
+        nside = hp.npix2nside(len(m))
+        theta, phi = hp.pix2ang(nside, np.arange(len(m)))
+        th, ph = theta[valid], phi[valid]
+
+        x = np.sin(th) * np.cos(ph)
+        y = np.sin(th) * np.sin(ph)
+        z = np.cos(th)
+
+        A = np.column_stack([np.ones_like(x), x, y, z])
+        coeffs, _, _, _ = np.linalg.lstsq(A, m_v, rcond=None)
+
+        return float(np.sqrt(coeffs[1] ** 2 + coeffs[2] ** 2 + coeffs[3] ** 2))
+
+    # Main logic
+    nside = hp.npix2nside(len(m))
+
+    valid = np.isfinite(m)
+    m_filled = np.where(valid, m, 0.0)
+    mask_binary = np.where(valid, 1.0, 0.0)
+
+    # Extract alm up to lmax=30
+    lmax_alm = 30
+    alm = hp.map2alm(m_filled, lmax=lmax_alm)
+
+    # Band-pass filtering in alm space
+    size = hp.Alm.getsize(lmax_alm)
+    l_vals = np.empty(size, dtype=int)
+    idx = 0
+    for l in range(lmax_alm + 1):
+        for m_idx in range(l + 1):
+            l_vals[idx] = l
+            idx += 1
+
+    low_sel = (l_vals &gt;= 2) &amp; (l_vals &lt;= 10)
+    high_sel = (l_vals &gt;= 11) &amp; (l_vals &lt;= lmax_alm)
+
+    alm_low = np.zeros_like(alm)
+    alm_low[low_sel] = alm[low_sel]
+
+    alm_high = np.zeros_like(alm)
+    alm_high[high_sel] = alm[high_sel]
+
+    # Reconstruct band-limited maps
+    m_low = hp.alm2map(alm_low, nside=nside)
+    m_high = hp.alm2map(alm_high, nside=nside)
+
+    # LVE local variance with 15 deg top-hat disc
+    alpha_rad = np.radians(15.0)
+    lmax_smooth = min(64, 3 * nside)
+
+    var_low = local_variance(m_low, mask_binary, alpha_rad, lmax_smooth)
+    var_high = local_variance(m_high, mask_binary, alpha_rad, lmax_smooth)
+
+    # Fit dipole to each local-variance map
+    dip_low = fit_dipole_amplitude(var_low, mask_binary)
+    dip_high = fit_dipole_amplitude(var_high, mask_binary)
+
+    if dip_low &lt; 1e-30:
+        return 0.0
+
+    return float(dip_high / dip_low)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Scale-Dependent Hemispherical Asymmetry Ratio test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results to compare.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ell Scale-Dependent Hemispherical Asymmetry Ratio&quot;,
+                &quot;xlabel&quot;: &quot;Dipole amplitude ratio (ell=11-30 / ell=2-10)&quot;,
+                &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data available.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    interp = (
+        f&quot;Scale-dependent hemispherical asymmetry ratio = {planck_stat:.4f}. &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} +/- {std_sim:.4f}. &quot;
+        f&quot;Percentile = {percentile:.1f}%, two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. &quot;
+    )
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        interp += (
+            &quot;Planck shows a significantly higher ratio, suggesting the &quot;
+            &quot;hemispherical power asymmetry is stronger at smaller angular &quot;
+            &quot;scales (ell=11-30) relative to larger scales (ell=2-10) compared &quot;
+            &quot;to isotropic LCDM simulations.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        interp += (
+            &quot;Planck shows a significantly lower ratio, suggesting the &quot;
+            &quot;hemispherical power asymmetry is weaker at smaller angular &quot;
+            &quot;scales (ell=11-30) relative to larger scales (ell=2-10) compared &quot;
+            &quot;to isotropic LCDM simulations.&quot;
+        )
+    else:
+        interp += (
+            &quot;The ratio is consistent with isotropic LCDM expectations, &quot;
+            &quot;showing no significant scale-dependent hemispherical asymmetry.&quot;
+        )
+
+    caption = (
+        &quot;Histogram of the ratio of dipole amplitudes of local-variance &quot;
+        &quot;maps between the ell=11-30 and ell=2-10 multipole ranges, computed &quot;
+        &quot;using the Local Variance Estimator with a 15 deg disc radius. This &quot;
+        &quot;statistic probes whether the hemispherical power asymmetry &quot;
+        &quot;changes with angular scale: a ratio significantly above the &quot;
+        &quot;simulation mean indicates stronger asymmetry at smaller scales, &quot;
+        &quot;while a ratio below indicates stronger asymmetry at larger &quot;
+        &quot;scales. The red line marks the Planck SMICA value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ell Scale-Dependent Hemispherical Asymmetry Ratio&quot;,
+            &quot;xlabel&quot;: &quot;Dipole amplitude ratio (ell=11-30 / ell=2-10)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-24-low-scale-dependent-hemispherical-asymmetry-ratio.png" alt="Statistic distribution for Low-ℓ Scale-Dependent Hemispherical Asymmetry Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.578</td></tr>
+<tr><th>One-tailed p-value</th><td>0.289</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.578</td></tr>
+<tr><th>Sigma</th><td>0.556</td></tr>
+<tr><th>Planck statistic</th><td>2.627</td></tr>
+<tr><th>Simulation mean</th><td>2.373</td></tr>
+<tr><th>Simulation std.</th><td>2.496</td></tr>
+<tr><th>Simulation median</th><td>1.771</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>hemispherical</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-24-low-scale-dependent-hemispherical-asymmetry-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-24-low-scale-dependent-hemispherical-asymmetry-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-24-low-scale-dependent-hemispherical-asymmetry-ratio.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-24-low-scale-dependent-hemispherical-asymmetry-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-24-low-scale-dependent-hemispherical-asymmetry-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-24-low-scale-dependent-hemispherical-asymmetry-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

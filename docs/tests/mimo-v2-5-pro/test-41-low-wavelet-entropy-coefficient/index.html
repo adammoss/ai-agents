@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Wavelet Entropy Coefficient · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 41 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Wavelet Entropy Coefficient</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The mean wavelet entropy of the low-ℓ CMB temperature map differs from the distribution expected under the standard ΛCDM cosmological model.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>A discrete wavelet transform decomposes the low-ℓ (ℓ ≤ 32) masked CMB temperature map across J_max = log2(nside) scales. At each scale j, Shannon entropy H_j is computed from the histogram of |wavelet coefficients|. These entropies are averaged into a single scalar capturing multi-scale non-Gaussianity and information content in the large-scale wavelet domain.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck mean wavelet entropy = 5.985 bits. Simulation mean = 6.045 ± 0.054 bits. The Planck value lies at the 12.5th percentile, deviating −1.12σ from simulations. Two-sided p-value = 0.250, anomaly strength classified as negligible.</p>
+          <p>The mean wavelet entropy of the low-ℓ Planck CMB map is fully consistent with Gaussian ΛCDM expectations. The mild −1.12σ deficit suggests no significant departure in the distribution of multi-scale wavelet coefficient structure. There is no indication of concentrated or disordered large-scale wavelet patterns beyond what isotropic Gaussian fluctuations predict.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is explicitly designed to capture &quot;multi-scale non-Gaussianity and information content,&quot; with the analysis code calculating and interpreting anomalies in both directions (higher or lower entropy than simulations). The `summarize_results` function computes both an upper and lower p-value and selects the smaller for the two-sided p-value. The interpretation strings describe different physical scenarios for both significantly higher and lower entropy. This indicates a general exploration for any unexpected pattern in the wavelet entropy statistic, rather than a prediction of a specific directional change, making a two-tailed test appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Wavelet-based CMB analyses are well established (e.g., Vielva et al. 2004; Planck 2018 VII), but a specific wavelet entropy coefficient restricted to low multipoles does not appear as a standard statistic in the anomaly literature. Searches returned no directly comparable studies combining Shannon entropy of wavelet coefficients with low-ℓ masking. This may represent a novel construction, though foundational wavelet techniques are common.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Wavelet Entropy Coefficient: &quot;
+    &quot;Compute a discrete wavelet transform of the masked, low-ℓ limited &quot;
+    &quot;temperature map (ℓ ≤ 32) up to a maximum wavelet scale &quot;
+    &quot;J_max = log2(nside). The wavelet decomposition is achieved by &quot;
+    &quot;successive spherical-harmonic filtering: at each scale j, the &quot;
+    &quot;ℓ_max is halved and wavelet coefficients are obtained as the &quot;
+    &quot;difference between consecutive filtered maps. For each scale, &quot;
+    &quot;compute the Shannon entropy of the distribution of |c_j| using &quot;
+    &quot;a histogram with the Freedman-Diaconis bin rule. Average these &quot;
+    &quot;entropies over all J_max scales to obtain a single scalar. This &quot;
+    &quot;statistic captures multi-scale non-Gaussianity and information &quot;
+    &quot;content in the low-ℓ wavelet domain.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Low-ℓ wavelet entropy coefficient.&quot;&quot;&quot;
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 100:
+        return 0.0
+
+    nside = hp.get_nside(m)
+
+    # Replace NaN with 0 for healpy operations
+    clean = m.copy()
+    clean[~mask] = 0.0
+
+    # Band-limit to ell &lt;= 32
+    low_lmax = min(32, 3 * nside - 1)
+
+    # J_max = log2(nside), minimum 2 scales
+    J_max = max(int(np.log2(nside)), 2)
+
+    # Build wavelet scales by successive halving of lmax
+    lmax_values = []
+    current_lmax = low_lmax
+    for j in range(J_max):
+        if current_lmax &lt; 2:
+            break
+        lmax_values.append(current_lmax)
+        current_lmax = max(current_lmax // 2, 1)
+
+    # Need at least 2 filtered maps to form wavelet differences
+    if len(lmax_values) &lt; 2:
+        return 0.0
+
+    # Compute filtered maps at each lmax, recomputing alm for correct sizing
+    filtered_maps = []
+    for lmax in lmax_values:
+        alm_j = hp.map2alm(clean, lmax=lmax)
+        filtered = hp.alm2map(alm_j, nside, lmax=lmax, verbose=False)
+        filtered[~mask] = 0.0
+        filtered_maps.append(filtered)
+
+    def shannon_entropy(values):
+        &quot;&quot;&quot;Compute Shannon entropy using Freedman-Diaconis bin rule.&quot;&quot;&quot;
+        if len(values) &lt; 50:
+            return np.nan
+        q75, q25 = np.percentile(values, [75, 25])
+        iqr = q75 - q25
+        if iqr &gt; 0:
+            bin_width = 2.0 * iqr * (len(values) ** (-1.0 / 3.0))
+            vmin, vmax = values.min(), values.max()
+            if bin_width &gt; 0 and vmax &gt; vmin:
+                n_bins = max(10, min(100, int(np.ceil((vmax - vmin) / bin_width))))
+            else:
+                n_bins = 50
+        else:
+            n_bins = 50
+
+        hist, _ = np.histogram(values, bins=n_bins, density=False)
+        total = hist.sum()
+        if total == 0:
+            return np.nan
+        p = hist.astype(float) / total
+        p_pos = p[p &gt; 0]
+        return -np.sum(p_pos * np.log2(p_pos))
+
+    # Wavelet coefficients = differences between successive filtered maps
+    # c_j = map(lmax_j) - map(lmax_{j+1})  captures detail between two scales
+    entropies = []
+    for j in range(len(filtered_maps) - 1):
+        coeffs = filtered_maps[j] - filtered_maps[j + 1]
+        coeff_mag = np.abs(coeffs[mask])
+        h = shannon_entropy(coeff_mag)
+        if np.isfinite(h):
+            entropies.append(h)
+
+    # Include entropy of the coarsest approximation
+    coarsest = filtered_maps[-1]
+    coarse_mag = np.abs(coarsest[mask])
+    h_coarse = shannon_entropy(coarse_mag)
+    if np.isfinite(h_coarse):
+        entropies.append(h_coarse)
+
+    if len(entropies) == 0:
+        return 0.0
+
+    mean_entropy = float(np.mean(entropies))
+    return mean_entropy if np.isfinite(mean_entropy) else 0.0
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Wavelet Entropy Coefficient test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Wavelet Entropy Coefficient&quot;,
+                &quot;xlabel&quot;: &quot;Mean wavelet entropy (bits)&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck has significantly higher wavelet entropy than LCDM &quot;
+            &quot;simulations, indicating more diffuse or disordered structure &quot;
+            &quot;across multiple angular scales in the low-ℓ CMB than expected &quot;
+            &quot;from Gaussian isotropy.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck has significantly lower wavelet entropy than LCDM &quot;
+            &quot;simulations, suggesting more concentrated or coherent &quot;
+            &quot;multi-scale structure in the low-ℓ CMB than expected from &quot;
+            &quot;Gaussian isotropy, possibly indicating non-Gaussian &quot;
+            &quot;features or anomalous large-scale power distribution.&quot;
+        )
+    else:
+        direction = (
+            &quot;The multi-scale wavelet entropy is consistent with Gaussian &quot;
+            &quot;LCDM expectations.&quot;
+        )
+
+    interp = (
+        f&quot;Mean wavelet entropy = {planck_stat:.4f} bits. &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the mean Shannon entropy (in bits) of wavelet &quot;
+        &quot;coefficient magnitudes across multi-resolution scales derived &quot;
+        &quot;from the low-ℓ (ℓ ≤ 32) CMB temperature map. Higher entropy &quot;
+        &quot;indicates more uniformly distributed coefficient magnitudes; &quot;
+        &quot;lower entropy indicates more concentrated structure. &quot;
+        &quot;Red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Wavelet Entropy Coefficient&quot;,
+            &quot;xlabel&quot;: &quot;Mean wavelet entropy (bits)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-41-low-wavelet-entropy-coefficient.png" alt="Statistic distribution for Low-ℓ Wavelet Entropy Coefficient">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.25</td></tr>
+<tr><th>One-tailed p-value</th><td>0.125</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.25</td></tr>
+<tr><th>Sigma</th><td>1.15</td></tr>
+<tr><th>Planck statistic</th><td>5.985</td></tr>
+<tr><th>Simulation mean</th><td>6.045</td></tr>
+<tr><th>Simulation std.</th><td>0.0537</td></tr>
+<tr><th>Simulation median</th><td>6.048</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-41-low-wavelet-entropy-coefficient.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-41-low-wavelet-entropy-coefficient.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-41-low-wavelet-entropy-coefficient.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-41-low-wavelet-entropy-coefficient.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-41-low-wavelet-entropy-coefficient.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-41-low-wavelet-entropy-coefficient.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

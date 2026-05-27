@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Gradient-Magnitude–Laplacian Cross-Correlation Coefficient · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 73 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Gradient-Magnitude–Laplacian Cross-Correlation Coefficient</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · cross correlation · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Pearson cross-correlation coefficient between |∇T| and ∇²T for the low-ℓ CMB temperature map is zero for a statistically isotropic Gaussian random field.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Band-limits the CMB temperature map to ℓ = 2–10, computes the gradient magnitude |∇T| and Laplacian ∇²T maps, then measures their Pearson cross-correlation coefficient r. For a statistically isotropic Gaussian random field, r = 0 exactly (by the T → −T symmetry: |∇T| is invariant while ∇²T flips sign). A significant non-zero r flags a gradient–curvature coupling anomaly invisible to power-spectrum or T–|∇T|/T–∇²T tests.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck r = 0.0601. Simulations (1000 realisations) yield mean ± σ = −0.0006 ± 0.1005. z = 0.60, p(two-sided) = 0.584.</p>
+          <p>The observed correlation is well within the 68% simulation spread. No evidence for a gradient–curvature coupling anomaly at low multipoles. Regions of steep slope show no systematic preference for convex versus concave curvature beyond what random Gaussian fluctuations predict.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect any significant deviation from zero (positive or negative) because the anomaly could manifest as either a positive or negative gradient-curvature coupling. The symmetry T → -T forces the expected value to zero, and we are looking for a violation of this symmetry without a preferred direction. The code computes a two-sided p-value, and the interpretation does not specify a direction, indicating a two-tailed test.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No directly comparable statistic found in CMB anomaly studies. Related low-ℓ investigations (e.g., Gurzadyan et al. 2003, focusing on ellipticity and geodesic mixing) employ different observables. Standard analyses examine T–|∇T| or T–∇²T correlations, not the |∇T|–∇²T cross-term.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Band-limits the temperature map to ℓ = 2–10, then computes the Pearson &quot;
+    &quot;cross-correlation coefficient between the gradient magnitude |∇T| and the &quot;
+    &quot;Laplacian ∇²T over unmasked pixels. For any statistically isotropic Gaussian &quot;
+    &quot;random field the expected value is exactly zero (by the T → −T symmetry: &quot;
+    &quot;|∇T| is unchanged while ∇²T flips sign). A significant non-zero value flags &quot;
+    &quot;a gradient–curvature coupling anomaly—invisible to T–|∇T|, T–∇²T, or pure &quot;
+    &quot;power-spectrum tests.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the Pearson cross-correlation r = corr(|∇T|, ∇²T) for ℓ = 2–10.&quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+
+    # --- 1. Clean masked pixels for healpy compatibility ---
+    mask_valid = np.isfinite(m)
+    m_clean = np.where(mask_valid, m, 0.0)
+
+    # --- 2. Compute a_ℓm and zero out ℓ = 0, 1 ---
+    lmax = 10
+    alm = hp.map2alm(m_clean, lmax=lmax)
+
+    # Zero out ℓ = 0 and ℓ = 1 modes
+    for ell in range(2):
+        for m_idx in range(ell + 1):
+            alm[hp.Alm.getidx(lmax, ell, m_idx)] = 0.0
+
+    # --- 3. Gradient components via spherical-harmonic derivatives ---
+    # alm2map_der1 may return 2 or 3 arrays depending on healpy version;
+    # we take only the first two: (d_theta, d_phi)
+    der1_out = hp.alm2map_der1(alm, nside, lmax=lmax)
+    grad_theta = der1_out[0]
+    grad_phi = der1_out[1]
+
+    # --- 4. Gradient magnitude |∇T| in pixel space ---
+    grad_mag = np.sqrt(grad_theta**2 + grad_phi**2)
+
+    # --- 5. Laplacian ∇²T via -ℓ(ℓ+1) multiplication in harmonic space ---
+    alm_lap = alm.copy()
+    ell_arr = np.arange(lmax + 1, dtype=float)
+    factors = -ell_arr * (ell_arr + 1)
+    
+    # Apply factors efficiently using Alm indexing
+    for ell in range(lmax + 1):
+        idx_start = hp.Alm.getidx(lmax, ell, 0)
+        idx_end = hp.Alm.getidx(lmax, ell, ell) + 1
+        alm_lap[idx_start:idx_end] *= factors[ell]
+
+    laplacian = hp.alm2map(alm_lap, nside, lmax=lmax)
+
+    # --- 6. Restrict to unmasked pixels ---
+    valid = mask_valid
+    g = grad_mag[valid]
+    lap = laplacian[valid]
+
+    if len(g) &lt; 10:
+        return 0.0
+
+    # --- 7. Pearson cross-correlation coefficient ---
+    g_c = g - np.mean(g)
+    lap_c = lap - np.mean(lap)
+
+    std_g = np.sqrt(np.mean(g_c**2))
+    std_lap = np.sqrt(np.mean(lap_c**2))
+
+    if std_g &lt; 1e-30 or std_lap &lt; 1e-30:
+        return 0.0
+
+    r = np.mean(g_c * lap_c) / (std_g * std_lap)
+
+    return float(np.clip(r, -1.0, 1.0))
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the gradient-magnitude–Laplacian cross-correlation coefficient.&quot;&quot;&quot;
+    sims = np.asarray(sim_results, dtype=float)
+    sims = sims[np.isfinite(sims)]
+    n = len(sims)
+
+    if n == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims))
+    std_s = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    p_upper = float(np.mean(sims &gt;= planck_stat))
+    p_lower = float(np.mean(sims &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else np.nan
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n,
+        &quot;interpretation&quot;: (
+            &quot;This statistic measures the cross-correlation between the gradient &quot;
+            &quot;magnitude |∇T| and the Laplacian ∇²T of the low-ℓ (ℓ = 2–10) CMB &quot;
+            &quot;temperature field. For a statistically isotropic Gaussian random field, &quot;
+            &quot;this correlation is exactly zero by the T → −T symmetry: |∇T| is &quot;
+            &quot;invariant under field sign flip while ∇²T changes sign. A significant &quot;
+            &quot;non-zero r indicates a gradient–curvature coupling anomaly—regions with &quot;
+            &quot;large slope systematically prefer either convex (∇²T &lt; 0) or concave &quot;
+            &quot;(∇²T &gt; 0) curvature—an effect invisible to power-spectrum, T–|∇T|, or &quot;
+            &quot;T–∇²T diagnostics.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Gradient-Magnitude–Laplacian Cross-Correlation&quot;,
+            &quot;xlabel&quot;: &quot;r = corr(|∇T|, ∇²T)&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck r = {planck_stat:.4f}. &quot;
+                f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, p(two-sided) = {p_two:.3f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-73-low-gradient-magnitude-laplacian-cross-correlation-coefficient.png" alt="Statistic distribution for Low-ℓ Gradient-Magnitude–Laplacian Cross-Correlation Coefficient">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.584</td></tr>
+<tr><th>One-tailed p-value</th><td>0.292</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.584</td></tr>
+<tr><th>Sigma</th><td>0.548</td></tr>
+<tr><th>Planck statistic</th><td>0.0601</td></tr>
+<tr><th>Simulation mean</th><td>-0.000646</td></tr>
+<tr><th>Simulation std.</th><td>0.1</td></tr>
+<tr><th>Simulation median</th><td>0.00497</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>cross correlation</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-73-low-gradient-magnitude-laplacian-cross-correlation-coefficient.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-73-low-gradient-magnitude-laplacian-cross-correlation-coefficient.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-73-low-gradient-magnitude-laplacian-cross-correlation-coefficient.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-73-low-gradient-magnitude-laplacian-cross-correlation-coefficient.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-73-low-gradient-magnitude-laplacian-cross-correlation-coefficient.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-73-low-gradient-magnitude-laplacian-cross-correlation-coefficient.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

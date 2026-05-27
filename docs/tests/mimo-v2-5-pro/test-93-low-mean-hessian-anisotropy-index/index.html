@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Mean Hessian Anisotropy Index · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 93 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Mean Hessian Anisotropy Index</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The low-ℓ (ℓ ≤ 32) CMB temperature map exhibits a mean Hessian anisotropy index that is significantly different from the standard ΛCDM expectation, indicating an anomalous degree of local curvature anisotropy.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The CMB temperature map is smoothed to ℓ_max = 32. At each unmasked pixel, the covariant Hessian matrix of the temperature field is computed via spherical harmonic transforms and diagonalised to obtain two eigenvalues (principal curvatures). A per-pixel anisotropy index A = | |λ₁| − |λ₂| | / (|λ₁| + |λ₂| + ε) quantifies directional bias in local curvature. The test statistic is the sky-averaged A, measuring mean local curvature anisotropy in the low-ℓ map.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck mean anisotropy index = 0.4930; simulation mean ± std = 0.4921 ± 0.0042. The Planck value lies at the 59.4th percentile of ΛCDM simulations (rank 594/1000). z-score = 0.22, two-tailed p-value = 0.812.</p>
+          <p>The Planck low-ℓ map exhibits mean Hessian anisotropy fully consistent with ΛCDM expectations. The statistic falls comfortably within the interquartile range of simulations, indicating no preference for either enhanced or suppressed directional bias in local curvature structure.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to measure the average degree of local curvature anisotropy by comparing the magnitudes of the two principal curvature directions (Hessian eigenvalues). There is no strong theoretical prior predicting the CMB should be specifically more or less anisotropic than ΛCDM; the anomaly could manifest as either more directionally biased curvature (A closer to 1) or more isotropic curvature (A closer to 0). The provided `summarize_results` function explicitly calculates both upper and lower p-values and identifies anomalies on either side of the distribution (e.g., &quot;higher mean... anisotropy&quot; or &quot;lower mean... anisotropy&quot;), confirming a two-tailed approach is intended for general exploration of this statistic.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Previous online searches returned no prior studies employing a Hessian eigenvalue-based anisotropy index on CMB temperature maps. Related work on CMB statistical isotropy (e.g., Ghosh et al. 2007, bipolar power spectrum methods) addresses different observables and techniques. No directly comparable statistic was identified.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Mean Hessian Anisotropy Index. &quot;
+    &quot;Smooth the temperature map to ℓ_max=32. At each unmasked pixel, compute the &quot;
+    &quot;covariant Hessian matrix ∇_i ∇_j T via spherical harmonic transforms. &quot;
+    &quot;Diagonalize the Hessian to obtain eigenvalues λ₁ and λ₂. For each pixel, &quot;
+    &quot;compute the anisotropy index A = | |λ₁| - |λ₂| | / (|λ₁| + |λ₂| + ε), &quot;
+    &quot;where ε = 10⁻³ × global mean of (|λ₁| + |λ₂|). The scalar statistic is &quot;
+    &quot;the sky-averaged A over all unmasked pixels. This measures the average degree &quot;
+    &quot;of local curvature anisotropy in the low-ℓ map.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the mean Hessian anisotropy index at low ℓ.&quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    lmax = 32
+
+    # Replace masked pixels with 0.0 for spherical harmonic transforms
+    valid = np.isfinite(m)
+    m_filled = np.where(valid, m, 0.0)
+
+    # Get a_ℓm coefficients (band-limited to ℓ_max=32)
+    alm = hp.map2alm(m_filled, lmax=lmax)
+
+    # Get ℓ for each alm index (vectorised)
+    l_arr, _ = hp.Alm.getlm(lmax)
+    ell = l_arr.astype(np.float64)
+
+    # --- Laplacian: ∇²T has harmonic factor −ℓ(ℓ+1) ---
+    lap_alm = alm * (-ell * (ell + 1.0))
+
+    # --- Trace-free Hessian via spin-2 field ð²T ---
+    # c_ℓ = sqrt(ℓ(ℓ+1)(ℓ+2)(ℓ-1)), nonzero only for ℓ ≥ 2
+    c_ell = np.zeros_like(ell)
+    mask2 = l_arr &gt;= 2
+    ls = ell[mask2]
+    c_ell[mask2] = np.sqrt(ls * (ls + 1.0) * (ls + 2.0) * (ls - 1.0))
+    e_alm = alm * c_ell
+    b_alm = np.zeros_like(alm)
+
+    # Single alm2map call with pol=True:
+    #   input  = (T_alm, E_alm, B_alm)
+    #   output = (T_map, Q_map, U_map)
+    # We use lap_alm as T_alm to get the Laplacian map directly.
+    lap_map, Q_map, U_map = hp.alm2map(
+        [lap_alm, e_alm, b_alm], nside, lmax=lmax, pol=True
+    )
+
+    # --- Eigenvalues of the 2×2 Hessian in orthonormal frame ---
+    # H = [[L/2 + Q/2,  U/2],
+    #      [U/2,        L/2 - Q/2]]
+    # eigenvalues = L/2 ± sqrt(Q² + U²)/2
+    half_L = lap_map / 2.0
+    half_R = np.hypot(Q_map, U_map) / 2.0
+
+    lambda1 = half_L + half_R
+    lambda2 = half_L - half_R
+
+    # --- Anisotropy index A at each pixel ---
+    abs_l1 = np.abs(lambda1)
+    abs_l2 = np.abs(lambda2)
+    sum_abs = abs_l1 + abs_l2
+
+    # Regularisation constant: ε = 10⁻³ × mean(|λ₁| + |λ₂|) over valid pixels
+    mean_sum = np.mean(sum_abs[valid])
+    if mean_sum &lt; 1e-30:
+        return 0.0
+    epsilon = 1e-3 * mean_sum
+
+    A = np.abs(abs_l1 - abs_l2) / (sum_abs + epsilon)
+
+    # Sky-average over unmasked pixels
+    result = float(np.mean(A[valid]))
+
+    if not np.isfinite(result):
+        return 0.0
+    return result
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the Low-ℓ Mean Hessian Anisotropy Index.&quot;&quot;&quot;
+    sims = np.asarray(sim_results, dtype=float)
+    sims = sims[np.isfinite(sims)]
+    n = len(sims)
+    if n == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims))
+    std_s = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    median_s = float(np.median(sims))
+    rank = int(np.sum(sims &lt;= planck_stat))
+    p_upper = float(np.mean(sims &gt;= planck_stat))
+    p_lower = float(np.mean(sims &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else 0.0
+    pct_rank = rank / n * 100 if n &gt; 0 else 50.0
+
+    if pct_rank &lt; 2.5 or pct_rank &gt; 97.5:
+        sig_desc = &quot;highly anomalous (&lt;2.5% or &gt;97.5% of sims)&quot;
+    elif pct_rank &lt; 5 or pct_rank &gt; 95:
+        sig_desc = &quot;marginally anomalous (&lt;5% or &gt;95% of sims)&quot;
+    elif pct_rank &lt; 25 or pct_rank &gt; 75:
+        sig_desc = &quot;noteworthy (outside IQR of sims)&quot;
+    else:
+        sig_desc = &quot;typical (within IQR of sims)&quot;
+
+    if planck_stat &gt; mean_s + std_s:
+        aniso_desc = (
+            &quot;higher mean Hessian anisotropy than typical LCDM (curvature is more &quot;
+            &quot;directionally biased / elongated)&quot;
+        )
+    elif planck_stat &lt; mean_s - std_s:
+        aniso_desc = (
+            &quot;lower mean Hessian anisotropy than typical LCDM (curvature is more &quot;
+            &quot;isotropic than expected)&quot;
+        )
+    else:
+        aniso_desc = &quot;Hessian anisotropy consistent with LCDM expectations&quot;
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;hessian_anisotropy_index&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;sim_median&quot;: median_s,
+        &quot;z_score&quot;: z_score,
+        &quot;rank&quot;: rank,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n,
+        &quot;percentile_rank&quot;: pct_rank,
+        &quot;anisotropy_description&quot;: aniso_desc,
+        &quot;significance_description&quot;: sig_desc,
+        &quot;interpretation&quot;: (
+            f&quot;Mean Hessian anisotropy index = {planck_stat:.6f}. {aniso_desc}. &quot;
+            f&quot;Sim mean ± std = {mean_s:.6f} ± {std_s:.6f}. &quot;
+            f&quot;{sig_desc}. z = {z_score:.2f}, two-sided p = {p_two:.4f}.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Mean Hessian Anisotropy Index&quot;,
+            &quot;xlabel&quot;: &quot;Mean Anisotropy Index A&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck anisotropy index = {planck_stat:.6f}. &quot;
+                f&quot;Sim mean ± std = {mean_s:.6f} ± {std_s:.6f}. &quot;
+                f&quot;z = {z_score:.2f}, P(two-sided) = {p_two:.4f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-93-low-mean-hessian-anisotropy-index.png" alt="Statistic distribution for Low-ℓ Mean Hessian Anisotropy Index">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.812</td></tr>
+<tr><th>One-tailed p-value</th><td>0.406</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.812</td></tr>
+<tr><th>Sigma</th><td>0.238</td></tr>
+<tr><th>Planck statistic</th><td>0.493</td></tr>
+<tr><th>Simulation mean</th><td>0.492</td></tr>
+<tr><th>Simulation std.</th><td>0.00425</td></tr>
+<tr><th>Simulation median</th><td>0.492</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-93-low-mean-hessian-anisotropy-index.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-93-low-mean-hessian-anisotropy-index.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-93-low-mean-hessian-anisotropy-index.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-93-low-mean-hessian-anisotropy-index.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-93-low-mean-hessian-anisotropy-index.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-93-low-mean-hessian-anisotropy-index.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

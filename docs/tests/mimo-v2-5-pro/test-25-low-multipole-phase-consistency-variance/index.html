@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Multipole Phase Consistency Variance · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 25 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Multipole Phase Consistency Variance</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · variance · lower tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The circular variance V of low-ℓ (ℓ=2–5) m=1 phase angles is significantly lower than expected under isotropic ΛCDM, indicating anomalous phase alignment (coherence) among these modes.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>For multipoles ℓ=2 to 5, the phase θ_ℓ = arg(a_{ℓ,1} + i a_{ℓ,-1}) is extracted from the CMB temperature harmonic coefficients, and the circular variance V = 1 − |mean(exp(iθ_ℓ))| is computed. Low V indicates anomalous phase coherence among low-ℓ modes, potentially related to the quadrupole-octupole alignment.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck SMICA yields V = 0.4495. From 1000 isotropic ΛCDM simulations, the mean V = 0.5073 ± 0.2321 (theoretical isotropic expectation ≈ 0.2348). The Planck value falls at the 38.8th percentile of simulations (z = −0.249). The one-tailed lower p-value is 0.388; the two-sided p-value is 0.776. Anomaly strength is classified as negligible.</p>
+          <p>The observed circular variance is fully consistent with isotropic ΛCDM predictions. The Planck value is slightly below the simulation mean but well within one standard deviation, showing no evidence for anomalous phase alignment or coherence among the m=1 components of multipoles ℓ=2–5. There is no indication of the phase coherence that would signal a quadrupole-octupole alignment anomaly in this specific formulation.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is specifically motivated by the well-known quadrupole-octupole alignment anomaly, which manifests as an unexpected coherence among the low-ℓ multipole phases. This anomaly corresponds to a circular variance V that is lower than the isotropic expectation, since coherent phases yield a high resultant length |mean(exp(iθ))|, thus low V. The test description, analysis code, and interpretive output all consistently emphasize that low V indicates anomalous phase alignment. There is no physical motivation or known anomaly for V being significantly high (i.e., phases being more dispersed than random) in this context. Therefore, the directional hypothesis focuses on the lower tail.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The quadrupole-octupole alignment is a well-studied anomaly (e.g., Copi et al. 2010; Planck 2013 XVI), though typically quantified via directional correlation statistics rather than circular variance of m=1 phases. Previous online searches for this specific circular-variance statistic did not return relevant results, so direct literature comparison is limited.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Multipole Phase Consistency Variance: For multipoles ℓ=2 to 5, &quot;
+    &quot;compute the phase θ_ℓ = arg(a_{ℓ,1} + i a_{ℓ,-1}) from the spherical &quot;
+    &quot;harmonic coefficients of the CMB temperature map. For a real map, this &quot;
+    &quot;reduces to the polar angle of the (ℓ, m=1) coefficient. The circular &quot;
+    &quot;variance V = 1 - |mean(exp(iθ_ℓ))| measures phase coherence across &quot;
+    &quot;these low multipoles. Under isotropic ΛCDM, phases are independent and &quot;
+    &quot;uniform, giving E[V] ≈ 1 - J₀(1) ≈ 0.235. Significantly low V &quot;
+    &quot;indicates anomalous phase alignment, potentially related to the &quot;
+    &quot;quadrupole-octupole alignment anomaly.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute the circular variance of low-ℓ (ℓ=2-5) m=1 phase angles.
+
+    Extracts the phase θ_ℓ = atan2(Im(a_{ℓ,1}), Re(a_{ℓ,1})) for each
+    multipole ℓ=2 to 5, then computes the circular variance
+    V = 1 - |mean(exp(iθ))|. Under isotropic ΛCDM, the four phases are
+    independent uniform on [0, 2π], giving E[V] ≈ 1 - J₀(1) ≈ 0.235.
+    Low V indicates anomalous phase alignment across low multipoles.
+    &quot;&quot;&quot;
+    # Replace masked pixels with 0.0 for healpy compatibility
+    m_filled = np.where(np.isfinite(m), m, 0.0)
+    
+    # Compute alm up to lmax=5
+    lmax = 5
+    alm = hp.map2alm(m_filled, lmax=lmax)
+    
+    # Extract phases for (ℓ, m=1) coefficients for ℓ=2..5
+    # healpy alm indexing: index = m*(2*lmax+1-m)//2 + l for m &gt;= 0
+    # For m=1, indices are: 1*(2*5+1-1)//2 + l = 5 + l
+    # So ℓ=2 → index 7, ℓ=3 → index 8, ℓ=4 → index 9, ℓ=5 → index 10
+    l_values = np.arange(2, lmax + 1)
+    m = 1
+    indices = m * (2 * lmax + 1 - m) // 2 + l_values
+    a_lm1 = alm[indices]
+    
+    # Compute phases
+    phases = np.arctan2(a_lm1.imag, a_lm1.real)
+    
+    # Compute circular variance: V = 1 - |mean(exp(iθ))|
+    result_len = np.abs(np.mean(np.exp(1j * phases)))
+    V = 1.0 - result_len
+    
+    return float(V)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Multipole Phase Consistency Variance test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results to compare.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Phase Consistency Variance&quot;,
+                &quot;xlabel&quot;: &quot;Circular variance V&quot;,
+                &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data available.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+    # Expected value under isotropy: 1 - J_0(1) ≈ 0.2348
+    expected_V = 0.2348
+
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    direction = &quot;&quot;
+    if planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck shows significantly low circular variance, indicating &quot;
+            &quot;anomalous phase alignment (coherence) among the ℓ=2–5 m=1 modes. &quot;
+            &quot;This is consistent with the well-known quadrupole-octupole &quot;
+            &quot;alignment anomaly, where low-ℓ multipoles appear to share a &quot;
+            &quot;preferred axis, violating the expected isotropy of ΛCDM.&quot;
+        )
+    elif planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck shows significantly high circular variance, indicating &quot;
+            &quot;the low-ℓ m=1 phases are more dispersed than expected from &quot;
+            &quot;isotropic simulations.&quot;
+        )
+    else:
+        direction = (
+            &quot;The circular variance is consistent with isotropic ΛCDM &quot;
+            &quot;expectations, showing no significant phase alignment or &quot;
+            &quot;anti-alignment among low-ℓ multipoles.&quot;
+        )
+
+    interp = (
+        f&quot;Circular variance V = {planck_stat:.4f}. &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} \u00b1 {std_sim:.4f} &quot;
+        f&quot;(isotropic expectation \u2248 {expected_V:.4f}). &quot;
+        f&quot;Percentile = {percentile:.1f}%, two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the circular variance V of phases θ_\u2113 = &quot;
+        &quot;arg(a_{\u2113,1} + i\u00b7a_{\u2113,-1}) for multipoles \u2113=2\u20135 &quot;
+        &quot;from isotropic \u039bCDM simulations. V measures phase coherence: &quot;
+        &quot;V\u22480 indicates all four phases are aligned, V\u22481 indicates &quot;
+        &quot;random or anti-aligned phases. Under isotropy, E[V]\u22481\u2212J\u2080(1)&quot;
+        &quot;\u22480.235. Significantly low V suggests anomalous alignment of &quot;
+        &quot;low-\u2113 multipoles, potentially related to the quadrupole-octupole &quot;
+        &quot;alignment. The red line marks the Planck SMICA value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;expected_isotropic&quot;: expected_V,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-\u2113 Phase Consistency Variance&quot;,
+            &quot;xlabel&quot;: &quot;Circular variance V = 1 \u2212 |mean(exp(i\u03b8))|&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-25-low-multipole-phase-consistency-variance.png" alt="Statistic distribution for Low-ℓ Multipole Phase Consistency Variance">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.388</td></tr>
+<tr><th>One-tailed p-value</th><td>0.388</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.776</td></tr>
+<tr><th>Sigma</th><td>0.285</td></tr>
+<tr><th>Planck statistic</th><td>0.45</td></tr>
+<tr><th>Simulation mean</th><td>0.507</td></tr>
+<tr><th>Simulation std.</th><td>0.232</td></tr>
+<tr><th>Simulation median</th><td>0.511</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>lower</td></tr>
+<tr><th>Family</th><td>variance</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-25-low-multipole-phase-consistency-variance.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-25-low-multipole-phase-consistency-variance.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-25-low-multipole-phase-consistency-variance.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-25-low-multipole-phase-consistency-variance.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-25-low-multipole-phase-consistency-variance.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-25-low-multipole-phase-consistency-variance.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

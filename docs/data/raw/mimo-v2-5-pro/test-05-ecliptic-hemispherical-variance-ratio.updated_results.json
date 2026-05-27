@@ -1,0 +1,42 @@
+{
+  "results": {
+    "test_name": "Ecliptic Hemispherical Variance Ratio",
+    "test_description": "Compute the variance of the masked CMB temperature map within the northern ecliptic hemisphere (ecliptic latitude > 0°) and the southern ecliptic hemisphere (ecliptic latitude < 0°). The statistic is the ratio of the northern hemisphere variance to the southern hemisphere variance.",
+    "test_hypothesis": "The CMB temperature map exhibits a higher variance in the northern ecliptic hemisphere compared to the southern ecliptic hemisphere (i.e., the north/south variance ratio is greater than 1).",
+    "test_type": "one-tailed, upper",
+    "justification": "The analysis code explicitly computes the p-value as the fraction of simulations with a variance ratio greater than or equal to the observed Planck value (`rank = int(np.sum(valid >= planck_stat))`), which is an upper-tail test. This aligns with the known ecliptic hemispherical power asymmetry in Planck data, where the northern ecliptic hemisphere shows more power than the southern. The test statistic is directional (ratio > 1), so a one-tailed test is appropriate.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 1.0018941573012103,
+    "mean_sim_stat": 1.0046627023841885,
+    "std_sim_stat": 0.032058035965288195,
+    "median_sim_stat": 1.004234024543781,
+    "sigma": 0.06521853970954372,
+    "p_value_one_tailed": 0.526,
+    "tail": "upper"
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\"Ecliptic Hemispherical Variance Ratio. Computes the ratio of CMB \"\n    \"temperature variance in the northern ecliptic hemisphere (ecliptic latitude > 0°) \"\n    \"to the southern ecliptic hemisphere (ecliptic latitude < 0°). For a random isotropic \"\n    \"field the expected ratio is ~1; significant deviation from unity indicates an \"\n    \"ecliptic hemispherical power asymmetry, as reported in Planck data.\")\n\ndef analyze_map(m):\n    m = np.asarray(m, dtype=np.float64)\n    nside = hp.npix2nside(len(m))\n    npix = hp.nside2npix(nside)\n    pix = np.arange(npix)\n\n    # Get pixel unit vectors in Galactic coordinates (default for healpy)\n    vec = hp.pix2vec(nside, pix)\n\n    # Rotate from Galactic to Ecliptic coordinates\n    rot = hp.Rotator(coord=['G', 'E'])\n    vec_ecl = rot(vec)\n\n    # Convert ecliptic unit vectors to (colatitude, longitude)\n    theta_ecl, phi_ecl = hp.vec2ang(vec_ecl)\n\n    # Ecliptic latitude = 90° - colatitude\n    ecl_lat = 90.0 - np.degrees(theta_ecl)\n\n    # Northern ecliptic hemisphere: ecliptic latitude > 0°\n    north_mask = ecl_lat > 0.0\n    # Southern ecliptic hemisphere: ecliptic latitude < 0°\n    south_mask = ecl_lat < 0.0\n\n    # Combine with valid (finite / unmasked) pixel mask\n    valid = np.isfinite(m)\n    north_vals = m[valid & north_mask]\n    south_vals = m[valid & south_mask]\n\n    # Compute variance in each hemisphere\n    north_var = np.var(north_vals) if len(north_vals) > 1 else 0.0\n    south_var = np.var(south_vals) if len(south_vals) > 1 else 0.0\n\n    # Compute the ratio; fall back to 1.0 (isotropic expectation)\n    # if the denominator is zero.\n    if south_var > 0.0:\n        ratio = north_var / south_var\n    else:\n        ratio = 1.0\n\n    return float(ratio)\n\n\ndef summarize_results(planck_stat, sim_results):\n    sim_arr = np.array(sim_results, dtype=np.float64)\n    finite_mask = np.isfinite(sim_arr)\n    n_finite = int(finite_mask.sum())\n\n    if n_finite > 0:\n        valid = sim_arr[finite_mask]\n        rank = int(np.sum(valid >= planck_stat))\n        p_value = rank / n_finite\n    else:\n        rank = 0\n        p_value = float('nan')\n\n    sim_median = float(np.nanmedian(sim_arr))\n    sim_mean = float(np.nanmean(sim_arr))\n    sim_std = float(np.nanstd(sim_arr))\n\n    interpretation = (\n        \"Anomalous: ecliptic hemispherical variance asymmetry detected\"\n        if p_value < 0.05\n        else \"Ecliptic hemispherical variance ratio consistent with isotropic expectations\"\n    )\n\n    result = {\n        \"test_description\": test_description,\n        \"planck_stat\": float(planck_stat),\n        \"p_value\": float(p_value),\n        \"rank\": rank,\n        \"n_simulations\": len(sim_results),\n        \"n_valid\": n_finite,\n        \"sim_mean\": sim_mean,\n        \"sim_std\": sim_std,\n        \"sim_median\": sim_median,\n        \"exceeds_95th_percentile\": bool(p_value < 0.05),\n        \"interpretation\": interpretation,\n        \"expected_random_ratio\": float(1.0),\n    }\n\n    result[\"plot_spec\"] = {\n        \"kind\": \"histogram\",\n        \"title\": \"Ecliptic Hemispherical Variance Ratio\",\n        \"xlabel\": \"North / South ecliptic hemisphere variance ratio\",\n        \"ylabel\": \"Number of simulations\",\n        \"bins\": 50,\n        \"caption\": (\n            f\"Histogram of ecliptic hemispherical variance ratio from {n_finite} \"\n            f\"lensed-ΛCDM simulations. Planck value = {planck_stat:.4f} \"\n            f\"(one-sided p = {p_value:.3f}, rank {rank}/{n_finite}). \"\n            f\"The expected ratio for isotropic random fields is ~1.0; \"\n            f\"a value significantly different from unity indicates an ecliptic \"\n            f\"hemispherical power asymmetry.\"\n        ),\n    }\n\n    return result\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "fallback_error",
+    "n_valid_simulations": 1000,
+    "sim_min": 0.8853135403198339,
+    "sim_max": 1.1261772015442661,
+    "z_score": -0.08636040854080758,
+    "thresholds": [
+      0.9406645882634574,
+      1.0670808391543805
+    ],
+    "summary_error": "Traceback (most recent call last):\n  File \"/tmp/ipykernel_17705/482371216.py\", line 450, in run_registered_analysis\n    extra_summary = summary_fn(planck_stat, sim_results)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<string>\", line 78, in summarize_results\nNameError: name 'test_description' is not defined\n"
+  },
+  "updated_summary": {
+    "Test name": "** Ecliptic Hemispherical Variance Ratio",
+    "Description": "** The variance of the masked Planck CMB temperature map is computed separately for the northern ecliptic hemisphere (latitude > 0°) and the southern ecliptic hemisphere (latitude < 0°), after rotating pixel coordinates from Galactic to Ecliptic. The statistic is the ratio of northern-to-southern variance. Under isotropy, the expected ratio is ~1.0.",
+    "Results": "** The observed Planck variance ratio is 1.0019, compared to a simulation mean of 1.0047 and standard deviation of 0.0321. The z-score is only 0.065σ from the simulation mean. The one-sided upper-tail p-value is 0.526, indicating the Planck value is well within the distribution of isotropic ΛCDM simulations.",
+    "Interpretation": "** The ecliptic hemispherical variance ratio is entirely consistent with isotropic expectations derived from 1000 lensed-ΛCDM simulations. No evidence for a north–south ecliptic power asymmetry is found using this particular real-space variance statistic.",
+    "Meets hypothesis?": "** No",
+    "Comparison to literature": "** The ecliptic hemispherical power asymmetry is a well-documented anomaly, studied using various statistics in Planck Collaboration XXIII (2013) and subsequent work (e.g., arXiv:1608.02234). Some analyses report anomalously low variance in the northern ecliptic hemisphere, contrary to the tested hypothesis of higher northern variance. This null result with a simple variance ratio is broadly consistent with studies finding the asymmetry to be statistic-dependent and not robustly captured by pixel-space variance alone.",
+    "Test novelty": "** Repeat",
+    "Verdict": "** No anomalies found"
+  }
+}

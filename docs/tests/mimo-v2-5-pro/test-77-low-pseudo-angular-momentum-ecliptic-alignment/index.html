@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Pseudo-Angular-Momentum Ecliptic Alignment · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 77 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Pseudo-Angular-Momentum Ecliptic Alignment</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · parity · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Planck CMB temperature map exhibits a statistically significant alignment of the low-ℓ pseudo-angular-momentum vector with the ecliptic north pole, as indicated by a higher value of |L̂ · ê| than expected from ΛCDM simulations under isotropy.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>A pseudo-angular-momentum vector is constructed from ℓ=2–5 spherical harmonic coefficients using L_x = Σ ℓ·Re(a_{ℓ,1}) and L_y = Σ ℓ·Im(a_{ℓ,1}). After normalization, the absolute cosine |L̂ · ê| with the ecliptic north pole (l,b)=(96.4°,29.8°) measures whether the coherent circulation pattern in low-ℓ modes preferentially aligns with the ecliptic direction.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck |L̂·ê| = 0.684. Simulation mean ± σ = 0.551 ± 0.265 (isotropic expectation ≈ 0.552). The Planck value corresponds to z ≈ 0.5σ with an upper-tail p-value of 0.415.</p>
+          <p>The Planck map&#x27;s pseudo-angular-momentum vector shows a mild tendency toward ecliptic alignment, but the value lies well within the spread expected from isotropic ΛCDM realizations. The wide dispersion of the statistic (σ ≈ 0.265) reflects the small number of modes (ℓ=2–5, m=1 only), yielding low statistical power. No evidence for anomalous ecliptic alignment is found with this test.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is explicitly designed to probe anomalous ecliptic alignment, where high values of the statistic (near 1) indicate alignment with the ecliptic pole. The analysis code calculates p_value_upper for this direction, and the interpretation emphasizes that a small p_value_upper suggests anomalous alignment. Since the hypothesis is directional, focusing on whether the Planck value is unusually high, a one-tailed upper test is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Low-ℓ directional anomalies and multipole-vector alignment with the ecliptic have been extensively studied (Copi, Huterer &amp; Starkman 2004; Abramo et al. 2006). However, the specific pseudo-angular-momentum construction using ℓ-weighted imaginary parts of m=1 coefficients does not appear to have a direct precedent in the literature. Searches for this exact statistic returned no matching studies.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Construct a pseudo-angular-momentum vector from the low-ℓ spherical harmonic &quot;
+    &quot;coefficients of the masked, beam-deconvolved temperature map (ℓ=2–5). Define &quot;
+    &quot;L_x = Σ ℓ·Re(a_{ℓ,1}) and L_y = Σ ℓ·Im(a_{ℓ,1}) for ℓ=2 through 5, with &quot;
+    &quot;L_z = 0 (since Im(a_{ℓ,0})=0 for a real-valued map). These two components &quot;
+    &quot;encode the orthogonal cos-φ and sin-φ directional structure of the m=1 modes. &quot;
+    &quot;Normalize to unit length L̂ = L/|L|. The ecliptic north pole in Galactic &quot;
+    &quot;coordinates is approximately (l,b) = (96.4°, 29.8°); convert to a Cartesian &quot;
+    &quot;unit vector ê. The scalar statistic is |L̂ · ê|, yielding a value in [0, 1]. &quot;
+    &quot;Values near 1 indicate that the coherent circulation pattern in the low-ℓ &quot;
+    &quot;temperature field is preferentially aligned with the ecliptic pole; values near &quot;
+    &quot;0 indicate orthogonality. This statistic probes the phase-coherent directional &quot;
+    &quot;structure of low-ℓ modes through the m≠0 coefficients, capturing a distinct &quot;
+    &quot;axis-of-alignment signal that is neither a pure power measurement nor a &quot;
+    &quot;parity-even/odd decomposition.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return |L̂ · ê|: alignment of pseudo-angular-momentum with ecliptic north pole.&quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    lmax = 5
+
+    # Replace NaNs with 0 for healpy compatibility
+    m_clean = np.where(np.isfinite(m), m, 0.0)
+
+    # Compute spherical harmonic coefficients up to lmax=5
+    alm = hp.map2alm(m_clean, lmax=lmax, iter=10)
+
+    # Build pseudo-angular-momentum vector from ℓ=2..5, m=1 coefficients.
+    # L_x = Σ ℓ · Re(a_{ℓ,1})  — encodes the cos(φ) directional component
+    # L_y = Σ ℓ · Im(a_{ℓ,1})  — encodes the sin(φ) directional component
+    # L_z = 0  (Im(a_{ℓ,0}) = 0 for real-valued maps)
+    L_x = 0.0
+    L_y = 0.0
+    for ell in range(2, 6):
+        idx = hp.Alm.getidx(lmax, ell, 1)
+        coeff = alm[idx]
+        L_x += ell * coeff.real
+        L_y += ell * coeff.imag
+
+    # Normalize to unit length
+    L_mag = np.sqrt(L_x ** 2 + L_y ** 2)
+    if L_mag &lt; 1e-30:
+        return 0.0
+    L_hat = np.array([L_x / L_mag, L_y / L_mag, 0.0])
+
+    # Ecliptic north pole in Galactic coordinates: (l, b) = (96.4°, 29.8°)
+    # Convert to Galactic Cartesian unit vector
+    l_gal = np.radians(96.4)
+    b_gal = np.radians(29.8)
+    e_hat = np.array([
+        np.cos(b_gal) * np.cos(l_gal),
+        np.cos(b_gal) * np.sin(l_gal),
+        np.sin(b_gal),
+    ])
+
+    # Absolute cosine of angle between L̂ and ê
+    return float(abs(np.dot(L_hat, e_hat)))
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the Low-ℓ Pseudo-Angular-Momentum Ecliptic Alignment statistic.&quot;&quot;&quot;
+    sims = np.asarray(sim_results, dtype=float)
+    sims = sims[np.isfinite(sims)]
+    n = len(sims)
+
+    if n == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims))
+    std_s = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    median_s = float(np.median(sims))
+
+    # p-value: fraction of simulations with statistic &gt;= Planck (anomalous alignment)
+    p_upper = float(np.mean(sims &gt;= planck_stat))
+    # p-value: fraction of simulations with statistic &lt;= Planck (anomalous orthogonality)
+    p_lower = float(np.mean(sims &lt;= planck_stat))
+    # Two-sided p-value
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+
+    # Under isotropy, L̂ is uniform on the unit circle in the x-y plane.
+    # |L̂ · ê| = cos(b_ecl) × |cos(α - l_ecl)| where α ~ Uniform(0, 2π)
+    # E[|cos θ|] = 2/π, so E[|L̂ · ê|] = cos(29.8°) × 2/π
+    b_ecl = np.radians(29.8)
+    expected_mean = float(np.cos(b_ecl) * 2.0 / np.pi)
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;sim_median&quot;: median_s,
+        &quot;expected_mean_isotropic&quot;: expected_mean,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n,
+        &quot;interpretation&quot;: (
+            f&quot;Absolute cosine of the angle between the pseudo-angular-momentum vector &quot;
+            f&quot;(from ℓ=2–5, m=1 SH coefficients) and the ecliptic north pole. &quot;
+            f&quot;A value near 1 indicates alignment of the low-ℓ circulation pattern with &quot;
+            f&quot;the ecliptic pole; near 0 indicates orthogonality. Under isotropy, &quot;
+            f&quot;E[|L̂·ê|] = cos(29.8°)×2/π ≈ {expected_mean:.3f}. &quot;
+            f&quot;A high Planck value (small p_value_upper) suggests anomalous ecliptic alignment.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Pseudo-Angular-Momentum Ecliptic Alignment&quot;,
+            &quot;xlabel&quot;: &quot;|L̂ · ê_ecliptic|&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck |L̂·ê| = {planck_stat:.4f}. &quot;
+                f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f} &quot;
+                f&quot;(isotropic expect. {expected_mean:.4f}). &quot;
+                f&quot;P(|L̂·ê| ≥ Planck) = {p_upper:.3f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-77-low-pseudo-angular-momentum-ecliptic-alignment.png" alt="Statistic distribution for Low-ℓ Pseudo-Angular-Momentum Ecliptic Alignment">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.415</td></tr>
+<tr><th>One-tailed p-value</th><td>0.415</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.83</td></tr>
+<tr><th>Sigma</th><td>0.215</td></tr>
+<tr><th>Planck statistic</th><td>0.684</td></tr>
+<tr><th>Simulation mean</th><td>0.551</td></tr>
+<tr><th>Simulation std.</th><td>0.265</td></tr>
+<tr><th>Simulation median</th><td>0.607</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>parity</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-77-low-pseudo-angular-momentum-ecliptic-alignment.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-77-low-pseudo-angular-momentum-ecliptic-alignment.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-77-low-pseudo-angular-momentum-ecliptic-alignment.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-77-low-pseudo-angular-momentum-ecliptic-alignment.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-77-low-pseudo-angular-momentum-ecliptic-alignment.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-77-low-pseudo-angular-momentum-ecliptic-alignment.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

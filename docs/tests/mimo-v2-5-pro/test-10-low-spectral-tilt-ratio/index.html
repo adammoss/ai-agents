@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Spectral Tilt Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 10 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Spectral Tilt Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · power · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The ratio R = mean(C_ℓ, ℓ=2–5) / mean(C_ℓ, ℓ=6–10) deviates from the distribution predicted by the standard ΛCDM cosmological model, indicating an unexpected tilt or curvature in the primordial power spectrum at very low multipoles.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Computes the ratio R = mean(C_ℓ, ℓ=2–5) / mean(C_ℓ, ℓ=6–10) from the angular power spectrum, testing for unexpected spectral tilt or curvature in the primordial power spectrum at the lowest multipoles compared to ΛCDM FFP simulations (1000 realisations).</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck R = 3.613, simulation mean = 5.953 ± 2.519 (median = 5.483). Two-sided p = 0.29 (z-score ≈ 1.06σ). The observed ratio is lower than the simulation mean, indicating slightly less relative power in ℓ = 2–5 compared to ℓ = 6–10, but well within expected statistical fluctuations.</p>
+          <p>The Planck low-ℓ spectral tilt ratio is consistent with ΛCDM expectations. The modest deficit in the lower band relative to simulations (~1σ below the mean) is unremarkable and does not constitute evidence for an anomalous spectral index or curvature at very low multipoles. No compelling deviation from the standard model is detected.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test description and analysis code are explicitly designed to detect any unexpected deviation in the spectral ratio R, whether it is anomalously high (excess low-ℓ power) or anomalously low (low-ℓ power deficit). The code calculates a two-sided p-value by considering both the upper and lower tails of the simulation distribution and classifies the anomaly direction after the fact. This is a general exploratory test for spectral anomalies, not a targeted test for a specific predicted directional change, so a two-tailed approach is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Previous work has extensively studied low-ℓ anomalies including the quadrupole–octupole alignment (Copi et al. 2004) and the overall low-ℓ power deficit. The specific band-power ratio with this binning does not appear to be a standard statistic in the literature, making direct comparison difficult. The result is broadly consistent with prior findings that low-ℓ power is somewhat suppressed but not significantly anomalous.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Spectral Tilt Ratio. Computes the angular power spectrum C_ℓ for &quot;
+    &quot;multipoles ℓ = 2 through 20 using healpy anafast. The statistic is the ratio &quot;
+    &quot;R = mean(C_ℓ, ℓ=2–5) / mean(C_ℓ, ℓ=6–10). In standard ΛCDM with a nearly &quot;
+    &quot;scale-invariant primordial spectrum, C_ℓ at these low multipoles follows the &quot;
+    &quot;Sachs–Wolfe plateau with modest structure from the first acoustic peak rising &quot;
+    &quot;around ℓ ≈ 7–8. An anomalously low ratio R would indicate an unexpected dip &quot;
+    &quot;or suppression at the very lowest multipoles (the &#x27;low-ℓ power deficit&#x27;), &quot;
+    &quot;while an anomalously high ratio could signal excess large-scale power or an &quot;
+    &quot;unusual spectral tilt. Evaluated by comparing the Planck value against &quot;
+    &quot;FFP ΛCDM simulations.&quot;
+)
+
+
+def analyze_map(m):
+    m = np.asarray(m, dtype=np.float64)
+
+    # Replace NaN (masked) pixels with 0.0 for healpy transforms
+    m_clean = np.where(np.isfinite(m), m, 0.0)
+
+    # Compute angular power spectrum up to ℓ = 10
+    cl = hp.anafast(m_clean, lmax=10)
+
+    # cl array indices: cl[0] = C_0, cl[1] = C_1, ..., cl[10] = C_10
+    # We need ℓ = 2 through 5 and ℓ = 6 through 10
+    lower_mean = np.mean(cl[2:6])   # C_2, C_3, C_4, C_5
+    upper_mean = np.mean(cl[6:11])  # C_6, C_7, C_8, C_9, C_10
+
+    # Guard against division by zero or tiny denominators
+    if upper_mean &lt;= 0.0 or not np.isfinite(upper_mean):
+        return 1.0  # fallback neutral value
+
+    ratio = lower_mean / upper_mean
+
+    if not np.isfinite(ratio):
+        return 1.0
+
+    return float(ratio)
+
+
+def summarize_results(planck_stat, sim_results):
+    sim_arr = np.array(sim_results, dtype=np.float64)
+    finite_mask = np.isfinite(sim_arr)
+    n_finite = int(finite_mask.sum())
+
+    if n_finite &gt; 0:
+        valid = sim_arr[finite_mask]
+        # Two-sided p-value: fraction of simulations as extreme or more extreme
+        sim_median = float(np.median(valid))
+        # Compute one-sided p-values in both directions
+        p_upper = float(np.sum(valid &gt;= planck_stat) / n_finite)
+        p_lower = float(np.sum(valid &lt;= planck_stat) / n_finite)
+        p_value = min(p_upper, p_lower)
+        rank_upper = int(np.sum(valid &gt;= planck_stat))
+        rank_lower = int(np.sum(valid &lt;= planck_stat))
+    else:
+        p_value = float(&#x27;nan&#x27;)
+        rank_upper = 0
+        rank_lower = 0
+        sim_median = float(&#x27;nan&#x27;)
+
+    sim_mean = float(np.nanmean(sim_arr))
+    sim_std = float(np.nanstd(sim_arr))
+
+    # Classify anomaly direction
+    if n_finite &gt; 0 and not np.isnan(p_value):
+        if p_upper &lt;= p_lower:
+            direction = &quot;high&quot;
+            rank = rank_upper
+        else:
+            direction = &quot;low&quot;
+            rank = rank_lower
+    else:
+        direction = &quot;unknown&quot;
+        rank = 0
+
+    interpretation_parts = []
+    interpretation_parts.append(
+        f&quot;Low-ℓ spectral tilt ratio R = mean(C_ℓ, ℓ=2–5) / mean(C_ℓ, ℓ=6–10) &quot;
+        f&quot;= {planck_stat:.4f}.&quot;
+    )
+    interpretation_parts.append(
+        f&quot;Two-sided p = {p_value:.3f} ({rank}/{n_finite} simulations &quot;
+        f&quot;at least as extreme in the {direction} direction).&quot;
+    )
+    interpretation_parts.append(
+        f&quot;Simulation mean = {sim_mean:.4f}, std = {sim_std:.4f}, &quot;
+        f&quot;median = {sim_median:.4f}.&quot;
+    )
+    if not np.isnan(p_value) and p_value &lt; 0.05:
+        if direction == &quot;low&quot;:
+            interpretation_parts.append(
+                &quot;Anomalous: the ratio is unusually LOW, suggesting excess power in &quot;
+                &quot;ℓ = 6–10 relative to ℓ = 2–5 — consistent with the known CMB &quot;
+                &quot;low-ℓ power deficit or an unexpected spectral upturn at the &quot;
+                &quot;lowest multipoles.&quot;
+            )
+        else:
+            interpretation_parts.append(
+                &quot;Anomalous: the ratio is unusually HIGH, suggesting excess power in &quot;
+                &quot;ℓ = 2–5 relative to ℓ = 6–10 — indicating an unusual spectral &quot;
+                &quot;tilt or suppression of power just above the quadrupole.&quot;
+            )
+    else:
+        interpretation_parts.append(
+            &quot;The ratio is consistent with ΛCDM simulation expectations.&quot;
+        )
+
+    result = {
+        &quot;test_description&quot;: test_description,
+        &quot;planck_stat&quot;: float(planck_stat),
+        &quot;p_value&quot;: float(p_value),
+        &quot;rank&quot;: rank,
+        &quot;n_simulations&quot;: len(sim_results),
+        &quot;n_valid&quot;: n_finite,
+        &quot;sim_mean&quot;: sim_mean,
+        &quot;sim_std&quot;: sim_std,
+        &quot;sim_median&quot;: sim_median,
+        &quot;exceeds_95th_percentile&quot;: bool(p_value &lt; 0.05) if not np.isnan(p_value) else False,
+        &quot;anomaly_direction&quot;: direction,
+        &quot;interpretation&quot;: &quot; &quot;.join(interpretation_parts),
+        &quot;lower_band_range&quot;: &quot;ℓ = 2–5&quot;,
+        &quot;upper_band_range&quot;: &quot;ℓ = 6–10&quot;,
+    }
+
+    result[&quot;plot_spec&quot;] = {
+        &quot;kind&quot;: &quot;histogram&quot;,
+        &quot;title&quot;: &quot;Low-ℓ Spectral Tilt Ratio&quot;,
+        &quot;xlabel&quot;: &quot;R = mean(C_ℓ, ℓ=2–5) / mean(C_ℓ, ℓ=6–10)&quot;,
+        &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+        &quot;bins&quot;: 50,
+        &quot;caption&quot;: (
+            f&quot;Histogram of the low-ℓ spectral tilt ratio R = &quot;
+            f&quot;mean(C_ℓ, ℓ=2–5) / mean(C_ℓ, ℓ=6–10) from {n_finite} &quot;
+            f&quot;FFP ΛCDM simulations. &quot;
+            f&quot;Planck value = {planck_stat:.4f} &quot;
+            f&quot;(two-sided p = {p_value:.3f}, rank {rank}/{n_finite}, &quot;
+            f&quot;{direction} direction). &quot;
+            f&quot;Simulation mean = {sim_mean:.4f} ± {sim_std:.4f}. &quot;
+            f&quot;A low ratio signals the low-ℓ power deficit; a high ratio &quot;
+            f&quot;suggests excess large-scale power.&quot;
+        ),
+    }
+
+    return result</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-10-low-spectral-tilt-ratio.png" alt="Statistic distribution for Low-ℓ Spectral Tilt Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.29</td></tr>
+<tr><th>One-tailed p-value</th><td>0.145</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.29</td></tr>
+<tr><th>Sigma</th><td>1.058</td></tr>
+<tr><th>Planck statistic</th><td>3.613</td></tr>
+<tr><th>Simulation mean</th><td>5.953</td></tr>
+<tr><th>Simulation std.</th><td>2.519</td></tr>
+<tr><th>Simulation median</th><td>5.483</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>power</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-10-low-spectral-tilt-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-10-low-spectral-tilt-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-10-low-spectral-tilt-ratio.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-10-low-spectral-tilt-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-10-low-spectral-tilt-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-10-low-spectral-tilt-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

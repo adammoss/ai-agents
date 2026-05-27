@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Cold Spot Ecliptic Latitude · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 22 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Cold Spot Ecliptic Latitude</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · direction · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The absolute ecliptic latitude |β| of the low-ℓ cold spot is anomalously extreme, either too close to or too far from the ecliptic plane compared to ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The temperature map is filtered to retain only multipoles ℓ ≤ 8, convolved with a 10° FWHM Gaussian beam, and masked with the Planck common mask. The pixel with the minimum temperature on the unmasked sky is identified, and its ecliptic latitude β is reported. This tests whether the location of the coldest large-scale feature is anomalously close to or far from the ecliptic plane under ΛCDM.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck SMICA β = −34.82° (|β| = 34.82°). Simulations yield mean |β| = 31.34° ± 21.64°. The observed value lies at the 63.3rd percentile of |β|. Two-sided p-value = 0.364; z-score = −0.95σ. Anomaly strength is negligible.</p>
+          <p>The ecliptic latitude of the low-ℓ cold spot is fully consistent with ΛCDM simulations. There is no evidence that the coldest large-scale feature is preferentially aligned with or displaced from the ecliptic plane. The Planck value sits near the centre of the simulated |β| distribution.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect anomalies in both directions (close to and far from the ecliptic plane), as evidenced by the calculation of two-sided p-values and the symmetric treatment of |β| in the analysis code. There is no clear directional prediction specified in the test description or code, making a two-tailed test appropriate for this exploratory anomaly check.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No prior studies testing the ecliptic latitude of the low-ℓ cold spot specifically were identified. While the CMB cold spot (in Eridanus) and low-ℓ anomalies are extensively discussed—e.g., Planck 2018 VII (Isotropy and Statistics)—the ecliptic-latitude statistic of the bandpass-filtered cold pixel does not appear as a documented test. This makes a direct literature comparison difficult.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Cold Spot Ecliptic Latitude: Filter the temperature map to retain only &quot;
+    &quot;multipoles ℓ ≤ 8, then convolve with a Gaussian beam of 10° FWHM to suppress &quot;
+    &quot;pixel noise. Apply the Planck common mask. Identify the pixel with the minimum &quot;
+    &quot;temperature on the unmasked sky and convert its coordinates from galactic to &quot;
+    &quot;ecliptic. Report the ecliptic latitude β of this coldest pixel as the single &quot;
+    &quot;scalar statistic. This tests whether the location of the lowest-temperature &quot;
+    &quot;large-scale feature is anomalously close to or far from the ecliptic plane, &quot;
+    &quot;which has no physical significance in the standard model. The statistic &quot;
+    &quot;complements the existing &#x27;Low-ℓ Cold Spot Depth&#x27; test (which measures the &quot;
+    &quot;temperature magnitude) by probing the directional information instead. &quot;
+    &quot;For nside=256, the 10° smoothing beam is well resolved (beam σ ≈ 4.2°, &quot;
+    &quot;pixel size ≈ 0.23°), and the computation is dominated by the harmonic &quot;
+    &quot;filtering and smoothing steps.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute the ecliptic latitude β of the coldest pixel after low-ℓ filtering and smoothing.
+
+    Steps:
+    1. Identify unmasked pixels; fill masked (NaN) with 0 for spherical-harmonic transforms.
+    2. Decompose into alm up to lmax=8 (ℓ ≤ 8 bandpass).
+    3. Smooth with a 10° FWHM Gaussian beam using healpy.smoothing.
+    4. Find the pixel with the minimum smoothed temperature among unmasked pixels.
+    5. Convert its galactic coordinates to ecliptic and return β (degrees).
+    &quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+
+    # Identify valid (unmasked) pixels
+    valid = np.isfinite(m)
+
+    # Fill masked pixels with 0 for SH transforms
+    m_filled = np.where(valid, m, 0.0).astype(np.float64)
+
+    # --- Step 1: Bandpass filter to ℓ ≤ 8 via spherical harmonics ---
+    lmax = 8
+    alm = hp.map2alm(m_filled, lmax=lmax, iter=0)
+
+    # --- Step 2: Smooth with 10° FWHM Gaussian beam ---
+    # σ_beam = FWHM / (2√(2 ln 2)) ≈ 4.2466°, well resolved at nside=256
+    fwhm_rad = np.radians(10.0)
+
+    # Smooth via harmonic-space beam multiplication then map reconstruction
+    # hp.smoothing with lmax=lmax ensures only ℓ ≤ 8 modes survive
+    m_smooth = hp.smoothing(m_filled, fwhm=fwhm_rad, lmax=lmax, iter=0)
+
+    # --- Step 3: Find the coldest unmasked pixel ---
+    temps_valid = m_smooth[valid]
+    idx_valid = np.where(valid)[0]
+
+    # Vectorized argmin over unmasked pixels (avoids slow Python pixel scan)
+    min_idx_local = np.argmin(temps_valid)
+    cold_pix = idx_valid[min_idx_local]
+
+    # --- Step 4: Convert galactic → ecliptic coordinates ---
+    theta_gal, phi_gal = hp.pix2ang(nside, cold_pix)
+
+    rot = hp.Rotator(coord=[&#x27;G&#x27;, &#x27;E&#x27;])  # galactic to ecliptic
+    theta_ecl, phi_ecl = rot(theta_gal, phi_gal)
+
+    # Ecliptic latitude: β = 90° - colatitude
+    beta_ecl = np.degrees(np.pi / 2.0 - theta_ecl)
+
+    return float(beta_ecl)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Cold Spot Ecliptic Latitude anomaly.
+
+    The key question is whether |β| is anomalously small (near ecliptic plane)
+    or anomalously large (near ecliptic poles). We treat |β| as the primary
+    anomaly variable: a small |β| means the cold spot lies close to the
+    ecliptic plane, which would be geometrically suspicious.
+    &quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&#x27;nan&#x27;),
+            &quot;p_value_low&quot;: float(&#x27;nan&#x27;),
+            &quot;p_value_high&quot;: float(&#x27;nan&#x27;),
+            &quot;rank&quot;: 0,
+            &quot;n_sims&quot;: 0,
+            &quot;percentile&quot;: float(&#x27;nan&#x27;),
+            &quot;sim_mean_beta&quot;: float(&#x27;nan&#x27;),
+            &quot;sim_std_beta&quot;: float(&#x27;nan&#x27;),
+            &quot;planck_abs_beta&quot;: float(&#x27;nan&#x27;),
+            &quot;sim_mean_abs_beta&quot;: float(&#x27;nan&#x27;),
+            &quot;asymmetry_label&quot;: &quot;unknown&quot;,
+            &quot;asymmetry_direction&quot;: &quot;no simulations available&quot;,
+            &quot;interpretation&quot;: &quot;No simulation results to compare.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Cold Spot Ecliptic Latitude&quot;,
+                &quot;xlabel&quot;: &quot;Ecliptic latitude β (degrees)&quot;,
+                &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data available.&quot;,
+            },
+        }
+
+    # Signed β statistics
+    mean_beta = float(np.mean(sim))
+    std_beta = float(np.std(sim))
+
+    # |β| statistics (anomaly proxy: smaller |β| = closer to ecliptic plane)
+    abs_sim = np.abs(sim)
+    abs_planck = abs(planck_stat)
+    mean_abs_beta = float(np.mean(abs_sim))
+    std_abs_beta = float(np.std(abs_sim))
+
+    # One-sided p-value: fraction of simulations with |β| as small or smaller
+    # (tests if Planck&#x27;s cold spot is anomalously close to the ecliptic plane)
+    p_value_close = float(np.mean(abs_sim &lt;= abs_planck))
+
+    # One-sided p-value: fraction with |β| as large or larger (far from plane)
+    p_value_far = float(np.mean(abs_sim &gt;= abs_planck))
+
+    # Two-sided p-value: is |β| extreme in either direction?
+    p_value_two = 2.0 * min(p_value_close, p_value_far)
+    p_value_two = min(p_value_two, 1.0)  # clamp
+
+    # Rank by |β| (low rank = close to ecliptic plane)
+    rank_close = int(np.sum(abs_sim &lt;= abs_planck))
+    percentile_close = 100.0 * rank_close / n_sims
+
+    # Signed rank (for reference)
+    rank_signed = int(np.sum(sim &lt; planck_stat))
+    percentile_signed = 100.0 * rank_signed / n_sims
+
+    # Anomaly strength based on proximity to ecliptic plane
+    if percentile_close &lt;= 5:
+        strength = &quot;strong&quot;
+        direction = (
+            f&quot;Planck&#x27;s cold spot ecliptic latitude β = {planck_stat:.2f}° &quot;
+            f&quot;(|β| = {abs_planck:.2f}°) is anomalously close to the ecliptic plane, &quot;
+            f&quot;placing it at the {percentile_close:.1f}th percentile of |β| &quot;
+            &quot;among ΛCDM simulations.&quot;
+        )
+    elif percentile_close &lt;= 10:
+        strength = &quot;moderate&quot;
+        direction = (
+            f&quot;Planck&#x27;s cold spot ecliptic latitude β = {planck_stat:.2f}° &quot;
+            f&quot;(|β| = {abs_planck:.2f}°) is moderately close to the ecliptic plane, &quot;
+            f&quot;placing it at the {percentile_close:.1f}th percentile of |β|.&quot;
+        )
+    elif p_value_far &lt;= 0.05:
+        strength = &quot;strong&quot;
+        direction = (
+            f&quot;Planck&#x27;s cold spot ecliptic latitude β = {planck_stat:.2f}° &quot;
+            f&quot;(|β| = {abs_planck:.2f}°) is anomalously far from the ecliptic plane, &quot;
+            f&quot;placing it at the {100 - percentile_close:.1f}th percentile of |β|.&quot;
+        )
+    elif p_value_far &lt;= 0.10:
+        strength = &quot;moderate&quot;
+        direction = (
+            f&quot;Planck&#x27;s cold spot ecliptic latitude β = {planck_stat:.2f}° &quot;
+            f&quot;(|β| = {abs_planck:.2f}°) is moderately far from the ecliptic plane.&quot;
+        )
+    else:
+        strength = &quot;negligible&quot;
+        direction = (
+            f&quot;Planck&#x27;s cold spot ecliptic latitude β = {planck_stat:.2f}° &quot;
+            f&quot;(|β| = {abs_planck:.2f}°) is consistent with ΛCDM simulations &quot;
+            f&quot;at the {percentile_close:.1f}th percentile of |β|.&quot;
+        )
+
+    interp = (
+        &quot;Low-ℓ (ℓ ≤ 8) cold spot ecliptic latitude β = {beta:.2f}°, &quot;
+        &quot;corresponding to |β| = {abs_beta:.2f}° from the ecliptic plane. &quot;
+        &quot;{direction} &quot;
+        &quot;Simulated mean β = {mean_beta:.2f}° ± {std_beta:.2f}°; &quot;
+        &quot;mean |β| = {mean_abs:.2f}° ± {std_abs:.2f}°. &quot;
+        &quot;Two-sided p-value on |β| = {pval:.4f}. &quot;
+        &quot;Anomaly strength: {strength}.&quot;
+    ).format(
+        beta=planck_stat,
+        abs_beta=abs_planck,
+        direction=direction,
+        mean_beta=mean_beta,
+        std_beta=std_beta,
+        mean_abs=mean_abs_beta,
+        std_abs=std_abs_beta,
+        pval=p_value_two,
+        strength=strength,
+    )
+
+    caption = (
+        &quot;Histogram of the ecliptic latitude β of the coldest pixel in the low-ℓ &quot;
+        &quot;(ℓ ≤ 8, 10° FWHM smoothed) temperature map. Under ΛCDM the cold spot &quot;
+        &quot;location is uniformly distributed over the sky (cos β weighting), so &quot;
+        &quot;its ecliptic latitude carries no special information. An anomalously &quot;
+        &quot;small |β| (close to the ecliptic plane) would suggest a foreground or &quot;
+        &quot;scanning-strategy artifact. The red line marks the Planck SMICA value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value_two,
+        &quot;p_value_close_to_plane&quot;: p_value_close,
+        &quot;p_value_far_from_plane&quot;: p_value_far,
+        &quot;rank_close_to_plane&quot;: rank_close,
+        &quot;rank_signed&quot;: rank_signed,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile_close_to_plane&quot;: percentile_close,
+        &quot;percentile_signed&quot;: percentile_signed,
+        &quot;planck_abs_beta&quot;: abs_planck,
+        &quot;sim_mean_beta&quot;: mean_beta,
+        &quot;sim_std_beta&quot;: std_beta,
+        &quot;sim_mean_abs_beta&quot;: mean_abs_beta,
+        &quot;sim_std_abs_beta&quot;: std_abs_beta,
+        &quot;asymmetry_label&quot;: strength,
+        &quot;asymmetry_direction&quot;: direction,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Cold Spot Ecliptic Latitude&quot;,
+            &quot;xlabel&quot;: &quot;Ecliptic latitude β (degrees)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-22-low-cold-spot-ecliptic-latitude.png" alt="Statistic distribution for Low-ℓ Cold Spot Ecliptic Latitude">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.364</td></tr>
+<tr><th>One-tailed p-value</th><td>0.182</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.364</td></tr>
+<tr><th>Sigma</th><td>0.908</td></tr>
+<tr><th>Planck statistic</th><td>-34.82</td></tr>
+<tr><th>Simulation mean</th><td>1.343</td></tr>
+<tr><th>Simulation std.</th><td>38.06</td></tr>
+<tr><th>Simulation median</th><td>1.901</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>direction</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-22-low-cold-spot-ecliptic-latitude.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-22-low-cold-spot-ecliptic-latitude.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-22-low-cold-spot-ecliptic-latitude.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-22-low-cold-spot-ecliptic-latitude.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-22-low-cold-spot-ecliptic-latitude.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-22-low-cold-spot-ecliptic-latitude.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

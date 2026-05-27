@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Hot-Cold Spot Angular Separation · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 59 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Hot-Cold Spot Angular Separation</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The observed great-circle angular distance between the hottest and coldest pixels in the ℓ ≤ 30 filtered CMB temperature map differs from the expected ~90° value predicted for a statistically isotropic Gaussian random field.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Apply a low-pass filter to retain only multipoles ℓ ≤ 30 from the Planck SMICA temperature map. Identify the pixels with maximum and minimum temperatures, then compute the great-circle angular distance between them. In a statistically isotropic Gaussian random field, the expected separation is approximately 90°; anomalous deviations could indicate preferred axes or non-Gaussian correlations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Observed angular separation = 59.15°, compared to simulation mean = 87.33° ± 30.84°. Z-score = −0.91σ, percentile = 18.5%, two-sided p-value = 0.37. Anomaly strength: negligible.</p>
+          <p>The angular separation between the hottest and coldest spots at large angular scales (ℓ ≤ 30) is fully consistent with ΛCDM predictions. The observed separation lies comfortably within the expected simulation distribution. No anomalous preferred axis or non-Gaussian behavior is detected from this statistic alone.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect any anomalous deviation from the expected angular separation, whether it is significantly smaller or larger. The description mentions both possibilities: a small separation could indicate a preferred axis, while a large separation is also noted as unusual. The analysis code computes both one-sided p-values and a two-sided p-value, confirming it evaluates departures in both directions without a strong prior directional prediction. Therefore, a two-tailed test is appropriate for this exploratory investigation.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Searches for this specific statistic in CMB anomaly literature did not return relevant results. While the Planck Collaboration&#x27;s isotropy analysis (Planck 2018 results VII, arXiv:1906.02552) examines numerous low-ℓ anomalies including hemispherical asymmetry, dipole modulation, and Cold Spot significance, the specific metric of angular separation between the hottest and coldest pixels in a band-limited map does not appear to be well-documented as a standard anomaly probe.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Apply a low-pass filter to retain only multipoles ℓ ≤ 30 from the CMB temperature map. &quot;
+    &quot;Identify the pixel with the maximum temperature (hot spot) and the pixel with the minimum &quot;
+    &quot;temperature (cold spot) in the filtered map. Compute the great-circle angular distance &quot;
+    &quot;between these two pixels. In a statistically isotropic Gaussian random field, the expected &quot;
+    &quot;separation is approximately 90°; anomalous deviations could indicate preferred axes or &quot;
+    &quot;non-Gaussian correlations.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the great-circle angular distance (degrees) between the hottest and coldest spots in the ℓ ≤ 30 filtered map.&quot;&quot;&quot;
+    # Identify valid (unmasked) pixels
+    mask = np.isfinite(m)
+    n_valid = int(mask.sum())
+    if n_valid &lt; 10:
+        return 90.0
+
+    nside = hp.npix2nside(len(m))
+
+    # Replace NaN with 0 for healpy transforms
+    m_filled = np.where(mask, m, 0.0)
+
+    # Get spherical harmonic coefficients, ℓ ≤ 30
+    alm = hp.map2alm(m_filled, lmax=30)
+
+    # Reconstruct the band-limited map
+    m_filtered = hp.alm2map(alm, nside=nside, lmax=30, verbose=False)
+
+    # Find hot and cold spots only among valid pixels
+    valid_indices = np.where(mask)[0]
+    valid_temps = m_filtered[valid_indices]
+
+    hot_pixel = valid_indices[np.argmax(valid_temps)]
+    cold_pixel = valid_indices[np.argmin(valid_temps)]
+
+    # Convert pixel indices to unit vectors and compute angular separation
+    vec_hot = hp.pix2vec(nside, hot_pixel)
+    vec_cold = hp.pix2vec(nside, cold_pixel)
+
+    # Dot product gives cosine of angular distance
+    cos_angle = vec_hot[0] * vec_cold[0] + vec_hot[1] * vec_cold[1] + vec_hot[2] * vec_cold[2]
+    cos_angle = np.clip(cos_angle, -1.0, 1.0)
+    angular_distance_deg = float(np.degrees(np.arccos(cos_angle)))
+
+    if not np.isfinite(angular_distance_deg):
+        return 90.0
+
+    return angular_distance_deg
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Hot-Cold Spot Angular Separation test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value_two_sided&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Hot–Cold Spot Angular Separation&quot;,
+                &quot;xlabel&quot;: &quot;Angular separation (degrees)&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 50,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    rank_below = int(np.sum(sim &lt;= planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    dev_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    strength = (
+        &quot;strong&quot; if p_two &lt;= 0.01
+        else &quot;moderate&quot; if p_two &lt;= 0.05
+        else &quot;negligible&quot;
+    )
+
+    interp = (
+        f&quot;Hot–cold spot angular separation = {planck_stat:.2f}°. &quot;
+        f&quot;Simulation mean = {mean_sim:.2f}° ± {std_sim:.2f}° ({dev_sigma:+.2f}σ). &quot;
+        f&quot;Percentile = {percentile:.1f}%, two-sided p = {p_two:.4f}. &quot;
+        f&quot;Strength: {strength}. &quot;
+    )
+
+    if planck_stat &lt; mean_sim - 2 * std_sim:
+        interp += (
+            &quot;The hot and cold spots are significantly closer together than expected from &quot;
+            &quot;ΛCDM. This could indicate a preferred direction or a coherent dipole-like &quot;
+            &quot;structure in the low-ℓ CMB, potentially linked to hemispherical asymmetry &quot;
+            &quot;or the axis of evil alignment anomaly.&quot;
+        )
+    elif planck_stat &gt; mean_sim + 2 * std_sim:
+        interp += (
+            &quot;The hot and cold spots are significantly farther apart than expected from &quot;
+            &quot;ΛCDM, which is unusual but less commonly discussed as an anomaly.&quot;
+        )
+    else:
+        interp += (
+            &quot;The angular separation between the hottest and coldest spots at large &quot;
+            &quot;angular scales (ℓ ≤ 30) is consistent with ΛCDM predictions. No &quot;
+            &quot;anomalous preferred axis is detected from this statistic alone.&quot;
+        )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value_one_sided_upper&quot;: p_upper,
+        &quot;p_value_one_sided_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: dev_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Hot–Cold Spot Angular Separation&quot;,
+            &quot;xlabel&quot;: &quot;Angular separation (degrees)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 50,
+            &quot;caption&quot;: (
+                &quot;Histogram of the great-circle angular distance between the hottest and &quot;
+                &quot;coldest pixels in band-limited (ℓ ≤ 30) CMB temperature maps across &quot;
+                &quot;ΛCDM simulations. In an isotropic Gaussian field the expected separation &quot;
+                &quot;is ~90°. The red line marks the Planck observed value.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-59-low-hot-cold-spot-angular-separation.png" alt="Statistic distribution for Low-ℓ Hot-Cold Spot Angular Separation">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.37</td></tr>
+<tr><th>One-tailed p-value</th><td>0.185</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.37</td></tr>
+<tr><th>Sigma</th><td>0.896</td></tr>
+<tr><th>Planck statistic</th><td>59.15</td></tr>
+<tr><th>Simulation mean</th><td>87.33</td></tr>
+<tr><th>Simulation std.</th><td>30.84</td></tr>
+<tr><th>Simulation median</th><td>83.83</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-59-low-hot-cold-spot-angular-separation.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-59-low-hot-cold-spot-angular-separation.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-59-low-hot-cold-spot-angular-separation.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-59-low-hot-cold-spot-angular-separation.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-59-low-hot-cold-spot-angular-separation.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-59-low-hot-cold-spot-angular-separation.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

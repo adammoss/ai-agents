@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hot-Cold Temperature Variance Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 20 · Mimo V2.5 Pro</p>
+      <h1>Hot-Cold Temperature Variance Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · parity · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The hot-cold temperature variance ratio R = σ²_hot / σ²_cold is not equal to 1 under statistical isotropy and Gaussianity.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Compute the variance of the CMB temperature field separately for pixels with T &gt; 0 (&quot;hot&quot;) and T &lt; 0 (&quot;cold&quot;), then take the ratio R = σ²_hot / σ²_cold. Under statistical isotropy and Gaussianity, R ≈ 1. A low-resolution SMICA map (nside=256) with the standard low-ℓ mask is used. This scalar statistic probes morphological asymmetry between positive and negative temperature excursions, sensitive to features like the Cold Spot and hemispherical power differences.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The Planck SMICA value is R = 0.9954, corresponding to a log-ratio z-score of −0.15. The two-tailed p-value is 0.894, placing the observation at the 44.7th percentile of 1000 ΛCDM simulations (simulated mean R = 1.0009 ± 0.0351). The asymmetry is classified as negligible.</p>
+          <p>The hot and cold temperature variances are approximately equal in the Planck data, fully consistent with the ΛCDM expectation of statistical isotropy and Gaussianity. There is no evidence for morphological asymmetry between positive and negative temperature excursions. The result is unremarkable and well within the bulk of the simulation distribution.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect any morphological asymmetry between positive and negative temperature excursions, regardless of direction. The description and code explicitly consider both R &lt; 1 (indicating cold pixels have higher variance) and R &gt; 1 (indicating hot pixels have higher variance). There is no strong prior expectation for a specific direction, making a two-tailed test appropriate for exploring deviations from the null expectation of R ≈ 1.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>While hemispherical power asymmetry and temperature parity have been extensively studied (e.g., Planck 2018 VII), this specific ratio of variances computed over pixel subsets split by sign of temperature is not a standard statistic in the literature. Related analyses exist but use different definitions and decomposition methods. No directly comparable published result was identified in searches.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+
+test_description = (
+    &quot;Hot-Cold Temperature Variance Ratio: Compute the variance of the CMB temperature field &quot;
+    &quot;separately in the positive and negative hemispheres of the temperature distribution, then &quot;
+    &quot;take their ratio. Specifically: (1) Identify unmasked pixels with T &gt; 0 (&#x27;hot&#x27; pixels) and &quot;
+    &quot;T &lt; 0 (&#x27;cold&#x27; pixels). (2) Compute σ²_hot = mean(T²) over hot pixels and σ²_cold = mean(T²) &quot;
+    &quot;over cold pixels. (3) The statistic is R = σ²_hot / σ²_cold. Under statistical isotropy and &quot;
+    &quot;Gaussianity, hot and cold fluctuations should have equal variance, yielding R ≈ 1. Deviations &quot;
+    &quot;indicate morphological asymmetry between positive and negative temperature excursions. This is &quot;
+    &quot;sensitive to features like the Cold Spot and hemispherical power differences, while remaining &quot;
+    &quot;a simple single scalar that is cheap to compute and distinct from existing alignment, parity, &quot;
+    &quot;and hemispherical power ratio tests.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute the hot-cold temperature variance ratio.
+
+    1. Select unmasked (finite) pixels.
+    2. Split into hot (T &gt; 0) and cold (T &lt; 0) subsets.
+    3. Compute mean(T²) over each subset.
+    4. Return R = σ²_hot / σ²_cold.
+
+    For a statistically isotropic Gaussian field, R ≈ 1.
+    R &lt; 1 means cold pixels have larger variance (e.g., Cold Spot influence).
+    R &gt; 1 means hot pixels have larger variance.
+    &quot;&quot;&quot;
+    # Select only unmasked pixels
+    m_valid = m[np.isfinite(m)]
+
+    # Separate hot and cold pixels
+    hot = m_valid[m_valid &gt; 0]
+    cold = m_valid[m_valid &lt; 0]
+
+    # Guard against degenerate cases (shouldn&#x27;t happen for CMB maps)
+    if len(hot) == 0 or len(cold) == 0:
+        return 1.0
+
+    # Variance as mean of squared temperatures for each subset
+    var_hot = np.mean(hot ** 2)
+    var_cold = np.mean(cold ** 2)
+
+    # Protect against zero variance (extremely unlikely)
+    if var_cold == 0.0:
+        return float(&#x27;inf&#x27;)
+
+    R = var_hot / var_cold
+
+    return float(R)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the hot-cold temperature variance ratio anomaly.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    # For a two-sided test: we care about deviation from 1 in either direction
+    # Compute log(R) for symmetric treatment, since R is a ratio
+    log_planck = np.log(planck_stat) if planck_stat &gt; 0 else 0.0
+    log_sim = np.log(sim[sim &gt; 0]) if np.any(sim &gt; 0) else np.array([0.0])
+
+    mean_log = float(np.mean(log_sim))
+    std_log = float(np.std(log_sim))
+    z_score = (log_planck - mean_log) / std_log if std_log &gt; 0 else float(&#x27;nan&#x27;)
+
+    # Two-sided p-value: fraction of simulations more extreme than Planck
+    # &quot;More extreme&quot; = farther from 1 (i.e., |log(R)| larger)
+    planck_dev = abs(log_planck)
+    sim_devs = np.abs(log_sim - mean_log)
+    p_value_two_sided = float(np.mean(sim_devs &gt;= planck_dev)) if n_sims &gt; 0 else float(&#x27;nan&#x27;)
+
+    # One-sided p-values for each direction
+    p_value_low = float(np.mean(sim &lt;= planck_stat)) if n_sims &gt; 0 else float(&#x27;nan&#x27;)
+    p_value_high = float(np.mean(sim &gt;= planck_stat)) if n_sims &gt; 0 else float(&#x27;nan&#x27;)
+
+    # Percentile rank
+    rank = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank / n_sims if n_sims &gt; 0 else float(&#x27;nan&#x27;)
+
+    # Descriptive statistics
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    # Interpretation
+    if planck_stat &lt; 0.85:
+        direction = &quot;cold pixels have substantially higher variance than hot pixels&quot;
+        strength = &quot;strong&quot;
+    elif planck_stat &lt; 0.95:
+        direction = &quot;cold pixels have moderately higher variance than hot pixels&quot;
+        strength = &quot;moderate&quot;
+    elif planck_stat &gt; 1.15:
+        direction = &quot;hot pixels have substantially higher variance than cold pixels&quot;
+        strength = &quot;strong&quot;
+    elif planck_stat &gt; 1.05:
+        direction = &quot;hot pixels have moderately higher variance than cold pixels&quot;
+        strength = &quot;moderate&quot;
+    else:
+        direction = &quot;hot and cold variances are approximately equal&quot;
+        strength = &quot;negligible&quot;
+
+    interp = (
+        &quot;Hot-cold temperature variance ratio R = {stat:.4f}, indicating {direction}. &quot;
+        &quot;This places it at the {pct:.1f}th percentile of LCDM simulations &quot;
+        &quot;(two-sided p-value = {pval:.4f}). &quot;
+        &quot;Simulated mean R = {mean:.4f} ± {std:.4f}. &quot;
+        &quot;Log-ratio z-score = {z:.2f}.&quot;
+    ).format(stat=planck_stat, direction=direction, pct=percentile,
+             pval=p_value_two_sided, mean=mean_sim, std=std_sim, z=z_score)
+
+    caption = (
+        &quot;Histogram of the hot-cold temperature variance ratio R = σ²_hot / σ²_cold, &quot;
+        &quot;measuring the morphological asymmetry between positive and negative temperature &quot;
+        &quot;excursions in the CMB. σ²_hot = mean(T²) over pixels with T &gt; 0 and &quot;
+        &quot;σ²_cold = mean(T²) over pixels with T &lt; 0. Under statistical isotropy and &quot;
+        &quot;Gaussianity, R ≈ 1. Values below 1 indicate cold features (like the Cold Spot) &quot;
+        &quot;dominate the variance; values above 1 indicate hot features dominate. &quot;
+        &quot;The red line marks the Planck SMICA value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value_two_sided,
+        &quot;p_value_low&quot;: p_value_low,
+        &quot;p_value_high&quot;: p_value_high,
+        &quot;rank&quot;: rank,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;log_z_score&quot;: z_score,
+        &quot;asymmetry_label&quot;: strength,
+        &quot;asymmetry_direction&quot;: direction,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Hot–Cold Temperature Variance Ratio&quot;,
+            &quot;xlabel&quot;: &quot;R = σ²_hot / σ²_cold&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-20-hot-cold-temperature-variance-ratio.png" alt="Statistic distribution for Hot-Cold Temperature Variance Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.894</td></tr>
+<tr><th>One-tailed p-value</th><td>0.447</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.894</td></tr>
+<tr><th>Sigma</th><td>0.133</td></tr>
+<tr><th>Planck statistic</th><td>0.995</td></tr>
+<tr><th>Simulation mean</th><td>1.001</td></tr>
+<tr><th>Simulation std.</th><td>0.0351</td></tr>
+<tr><th>Simulation median</th><td>1</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>parity</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-20-hot-cold-temperature-variance-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-20-hot-cold-temperature-variance-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-20-hot-cold-temperature-variance-ratio.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-20-hot-cold-temperature-variance-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-20-hot-cold-temperature-variance-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-20-hot-cold-temperature-variance-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

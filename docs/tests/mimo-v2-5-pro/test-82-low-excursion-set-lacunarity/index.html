@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Excursion Set Lacunarity · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 82 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Excursion Set Lacunarity</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label borderline">Borderline</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The low-ℓ (ℓ=2–20) temperature excursion set lacunarity for the Planck CMB map is significantly higher than typical ΛCDM realizations, indicating a more heterogeneous (gappy) pattern of hot regions at large angular scales.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The CMB map is bandpass-filtered to retain only ℓ = 2–20, and a binary excursion-set mask is constructed for pixels exceeding +1σ of the filtered map. Lacunarity is computed as the squared coefficient of variation (CV²) of the smoothed local density (5° FWHM) across valid pixels, quantifying spatial heterogeneity (&quot;gappiness&quot;) in the hot regions at large angular scales. The statistic is the mean CV² over the valid sky.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck lacunarity = 3.234. Simulation mean ± σ = 3.759 ± 0.279. Anomaly ratio = 0.860. The Planck value lies *below* the simulation mean (z = −1.88). One-tailed upper p-value = 0.983 (no evidence for excess); lower-tail p-value = 0.017, two-sided p = 0.034.</p>
+          <p>The hypothesis predicted excessive gappiness in Planck&#x27;s low-ℓ hot pattern. The data show the opposite — Planck&#x27;s excursion set is *less* heterogeneous (more homogeneous) than typical ΛCDM realisations, at approximately 2.1σ below the mean. The directional upper-tail test yields no anomaly; the signal is in the lower tail, not the one being tested.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test statistic is defined such that higher lacunarity values correspond to greater spatial heterogeneity (gappiness). The analysis code explicitly computes an upper-tail p-value (p_value_upper) and states that &quot;a significantly high value would indicate the hot low-ℓ pattern in the real sky is more heterogeneous (patchier) than typical ΛCDM realizations.&quot; This reveals a clear directional expectation that anomalies manifest as excessive gappiness, making a one-tailed upper test appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>A literature search for &quot;CMB lacunarity excursion set morphology&quot; returned no directly comparable studies. Barreiro et al. (1997) analysed excursion-set correlations for non-Gaussianity but did not use lacunarity. No prior work applying lacunarity to low-ℓ CMB excursion sets was found.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Compute the low-ℓ (ℓ=2–20) temperature excursion set by filtering the CMB map with a &quot;
+    &quot;bandpass in multipole space. Define a binary mask for pixels where the filtered temperature &quot;
+    &quot;exceeds +1σ of its own standard deviation. Spatial heterogeneity (&#x27;lacunarity&#x27;) of this &quot;
+    &quot;binary mask is measured by smoothing it with a 5° FWHM Gaussian beam to estimate local &quot;
+    &quot;density, then computing the squared coefficient of variation (CV² = Var/Mean²) of the &quot;
+    &quot;smoothed density over valid pixels. Higher values indicate a more &#x27;gappy&#x27; or clustered &quot;
+    &quot;pattern of hot regions at large angular scales.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return low-ℓ excursion set lacunarity (CV² of smoothed binary map).&quot;&quot;&quot;
+    # --- 1. Identify valid (non-masked) pixels ---
+    valid = np.isfinite(m)
+    if not np.any(valid):
+        return 0.0
+    m_clean = np.where(valid, m, 0.0)
+
+    nside = hp.npix2nside(len(m_clean))
+
+    # --- 2. Bandpass filter in ℓ space: keep only ℓ = 2–20 ---
+    alm = hp.map2alm(m_clean, lmax=20)
+    ell, _ = hp.Alm.getlm(lmax=20)
+    bandpass_mask = (ell &gt;= 2) &amp; (ell &lt;= 20)
+    alm_filtered = np.where(bandpass_mask, alm, 0.0)
+    m_filtered = hp.alm2map(alm_filtered, nside, lmax=20, verbose=False)
+
+    # --- 3. Build binary excursion set: pixels &gt; +1σ of the filtered map ---
+    filt_valid = m_filtered[valid]
+    sigma = np.std(filt_valid)
+    if sigma == 0:
+        return 0.0
+    threshold = sigma  # +1σ above mean (mean ≈ 0 for bandpassed map)
+
+    binary_map = np.where(m_filtered &gt; threshold, 1.0, 0.0)
+    binary_map[~valid] = 0.0  # zero out masked pixels for smoothing
+
+    # --- 4. Smooth binary map with ~5° FWHM beam to estimate local density ---
+    # This is a fully vectorized approximation to counting on-pixels in test discs.
+    fwhm_rad = np.radians(5.0)
+    smoothed = hp.smoothing(binary_map, fwhm=fwhm_rad, verbose=False)
+
+    # --- 5. Compute lacunarity = CV² of smoothed density over valid pixels ---
+    s_valid = smoothed[valid]
+    mean_s = np.mean(s_valid)
+    var_s = np.var(s_valid, ddof=0)
+
+    if mean_s == 0:
+        return 0.0
+
+    lacunarity = var_s / (mean_s ** 2)
+
+    return float(lacunarity)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the Low-ℓ Excursion Set Lacunarity statistic.&quot;&quot;&quot;
+    sims = np.asarray(sim_results, dtype=float)
+    sims = sims[np.isfinite(sims)]
+    n = len(sims)
+
+    if n == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims))
+    std_s = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    median_s = float(np.median(sims))
+
+    # Fraction of simulations with lacunarity &gt;= Planck (upper tail = more gappy)
+    p_value_upper = float(np.mean(sims &gt;= planck_stat))
+    p_value_lower = float(np.mean(sims &lt;= planck_stat))
+    p_two = min(2.0 * min(p_value_upper, p_value_lower), 1.0)
+
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else 0.0
+    anomaly_ratio = planck_stat / mean_s if mean_s &gt; 0 else float(&quot;inf&quot;)
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;planck_lacunarity&quot;: planck_stat,
+        &quot;anomaly_ratio&quot;: anomaly_ratio,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;sim_median&quot;: median_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value_upper&quot;: p_value_upper,
+        &quot;p_value_lower&quot;: p_value_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n,
+        &quot;interpretation&quot;: (
+            f&quot;Lacunarity CV² measures spatial heterogeneity in the low-ℓ (2–20) hot &quot;
+            f&quot;excursion set (+1σ threshold), estimated via 5°-smoothed density variance. &quot;
+            f&quot;Higher values indicate a more &#x27;gappy&#x27; or clustered pattern of hot regions. &quot;
+            f&quot;Planck lacunarity = {planck_stat:.4f}. &quot;
+            f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}. &quot;
+            f&quot;Anomaly ratio (Planck/sim_mean) = {anomaly_ratio:.4f}. &quot;
+            f&quot;z = {z_score:.2f}, two-sided p = {p_two:.4f}. &quot;
+            f&quot;A significantly high value would indicate the hot low-ℓ pattern in the real &quot;
+            f&quot;sky is more heterogeneous (patchier) than typical ΛCDM realizations.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Excursion Set Lacunarity&quot;,
+            &quot;xlabel&quot;: &quot;Lacunarity (CV² of smoothed density)&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck lacunarity = {planck_stat:.4f}. &quot;
+                f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}. &quot;
+                f&quot;Anomaly ratio = {anomaly_ratio:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, P(two-sided) = {p_two:.4f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-82-low-excursion-set-lacunarity.png" alt="Statistic distribution for Low-ℓ Excursion Set Lacunarity">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.983</td></tr>
+<tr><th>One-tailed p-value</th><td>0.983</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.034</td></tr>
+<tr><th>Sigma</th><td>2.12</td></tr>
+<tr><th>Planck statistic</th><td>3.234</td></tr>
+<tr><th>Simulation mean</th><td>3.759</td></tr>
+<tr><th>Simulation std.</th><td>0.279</td></tr>
+<tr><th>Simulation median</th><td>3.748</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-82-low-excursion-set-lacunarity.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-82-low-excursion-set-lacunarity.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-82-low-excursion-set-lacunarity.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-82-low-excursion-set-lacunarity.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-82-low-excursion-set-lacunarity.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-82-low-excursion-set-lacunarity.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

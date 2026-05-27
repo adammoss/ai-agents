@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Letting the machine look elsewhere — Chambers, Ismail, Moss & Scott</title>
+  <meta name="description" content="Automated anomaly testing of the cosmic microwave background using a LangGraph-based AI agent. 107 statistics, 1000 ΛCDM simulations, no significant global anomaly.">
+  <meta property="og:title" content="Letting the machine look elsewhere: automated anomaly testing of the cosmic microwave background">
+  <meta property="og:description" content="An AI agent that generates, codes, and validates CMB anomaly statistics — calibrated against 1000 ΛCDM simulations.">
+  <meta property="og:type" content="article">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Preprint · 2026</p>
+      <h1>Letting the machine look elsewhere</h1>
+      <p class="hero-subtitle">Automated anomaly testing of the cosmic microwave background.</p>
+
+      <p class="authors-inline">
+        <a href="mailto:ppyhc4@nottingham.ac.uk">Harry Chambers</a><sup>1</sup>,
+        <a href="mailto:efyni2@nottingham.ac.uk">Nura Ismail</a><sup>1</sup>,
+        <a href="mailto:adam.moss@nottingham.ac.uk">Adam Moss</a><sup>1</sup>
+        and <a href="mailto:dscott@phas.ubc.ca">Douglas Scott</a><sup>2</sup>
+      </p>
+      <p class="affiliations">
+        <span><sup>1</sup>School of Physics and Astronomy, University of Nottingham, UK</span>
+        <span><sup>2</sup>Department of Physics and Astronomy, University of British Columbia, Canada</span>
+      </p>
+
+      <div class="cta-row">
+        <!-- TODO: replace href with arXiv / DOI / PDF link when ready -->
+        <a class="cta-primary" href="#" aria-disabled="true">Read paper <span class="badge-soon">coming soon</span></a>
+        <a class="cta-secondary" href="catalogue.html">Browse the test catalogue<span class="arrow">→</span></a>
+        <a class="cta-ghost" href="data/tests.json">Download data (JSON)</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <section class="abstract-band" aria-labelledby="abstract-heading">
+      <div class="abstract-grid">
+        <div>
+          <h2 id="abstract-heading" class="section-heading">Abstract</h2>
+          <p class="lead">
+            Searches for anomalies in the cosmic microwave background (CMB) are intrinsically
+            vulnerable to a posteriori choices and the <em>look-elsewhere effect</em>: a sufficiently
+            flexible search can make an ordinary sky appear unusual under at least one statistic.
+            We investigate whether this problem can be made explicit in an automated anomaly-search workflow.
+          </p>
+          <p>
+            A LangGraph-based agent proposes scalar CMB anomaly statistics, generates executable
+            Python implementations, validates them, and applies them uniformly to the Planck 2018 SMICA
+            temperature map and to 1000 simulated ΛCDM skies. Each statistic receives a local empirical
+            p-value from its simulation distribution. The global behaviour of the search is then
+            calibrated by applying the same minimum-p-value procedure to the simulations.
+          </p>
+          <p>
+            The agent completed 107 tests. The smallest local Planck p-value was
+            <em>P</em><sub>min</sub>&thinsp;=&thinsp;0.002, but the simulation-calibrated global
+            probability was <em>P</em><sub>glob</sub>&thinsp;=&thinsp;0.149&thinsp;±&thinsp;0.022 —
+            <strong>no significant departure from ΛCDM</strong>. A Pearson correlation matrix on
+            transformed simulation responses gives an effective number of independent tests
+            <em>N</em><sub>eff</sub>&thinsp;≈&thinsp;33. The agent therefore explored a non-trivial
+            set of statistical directions, but with substantial redundancy.
+          </p>
+        </div>
+        <aside class="abstract-side">
+          <div class="keywords">
+            <span class="keyword-tag">Cosmic microwave background</span>
+            <span class="keyword-tag">Statistical methods</span>
+            <span class="keyword-tag">Machine learning</span>
+            <span class="keyword-tag">Cosmological simulations</span>
+          </div>
+          <div class="verdict-banner">
+            <span class="label consistent">Consistent</span>
+            <p>The Planck sky is unremarkable once the agent's <em>own</em> look-elsewhere is calibrated against the null ensemble.</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="key-results" aria-labelledby="results-heading">
+      <h2 id="results-heading" class="section-heading">Key results</h2>
+      <div class="stat-tiles">
+        <article class="stat-tile">
+          <span class="stat-label">Anomaly statistics generated</span>
+          <strong class="stat-value">107</strong>
+          <p class="stat-note">Proposed, coded, validated and executed by the agent</p>
+        </article>
+        <article class="stat-tile stat-emphasis">
+          <span class="stat-label">Smallest local p-value</span>
+          <strong class="stat-value"><em>P</em><sub>min</sub> = 0.002</strong>
+          <p class="stat-note">Local — before correcting for look-elsewhere</p>
+        </article>
+        <article class="stat-tile stat-emphasis stat-headline">
+          <span class="stat-label">Global p-value</span>
+          <strong class="stat-value"><em>P</em><sub>glob</sub> = 0.149 ± 0.022</strong>
+          <p class="stat-note">Calibrated against 1000 simulated ΛCDM skies</p>
+        </article>
+        <article class="stat-tile">
+          <span class="stat-label">Effective independent tests</span>
+          <strong class="stat-value"><em>N</em><sub>eff</sub> ≈ 33</strong>
+          <p class="stat-note">From the eigenspectrum of the test correlation matrix</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="method" aria-labelledby="method-heading">
+      <h2 id="method-heading" class="section-heading">How it works</h2>
+      <div class="method-grid">
+        <div>
+          <p>
+            The agent operates as a LangGraph workflow that proposes a hypothesis, writes a Python
+            implementation of a scalar statistic, validates it against synthetic checks, runs it on
+            the Planck SMICA temperature map and on 1000 ΛCDM simulations, and emits a result summary.
+          </p>
+          <p>
+            Critically, the <em>same agent and the same null ensemble</em> are used to calibrate
+            the global p-value. Whatever look-elsewhere bias the agent has, the simulations also see —
+            so an apparent anomaly only counts if the agent fails to find an equivalent one in a random sky.
+          </p>
+          <p>
+            Every test, hypothesis, code listing and result is preserved in a frozen catalogue.
+            Browse all 107 with verdicts, distributions and downloadable artefacts.
+          </p>
+          <p>
+            <a class="cta-secondary" href="catalogue.html">Explore the catalogue<span class="arrow">→</span></a>
+          </p>
+        </div>
+        <figure class="method-figure">
+          <img src="assets/workflow.png" alt="LangGraph workflow diagram of the agent pipeline: hypothesis → code → validation → execution → calibration.">
+          <figcaption>Agent workflow. Each node is independently auditable; the full trace per test is in the catalogue.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="headline-figure" aria-labelledby="headline-fig-heading">
+      <h2 id="headline-fig-heading" class="section-heading">Headline result</h2>
+      <figure class="result-figure">
+        <img src="assets/bootstrap_pglob.png" alt="Bootstrap distribution of the global p-value from the simulation calibration; the Planck value falls comfortably within the bulk.">
+        <figcaption>
+          Bootstrap distribution of <em>P</em><sub>glob</sub>. The Planck sky lies inside the bulk of
+          the simulated ensemble: there is no globally anomalous feature once the agent's own
+          search bias is taken into account.
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="cite" aria-labelledby="cite-heading">
+      <h2 id="cite-heading" class="section-heading">Cite this work</h2>
+      <div class="cite-grid">
+        <div class="cite-text panel">
+          <p class="cite-line">
+            H. Chambers, N. Ismail, A. Moss and D. Scott,
+            <em>Letting the machine look elsewhere: automated anomaly testing of the cosmic microwave background</em>,
+            preprint (2026).
+          </p>
+          <details open>
+            <summary>BibTeX</summary>
+            <pre><code>@article{chambers2026letting,
+  title  = {Letting the machine look elsewhere:
+            automated anomaly testing of the cosmic microwave background},
+  author = {Chambers, Harry and Ismail, Nura and Moss, Adam and Scott, Douglas},
+  year   = {2026},
+  note   = {Preprint}
+}</code></pre>
+          </details>
+        </div>
+        <div class="cite-side panel">
+          <h3>Reuse</h3>
+          <p>The frozen catalogue (v1.0) preserves every agent-generated hypothesis, code listing, result and plot. The machine-readable registry is available as JSON or CSV.</p>
+          <div class="asset-list">
+            <a href="data/tests.json">Registry JSON</a>
+            <a href="data/tests.csv">Registry CSV</a>
+            <a href="data/manifest.json">Manifest</a>
+            <a href="catalogue.html">Test catalogue</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-grid">
+      <div>
+        <p class="footer-heading">Authors</p>
+        <p>Harry Chambers, Nura Ismail, Adam Moss (Nottingham) · Douglas Scott (UBC)</p>
+      </div>
+      <div>
+        <p class="footer-heading">Catalogue</p>
+        <p>Frozen v1.0 · generated 2026-05-26</p>
+      </div>
+      <div>
+        <p class="footer-heading">Contact</p>
+        <p><a href="mailto:adam.moss@nottingham.ac.uk">adam.moss@nottingham.ac.uk</a></p>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

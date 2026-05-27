@@ -1,0 +1,52 @@
+{
+  "results": {
+    "test_name": "Low-\u2113 Kurtosis Dipole Amplitude",
+    "test_description": "Compute the kurtosis of CMB temperature values within each Healpix pixel at Nside=8 (768 regions), then fit a dipole (monopole + dipole) to these kurtosis values via least squares. Return the dipole amplitude (sqrt(d_x^2 + d_y^2 + d_z^2)) as the anomaly statistic.",
+    "test_hypothesis": "The dipole amplitude of the kurtosis over Nside=8 regions is larger than expected from isotropic \u039bCDM simulations.",
+    "test_type": "one-tailed, upper",
+    "justification": "The test measures the amplitude of a dipole fit to kurtosis values across the sky, where the dipole amplitude is non-negative. The anomaly interpretation explicitly focuses on whether the value is \"significantly elevated,\" indicating a directional preference in non-Gaussianity. Since only large positive deviations from the expected null distribution (centered near zero) would constitute evidence for such an anomaly, an upper-tailed test is appropriate.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 0.061664798456620665,
+    "mean_sim_stat": 0.038863803974970634,
+    "std_sim_stat": 0.0165602763306335,
+    "median_sim_stat": 0.03721055431812098,
+    "sigma": 1.353174154548003,
+    "p_value_one_tailed": 0.088,
+    "tail": "upper"
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Low-\u2113 Kurtosis Dipole Amplitude: For each Nside=8 region (768 pixels), compute \"\n    \"the excess kurtosis of the underlying higher-resolution CMB temperature values. \"\n    \"Fit a dipole model (monopole + dipole) to these kurtosis values via least squares \"\n    \"and return the dipole amplitude as the anomaly statistic. This measures whether \"\n    \"non-Gaussianity (heaviness of tails) has a preferred spatial direction.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return the dipole amplitude of kurtosis values over Nside=8 regions.\"\"\"\n    nside_high = hp.npix2nside(len(m))\n    nside_low = 8\n    npix_low = hp.nside2npix(nside_low)  # 768\n\n    # Handle trivial case: map is already at Nside=8 or lower\n    if nside_high <= nside_low:\n        return 0.0\n\n    finite_mask = np.isfinite(m)\n    if np.sum(finite_mask) < npix_low:\n        return 0.0\n\n    valid_pix = np.where(finite_mask)[0]\n    valid_vals = m[valid_pix]\n\n    # Map each higher-resolution pixel to its Nside=8 parent\n    ratio = nside_high // nside_low\n    parent_pix = valid_pix // (ratio * ratio)\n\n    # Group valid pixels by parent region\n    sort_idx = np.argsort(parent_pix)\n    parent_sorted = parent_pix[sort_idx]\n    vals_sorted = valid_vals[sort_idx]\n    unique_parents, counts = np.unique(parent_sorted, return_counts=True)\n    split_points = np.cumsum(counts)[:-1]\n    grouped_vals = np.split(vals_sorted, split_points)\n\n    # Compute excess kurtosis for each Nside=8 region\n    kurtosis = np.full(npix_low, np.nan)\n    min_pixels = 10  # minimum for a reliable estimate\n\n    for i, (parent, vals) in enumerate(zip(unique_parents, grouped_vals)):\n        n = len(vals)\n        if n < min_pixels:\n            continue\n        mu = np.mean(vals)\n        m2 = np.mean((vals - mu) ** 2)\n        if m2 <= 0:\n            continue\n        m4 = np.mean((vals - mu) ** 4)\n        kurtosis[parent] = m4 / (m2 ** 2) - 3.0\n\n    # Collect finite kurtosis values\n    finite_k = np.isfinite(kurtosis)\n    n_valid = np.sum(finite_k)\n    if n_valid < 4:\n        return 0.0\n\n    k_vals = kurtosis[finite_k]\n\n    # Pixel centers for Nside=8 in Cartesian coordinates\n    theta, phi = hp.pix2ang(nside_low, np.arange(npix_low))\n    x = np.sin(theta) * np.cos(phi)\n    y = np.sin(theta) * np.sin(phi)\n    z = np.cos(theta)\n\n    x_f = x[finite_k]\n    y_f = y[finite_k]\n    z_f = z[finite_k]\n\n    # Fit dipole: kurtosis = a + d_x*x + d_y*y + d_z*z\n    # Normalize coordinates to improve conditioning\n    A = np.column_stack([np.ones(n_valid), x_f, y_f, z_f])\n    coeffs, _, _, _ = np.linalg.lstsq(A, k_vals, rcond=None)\n\n    d_x, d_y, d_z = coeffs[1], coeffs[2], coeffs[3]\n    dipole_amplitude = np.sqrt(d_x**2 + d_y**2 + d_z**2)\n\n    return float(dipole_amplitude)\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Interpret the kurtosis dipole amplitude.\"\"\"\n    sims = np.array(sim_results, dtype=float)\n    sims_finite = sims[np.isfinite(sims)]\n    n_sims = len(sims_finite)\n\n    if n_sims == 0:\n        return {\"planck_stat\": planck_stat, \"note\": \"No finite simulation results.\"}\n\n    mean_s = float(np.mean(sims_finite))\n    std_s = float(np.std(sims_finite, ddof=1)) if n_sims > 1 else 0.0\n    p_upper = float(np.mean(sims_finite >= planck_stat))\n    p_lower = float(np.mean(sims_finite <= planck_stat))\n    p_two = min(2.0 * min(p_upper, p_lower), 1.0)\n    z_score = (planck_stat - mean_s) / std_s if std_s > 0 else np.nan\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"sim_mean\": mean_s,\n        \"sim_std\": std_s,\n        \"z_score\": z_score,\n        \"p_value_upper\": p_upper,\n        \"p_value_lower\": p_lower,\n        \"p_value_two_sided\": p_two,\n        \"n_sims\": n_sims,\n        \"interpretation\": (\n            \"This statistic measures whether the non-Gaussianity of the CMB temperature \"\n            \"field (as characterized by excess kurtosis) has a preferred spatial direction. \"\n            \"For each Nside=8 region (768 pixels covering the full sky), the excess kurtosis \"\n            \"of temperature values from the higher-resolution map is computed. A dipole \"\n            \"model (monopole + dipole) is then fit to these kurtosis values via least \"\n            \"squares. The dipole amplitude quantifies the degree of directional preference \"\n            \"in the tail-heaviness of the temperature distribution. In isotropic \u039bCDM, the \"\n            \"kurtosis dipole amplitude should be small; a significantly elevated value could \"\n            \"indicate anisotropic non-Gaussianity, residual systematics, or foreground \"\n            \"contamination with a preferred direction.\"\n        ),\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-\u2113 Kurtosis Dipole Amplitude\",\n            \"xlabel\": \"Dipole Amplitude (kurtosis)\",\n            \"ylabel\": \"Count\",\n            \"bins\": 30,\n            \"caption\": (\n                f\"Planck amplitude = {planck_stat:.4f}. \"\n                f\"Sim mean \u00b1 \u03c3 = {mean_s:.4f} \u00b1 {std_s:.4f}. \"\n                f\"z = {z_score:.2f}, p(two-sided) = {p_two:.3f}.\"\n            ),\n        },\n    }\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": 0.003467592022686714,
+    "sim_max": 0.10247359026297169,
+    "z_score": 1.376160075946459,
+    "thresholds": [
+      0.012196577955046868,
+      0.07546405922635432
+    ],
+    "p_value_upper": 0.088,
+    "p_value_lower": 0.912,
+    "interpretation": "This statistic measures whether the non-Gaussianity of the CMB temperature field (as characterized by excess kurtosis) has a preferred spatial direction. For each Nside=8 region (768 pixels covering the full sky), the excess kurtosis of temperature values from the higher-resolution map is computed. A dipole model (monopole + dipole) is then fit to these kurtosis values via least squares. The dipole amplitude quantifies the degree of directional preference in the tail-heaviness of the temperature distribution. In isotropic \u039bCDM, the kurtosis dipole amplitude should be small; a significantly elevated value could indicate anisotropic non-Gaussianity, residual systematics, or foreground contamination with a preferred direction.",
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-\u2113 Kurtosis Dipole Amplitude",
+      "xlabel": "Dipole Amplitude (kurtosis)",
+      "ylabel": "Count",
+      "bins": 30,
+      "caption": "Planck amplitude = 0.0617. Sim mean \u00b1 \u03c3 = 0.0389 \u00b1 0.0166. z = 1.38, p(two-sided) = 0.176."
+    }
+  },
+  "updated_summary": {
+    "Test name": "Low-\u2113 Kurtosis Dipole Amplitude",
+    "Description": "Fit a dipole to the excess kurtosis of CMB temperature values within 768 Nside=8 regions, then take the fitted dipole amplitude as the test statistic.",
+    "Results": "The Planck dipole amplitude (0.0617) exceeds the simulation mean (0.0389 \u00b1 0.0166), yielding z = 1.38 and an upper-tail p-value of 0.088.",
+    "Interpretation": "The observed kurtosis dipole is larger than the \u039bCDM simulation average, suggesting a possible directional preference in non-Gaussianity, but it does not reach the conventional 2\u03c3 (p < 0.05) anomaly threshold.",
+    "Meets hypothesis?": "No",
+    "Comparison to literature": "Literature searches did not find direct prior studies of this specific kurtosis dipole statistic, making a direct comparison difficult. Related work on CMB dipoles and non-Gaussianity exists (e.g., Lineweaver 1996; Luongo et al. 2022; Yokoyama et al. 2011), but not this exact test.",
+    "Test novelty": "Novel",
+    "Verdict": "Borderline"
+  }
+}

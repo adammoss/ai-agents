@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Temperature–Laplacian Cross-Correlation Coefficient · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 31 · Mimo V2.5 Pro</p>
+      <h1>Temperature–Laplacian Cross-Correlation Coefficient</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · cross correlation · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Pearson correlation coefficient between the CMB temperature field and its spherical Laplacian is zero, consistent with a statistically isotropic Gaussian field with no anomalous alignment between temperature extrema and local curvature.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Computes the Pearson correlation coefficient between the CMB temperature field T and its spherical Laplacian ∇²T at nside=256, using the harmonized Planck mask. The Laplacian is estimated via −ℓ(ℓ+1) multiplication in harmonic space. This scalar statistic probes whether temperature extrema show anomalous alignment with local spatial curvature, potentially sensitive to non-Gaussian clustering or atypical coherence patterns.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck r(T, ∇²T) = −0.5005, compared to simulation mean −0.4886 ± 0.0082. The Planck value falls at the 5.4th percentile of 1000 ΛCDM simulations, yielding z ≈ 1.61σ and a two-tailed p-value of 0.108.</p>
+          <p>The observed cross-correlation is consistent with the isotropic Gaussian ΛCDM expectation. Temperature extrema show no statistically significant anomalous relationship with local spatial curvature. The slight offset from the simulation mean (~1.6σ) falls well within normal statistical fluctuation and does not reach the 2σ anomaly threshold.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is exploratory, seeking any deviation from the expected null result regardless of sign. While the code computes both upper and lower p-values and interprets both positive and negative anomalies, there is no clear prior directional expectation from standard cosmological models—any nonzero correlation could signal atypical spatial coherence or non-Gaussian features in either direction.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No prior studies using the Pearson correlation between T and ∇²T as a CMB anomaly statistic were identified in literature searches. Related work on CMB statistical anisotropy (e.g., Mukherjee &amp; Souradeep 2015) addresses different statistics such as dipolar power asymmetry in harmonic space.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Temperature–Laplacian Cross-Correlation Coefficient: &quot;
+    &quot;For each map (Planck or simulated), first compute the spherical Laplacian &quot;
+    &quot;(∇²) of the temperature field at nside=256. The Laplacian is estimated &quot;
+    &quot;using the standard HEALPix finite-difference stencil on the sphere, &quot;
+    &quot;implemented as multiplication by -ℓ(ℓ+1) in spherical-harmonic space. &quot;
+    &quot;Then, calculate the Pearson correlation coefficient between the temperature &quot;
+    &quot;pixel values (T) and their corresponding Laplacian values (∇²T) across &quot;
+    &quot;all unmasked pixels (using the harmonized Planck mask). This single scalar &quot;
+    &quot;measures the linear relationship between local temperature extrema and &quot;
+    &quot;their spatial curvature, potentially sensitive to anomalous clustering of &quot;
+    &quot;hot/cold spots or atypical spatial coherence patterns.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute Pearson cross-correlation between temperature and its Laplacian.
+
+    Steps:
+      1. Identify unmasked pixels (finite values).
+      2. Fill masked (NaN) pixels with 0.0 for healpy compatibility.
+      3. Compute alm coefficients (same lmax as map2alm default).
+      4. Multiply by -ell(ell+1) to obtain Laplacian alm coefficients.
+      5. Transform Laplacian alm back to pixel space via alm2map.
+      6. Extract T and laplacian values at unmasked pixels.
+      7. Compute Pearson r between T and nabla^2 T.
+
+    Returns
+    -------
+    float
+        Pearson cross-correlation coefficient between T and nabla^2 T.
+    &quot;&quot;&quot;
+    mask = np.isfinite(m)
+    valid_idx = np.where(mask)[0]
+    N = len(valid_idx)
+
+    if N == 0:
+        return 0.0
+
+    # Fill masked pixels with 0 for healpy transforms
+    m_filled = np.where(mask, m, 0.0)
+
+    # Determine lmax (default for map2alm)
+    nside = hp.npix2nside(len(m))
+    lmax = 3 * nside - 1
+
+    # Compute spherical harmonic coefficients of the temperature field
+    alm = hp.map2alm(m_filled, lmax=lmax)
+
+    # Build -ell*(ell+1) multiplier for each alm coefficient
+    l_arr, m_arr = hp.Alm.getlm(lmax)
+    lap_alm = -l_arr * (l_arr + 1.0) * alm
+
+    # Transform back to get Laplacian map
+    lap_map = hp.alm2map(lap_alm, nside, lmax=lmax)
+
+    # Extract values at unmasked pixels
+    T_vals = m[valid_idx]
+    L_vals = lap_map[valid_idx]
+
+    # Center the values
+    T_mean = np.mean(T_vals)
+    L_mean = np.mean(L_vals)
+    T_c = T_vals - T_mean
+    L_c = L_vals - L_mean
+
+    # Compute Pearson correlation coefficient
+    num = np.sum(T_c * L_c)
+    den_T = np.sqrt(np.sum(T_c * T_c))
+    den_L = np.sqrt(np.sum(L_c * L_c))
+
+    if den_T == 0.0 or den_L == 0.0:
+        return 0.0
+
+    r = num / (den_T * den_L)
+    return float(r)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarise the Temperature–Laplacian Cross-Correlation test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available for comparison.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Temperature–Laplacian Cross-Correlation&quot;,
+                &quot;xlabel&quot;: &quot;Pearson r(T, ∇²T)&quot;,
+                &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data available.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    # Two-sided empirical p-value
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    if abs(planck_stat) &gt; abs(mean_sim) + 2 * std_sim:
+        if planck_stat &gt; 0:
+            direction = (
+                &quot;Planck shows a significantly positive cross-correlation between &quot;
+                &quot;temperature and its Laplacian: hot spots preferentially coincide &quot;
+                &quot;with concave (positive curvature) regions and cold spots with &quot;
+                &quot;concave regions, indicating unusually concentrated or peaked &quot;
+                &quot;temperature features. This may signal anomalous spatial coherence &quot;
+                &quot;or non-Gaussian clustering of hot/cold spots.&quot;
+            )
+        else:
+            direction = (
+                &quot;Planck shows a significantly negative cross-correlation between &quot;
+                &quot;temperature and its Laplacian: hot/cold spots preferentially &quot;
+                &quot;coincide with convex (negative curvature) regions, indicating &quot;
+                &quot;that temperature extrema sit in unusually flat or diffuse &quot;
+                &quot;regions, with steep curvature occurring away from peaks and &quot;
+                &quot;troughs. This may indicate unusual mode structure or spatial &quot;
+                &quot;coherence in the temperature field.&quot;
+            )
+    else:
+        direction = (
+            &quot;The cross-correlation between temperature and its Laplacian is &quot;
+            &quot;consistent with isotropic Gaussian ΛCDM expectations; temperature &quot;
+            &quot;extrema show no anomalous relationship with local spatial curvature.&quot;
+        )
+
+    interp = (
+        f&quot;Pearson r(T, ∇²T) = {planck_stat:.6f}. &quot;
+        f&quot;Simulation mean = {mean_sim:.6f} ± {std_sim:.6f}. &quot;
+        f&quot;Percentile = {percentile:.1f}%, two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the Pearson cross-correlation coefficient r between the &quot;
+        &quot;temperature map T and its spherical Laplacian ∇²T (computed via &quot;
+        &quot;−ℓ(ℓ+1) multiplication in spherical-harmonic space) from isotropic &quot;
+        &quot;ΛCDM simulations. For a statistically isotropic Gaussian field, the &quot;
+        &quot;correlation between T and ∇²T is centered at zero by symmetry: &quot;
+        &quot;temperature extrema have no preferred alignment with local spatial &quot;
+        &quot;curvature. Significant nonzero r values indicate that hot/cold spots &quot;
+        &quot;systematically co-occur with regions of high (positive r) or low &quot;
+        &quot;(negative r) curvature, suggesting non-Gaussian spatial coherence &quot;
+        &quot;or atypical clustering of features. The red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Temperature–Laplacian Cross-Correlation&quot;,
+            &quot;xlabel&quot;: &quot;Pearson r(T, ∇²T)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-31-temperature-laplacian-cross-correlation-coefficient.png" alt="Statistic distribution for Temperature–Laplacian Cross-Correlation Coefficient">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.108</td></tr>
+<tr><th>One-tailed p-value</th><td>0.054</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.108</td></tr>
+<tr><th>Sigma</th><td>1.607</td></tr>
+<tr><th>Planck statistic</th><td>-0.501</td></tr>
+<tr><th>Simulation mean</th><td>-0.489</td></tr>
+<tr><th>Simulation std.</th><td>0.00824</td></tr>
+<tr><th>Simulation median</th><td>-0.489</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>cross correlation</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-31-temperature-laplacian-cross-correlation-coefficient.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-31-temperature-laplacian-cross-correlation-coefficient.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-31-temperature-laplacian-cross-correlation-coefficient.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-31-temperature-laplacian-cross-correlation-coefficient.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-31-temperature-laplacian-cross-correlation-coefficient.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-31-temperature-laplacian-cross-correlation-coefficient.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

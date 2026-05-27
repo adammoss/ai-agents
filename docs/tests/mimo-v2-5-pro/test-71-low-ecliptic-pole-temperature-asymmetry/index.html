@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Ecliptic Pole Temperature Asymmetry · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 71 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Ecliptic Pole Temperature Asymmetry</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · hemispherical · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The normalized temperature difference between the north and south ecliptic poles in the low-ℓ CMB map is anomalous compared to ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Measures the normalized absolute temperature difference between 10° radius caps centered on the north and south ecliptic poles on a low-ℓ (ℓ ≤ 10) CMB map.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The Planck statistic is 1.849. From 1000 ΛCDM simulations, the mean ± standard deviation is 0.946 ± 0.702. The z-score is 1.29, yielding a two-tailed p-value of 0.24.</p>
+          <p>The statistic probes for a specific directional asymmetry related to the ecliptic frame. The observed value is higher than the simulation average but within the expected statistical fluctuation, not reaching the ~2σ anomaly threshold.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test measures an absolute difference without a specified direction, and the interpretation indicates it probes for any significant asymmetry, whether the north pole is hotter or colder. The code computes both upper and lower tail probabilities, aligning with a two-tailed approach for general exploration.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>This test is related to known low-ℓ anomalies, such as the alignment of low multipoles with the ecliptic plane (e.g., Copi et al. 2015) and hemispherical power asymmetries, but focuses specifically on the pole temperature contrast.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Compute the mean temperature within a 10-degree radius cap centered on the &quot;
+    &quot;north ecliptic pole and the mean temperature within a 10-degree radius cap &quot;
+    &quot;centered on the south ecliptic pole, both on the masked, low-ℓ filtered &quot;
+    &quot;(ℓ ≤ 10) temperature map. The statistic is the absolute difference between &quot;
+    &quot;these two means, normalized by the root-mean-square temperature of the entire &quot;
+    &quot;masked low-ℓ map. This single scalar captures the temperature contrast between &quot;
+    &quot;the ecliptic poles, offering a directional asymmetry probe distinct from &quot;
+    &quot;hemispherical averages or power ratios.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the ecliptic-pole temperature asymmetry normalized by the map RMS.&quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+
+    # Replace masked (NaN) pixels with 0.0 for healpy transforms
+    mask_valid = np.isfinite(m)
+    m_clean = m.copy()
+    m_clean[~mask_valid] = 0.0
+
+    # Band-limit to ℓ ≤ 10 via spherical harmonic filtering
+    lmax = 10
+    alm = hp.map2alm(m_clean, lmax=lmax)
+    m_low = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Reapply the original mask to the low-ℓ filtered map
+    m_low[~mask_valid] = np.nan
+
+    # Ecliptic pole positions converted to Galactic coordinates
+    R = hp.Rotator(coord=[&#x27;E&#x27;, &#x27;G&#x27;])
+    theta_nep_gal, phi_nep_gal = R(0.0, 0.0)
+    theta_sep_gal, phi_sep_gal = R(np.pi, 0.0)
+
+    # Unit vectors for the poles
+    vec_nep = hp.ang2vec(theta_nep_gal, phi_nep_gal)
+    vec_sep = hp.ang2vec(theta_sep_gal, phi_sep_gal)
+
+    # Vectorized pixel selection: compute dot product of all pixel vectors with pole vectors
+    cos_cap = np.cos(np.radians(10.0))
+    npix = hp.nside2npix(nside)
+    pix_indices = np.arange(npix)
+    vecs_all = np.array(hp.pix2vec(nside, pix_indices))  # shape (3, npix)
+
+    # North ecliptic pole cap
+    dot_nep = vecs_all[0] * vec_nep[0] + vecs_all[1] * vec_nep[1] + vecs_all[2] * vec_nep[2]
+    in_cap_nep = (dot_nep &gt;= cos_cap) &amp; mask_valid
+    mean_nep = np.mean(m_low[in_cap_nep]) if np.any(in_cap_nep) else 0.0
+
+    # South ecliptic pole cap
+    dot_sep = vecs_all[0] * vec_sep[0] + vecs_all[1] * vec_sep[1] + vecs_all[2] * vec_sep[2]
+    in_cap_sep = (dot_sep &gt;= cos_cap) &amp; mask_valid
+    mean_sep = np.mean(m_low[in_cap_sep]) if np.any(in_cap_sep) else 0.0
+
+    # RMS temperature of the full masked low-ℓ map
+    valid = m_low[mask_valid]
+    rms = np.std(valid, ddof=0)
+
+    if rms == 0.0:
+        return 0.0
+
+    asymmetry = abs(mean_nep - mean_sep) / rms
+    return float(asymmetry)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the ecliptic-pole temperature asymmetry statistic.&quot;&quot;&quot;
+    sims = np.array(sim_results, dtype=float)
+    sims_finite = sims[np.isfinite(sims)]
+    n_sims = len(sims_finite)
+
+    if n_sims == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims_finite))
+    std_s = float(np.std(sims_finite, ddof=1)) if n_sims &gt; 1 else 0.0
+    p_upper = float(np.mean(sims_finite &gt;= planck_stat))
+    p_lower = float(np.mean(sims_finite &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else np.nan
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n_sims,
+        &quot;interpretation&quot;: (
+            &quot;This statistic measures the temperature contrast between the north and &quot;
+            &quot;south ecliptic poles on the low-ℓ (ℓ ≤ 10) CMB map, normalized by the &quot;
+            &quot;overall RMS temperature. In the standard ΛCDM framework, the low-ℓ &quot;
+            &quot;multipoles (particularly ℓ = 2–5) have been reported to exhibit &quot;
+            &quot;anomalies including alignment with the ecliptic plane and a hemispherical &quot;
+            &quot;power asymmetry. A large normalized asymmetry could indicate that the &quot;
+            &quot;temperature field near the ecliptic poles is significantly different in &quot;
+            &quot;sign or magnitude, potentially pointing to a solar-system-related &quot;
+            &quot;foreground contribution or an intrinsic cosmological anisotropy that &quot;
+            &quot;picks out the ecliptic coordinate frame.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Ecliptic Pole Temperature Asymmetry&quot;,
+            &quot;xlabel&quot;: &quot;|T_NEP − T_SEP| / RMS(T)&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck asymmetry = {planck_stat:.4f}. &quot;
+                f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, p(two-sided) = {p_two:.3f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-71-low-ecliptic-pole-temperature-asymmetry.png" alt="Statistic distribution for Low-ℓ Ecliptic Pole Temperature Asymmetry">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.24</td></tr>
+<tr><th>One-tailed p-value</th><td>0.12</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.24</td></tr>
+<tr><th>Sigma</th><td>1.175</td></tr>
+<tr><th>Planck statistic</th><td>1.849</td></tr>
+<tr><th>Simulation mean</th><td>0.946</td></tr>
+<tr><th>Simulation std.</th><td>0.702</td></tr>
+<tr><th>Simulation median</th><td>0.797</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>hemispherical</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-71-low-ecliptic-pole-temperature-asymmetry.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-71-low-ecliptic-pole-temperature-asymmetry.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-71-low-ecliptic-pole-temperature-asymmetry.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-71-low-ecliptic-pole-temperature-asymmetry.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-71-low-ecliptic-pole-temperature-asymmetry.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-71-low-ecliptic-pole-temperature-asymmetry.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

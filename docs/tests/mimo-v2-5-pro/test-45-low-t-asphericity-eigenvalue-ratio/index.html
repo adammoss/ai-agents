@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ T² Asphericity Eigenvalue Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 45 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ T² Asphericity Eigenvalue Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The asphericity ratio A of the squared temperature pattern in the Planck low-ℓ (ℓ ≤ 30) map is consistent with the distribution predicted by isotropic, Gaussian ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>A weighted inertia tensor I_{ij} is computed using T(p)² as weights over pixels in the low-ℓ (ℓ ≤ 30) masked CMB map. After diagonalizing the 3×3 tensor to obtain eigenvalues λ₁ ≥ λ₂ ≥ λ₃ (summing to zero), the asphericity ratio A = (λ₁ − λ₃)/λ₁ is computed to quantify the elongation of the squared temperature pattern. The Planck SMICA map value is compared to distributions from 1000 ΛCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck asphericity ratio A = 2.386 compared to simulation mean = 1.889 ± 0.250, giving a deviation of +1.99σ (percentile = 94.5%). Two-sided p-value = 0.11.</p>
+          <p>The low-ℓ squared temperature pattern shows marginally higher asphericity than typical ΛCDM realizations, but the deviation does not reach the 2σ threshold. The result falls within expectations for a Gaussian, isotropic sky. The specific physical interpretation—whether prolate or oblate elongation—depends on the eigenvalue structure, but statistically no significant departure from ΛCDM is detected.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is exploratory, checking for any significant deviation from ΛCDM expectations in the asphericity of the squared temperature pattern—either more elongated/flattened than expected or more spherical. The implementation computes both upper and lower p-values and combines them into a two-sided p-value, confirming the two-tailed nature. No prior directional hypothesis is specified in the test description or code; it&#x27;s a general check for anomalies.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Standard low-ℓ CMB anomaly studies (e.g., Planck Collaboration VII, 2020) examine quadrupole–octupole alignment, parity asymmetry, and hemispherical power asymmetry rather than T²-weighted asphericity statistics. No directly comparable studies using this specific T²-weighted inertia tensor approach were identified in the literature.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ T² Asphericity Eigenvalue Ratio: &quot;
+    &quot;Compute the weighted inertia tensor I_{ij} = Σ_p T(p)² · &quot;
+    &quot;(3 n_i(p) n_j(p) − δ_{ij}) ΔΩ over pixels with temperature T(p) &quot;
+    &quot;in the low-ℓ (ℓ ≤ 30) CMB map. Diagonalize I to obtain eigenvalues &quot;
+    &quot;λ₁ ≥ λ₂ ≥ λ₃ (with λ₁+λ₂+λ₃ = 0). The statistic is the asphericity &quot;
+    &quot;ratio A = (λ₁ − λ₃) / λ₁, which quantifies the elongation of the &quot;
+    &quot;squared temperature pattern. Compare observed A from the Planck SMICA &quot;
+    &quot;map to the distribution from 1000 simulated ΛCDM maps.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Low-ℓ T² Asphericity Eigenvalue Ratio.
+
+    Steps:
+    1. Replace NaN pixels with 0 for healpy compatibility.
+    2. Decompose into spherical harmonics up to ℓ=30 and reconstruct
+       a smooth low-ℓ map (fills masked regions naturally via the
+       band-limited basis).
+    3. Compute T² for each pixel.
+    4. Build the weighted inertia tensor I_{ij} = Σ T²(3 n_i n_j − δ_{ij})
+       using vectorised matrix multiplication over all pixels.
+    5. Diagonalize the 3×3 real symmetric matrix to get eigenvalues.
+    6. Return A = (λ₁ − λ₃) / λ₁.
+    &quot;&quot;&quot;
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 100:
+        return 0.0
+
+    nside = hp.get_nside(m)
+    npix = 12 * nside ** 2
+
+    # Replace NaN with 0 for healpy spherical-harmonic operations
+    clean = m.copy()
+    clean[~mask] = 0.0
+
+    # Filter to ℓ ≤ 30
+    lmax = 30
+    alm = hp.map2alm(clean, lmax=lmax)
+    low_ell_map = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Compute T² weighting
+    T2 = low_ell_map ** 2
+
+    # Get pixel directions in Cartesian coordinates
+    theta, phi = hp.pix2ang(nside, np.arange(npix))
+    sin_theta = np.sin(theta)
+    nx = sin_theta * np.cos(phi)
+    ny = sin_theta * np.sin(phi)
+    nz = np.cos(theta)
+
+    # Stack direction vectors: shape (3, npix)
+    n_vec = np.array([nx, ny, nz])
+
+    # Weighted inertia tensor (drop ΔΩ factor since it cancels in the ratio):
+    #   I_{ij} = 3 Σ_p T²_p n_i n_j  −  δ_{ij} Σ_p T²_p
+    total_T2 = np.sum(T2)
+
+    # Efficient vectorised computation: (n_vec * T²) @ n_vec.T
+    # Entry (i,j) = Σ_p T²_p n_i(p) n_j(p)
+    weighted_n = n_vec * T2[np.newaxis, :]
+    I = 3.0 * (weighted_n @ n_vec.T) - total_T2 * np.eye(3)
+
+    # Diagonalize (I is real symmetric, use eigvalsh)
+    eigenvalues = np.linalg.eigvalsh(I)
+    eigenvalues = np.sort(eigenvalues)[::-1]  # descending: λ₁ ≥ λ₂ ≥ λ₃
+    lam1, lam2, lam3 = eigenvalues
+
+    # Asphericity ratio A = (λ₁ − λ₃) / λ₁
+    # λ₁ ≥ 0, λ₃ ≤ 0, and λ₁ + λ₂ + λ₃ = 0
+    if abs(lam1) &lt; 1e-30:
+        return 0.0
+
+    A = (lam1 - lam3) / lam1
+
+    return float(A) if np.isfinite(A) else 0.0
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ T² Asphericity Eigenvalue Ratio test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ T² Asphericity Eigenvalue Ratio&quot;,
+                &quot;xlabel&quot;: &quot;A = (λ₁ − λ₃) / λ₁&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    # A = 1: perfectly prolate (λ₂ = λ₃ = −λ₁/2 → A = 3/2 actually)
+    # A = 3/2: axisymmetric prolate
+    # A = 3: perfectly oblate (λ₁ = λ₂, λ₃ = −2λ₁)
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck&#x27;s low-ℓ T² pattern is significantly more aspheric than &quot;
+            &quot;ΛCDM simulations, indicating the squared temperature field is &quot;
+            &quot;more elongated or flattened than expected from isotropic &quot;
+            &quot;Gaussian fluctuations.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck&#x27;s low-ℓ T² pattern is significantly more spherical than &quot;
+            &quot;ΛCDM simulations, indicating less elongation/flattening of the &quot;
+            &quot;squared temperature field than expected.&quot;
+        )
+    else:
+        direction = (
+            &quot;The asphericity of the low-ℓ T² pattern is consistent with &quot;
+            &quot;ΛCDM expectations.&quot;
+        )
+
+    interp = (
+        f&quot;Asphericity ratio A = {planck_stat:.4f}. &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the asphericity ratio A = (λ₁ − λ₃)/λ₁ of the &quot;
+        &quot;T²-weighted inertia tensor for the low-ℓ (ℓ ≤ 30) CMB temperature &quot;
+        &quot;field. Larger A indicates the squared temperature pattern is more &quot;
+        &quot;elongated or flattened (oblate); A ≈ 3/2 for a prolate distribution &quot;
+        &quot;and A → 3 for a strongly oblate one. Red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ T² Asphericity Eigenvalue Ratio&quot;,
+            &quot;xlabel&quot;: &quot;A = (λ₁ − λ₃) / λ₁&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-45-low-t-asphericity-eigenvalue-ratio.png" alt="Statistic distribution for Low-ℓ T² Asphericity Eigenvalue Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.11</td></tr>
+<tr><th>One-tailed p-value</th><td>0.055</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.11</td></tr>
+<tr><th>Sigma</th><td>1.598</td></tr>
+<tr><th>Planck statistic</th><td>2.386</td></tr>
+<tr><th>Simulation mean</th><td>1.889</td></tr>
+<tr><th>Simulation std.</th><td>0.25</td></tr>
+<tr><th>Simulation median</th><td>1.834</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-45-low-t-asphericity-eigenvalue-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-45-low-t-asphericity-eigenvalue-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-45-low-t-asphericity-eigenvalue-ratio.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-45-low-t-asphericity-eigenvalue-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-45-low-t-asphericity-eigenvalue-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-45-low-t-asphericity-eigenvalue-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

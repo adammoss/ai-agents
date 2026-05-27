@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Cold-Spot Galactic-Plane Fraction · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 57 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Cold-Spot Galactic-Plane Fraction</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The observed ratio of cold-pixel galactic-plane concentration to geometric expectation for low-ℓ (ℓ=2–5) CMB temperature maps is not equal to 1.0, indicating an unexpected spatial association—either concentration or avoidance—between large-scale cold spots and the galactic plane.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Test measures the concentration of the coldest 10% of pixels in a band-limited CMB map (ℓ=2–5) within ±20° of the galactic plane, normalized by the geometric area fraction. A ratio near 1.0 indicates no spatial association.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Observed ratio = 0.468. Monte Carlo simulations (1000 ΛCDM realizations) yield mean 0.425 ± 0.272. The Planck value lies at 0.16σ from the mean. Two-tailed p-value = 0.836.</p>
+          <p>The galactic-plane fraction of low-ℓ cold spots is consistent with ΛCDM expectations. No significant spatial association—either concentration or avoidance—between large-scale cold features and the galactic plane is detected.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test description and code are designed to detect any deviation from isotropy, whether excess concentration (ratio &gt; 1) or avoidance (ratio &lt; 1). The `summarize_results` function computes both one-sided p-values and uses a two-sided p-value for significance, considering both directions in its interpretation. While the description emphasizes concentration, the code explicitly handles avoidance, and no strong prior directional preference is mandated by the test&#x27;s purpose as an anomaly probe.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The test combines two known anomaly probes: (1) low-ℓ CMB power asymmetries or alignments (e.g., Schwarz et al. 2016, 1603.02564; Planck Collaboration 2020, 1807.06205) and (2) galactic contamination or foreground alignment at large scales. However, the specific statistic of a normalized cold-pixel fraction in a band-limited map is not a standard metric in the literature.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Construct a low-ell map using only multipoles ell=2 through ell=5. &quot;
+    &quot;Identify the coldest 10 percent of pixels and compute the fraction lying &quot;
+    &quot;within |b| &lt;= 20 degrees of the galactic plane. Normalize by the geometric &quot;
+    &quot;expectation for the galactic-plane band area fraction to obtain a ratio. &quot;
+    &quot;Values near 1.0 indicate no galactic-plane concentration; values &quot;
+    &quot;significantly above 1.0 indicate that low-ell cold features preferentially &quot;
+    &quot;sit near the galactic equator, probing unexpected spatial association with &quot;
+    &quot;the galactic coordinate system.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the ratio of cold-pixel galactic-plane fraction to geometric expectation.&quot;&quot;&quot;
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 500:
+        return 1.0
+
+    nside = hp.npix2nside(len(m))
+    m_filled = np.where(mask, m, 0.0)
+
+    # Band-limit to ell = 2-5
+    lmax = 5
+    alm = hp.map2alm(m_filled, lmax=lmax, iter=0)
+    # Zero out ell = 0 and 1 (monopole and dipole)
+    for l in range(2):
+        for i in range(2 * l + 1):
+            idx = l * l + i
+            alm[idx] = 0.0
+    m_low = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Get temperatures of valid pixels only
+    valid_temps = m_low[mask]
+    if len(valid_temps) &lt; 500:
+        return 1.0
+
+    # 10th percentile threshold: coldest 10%
+    threshold = np.percentile(valid_temps, 10.0)
+
+    # Cold pixels: valid pixels with temperature &lt;= threshold
+    cold_mask = mask &amp; (m_low &lt;= threshold)
+    n_cold = int(np.sum(cold_mask))
+    if n_cold == 0:
+        return 1.0
+
+    # Get galactic coordinates of cold pixels
+    # (assuming map is in galactic coordinates)
+    cold_pixels = np.where(cold_mask)[0]
+    theta, phi = hp.pix2ang(nside, cold_pixels)
+
+    # Galactic latitude: b = 90 - theta (degrees)
+    b_deg = 90.0 - np.degrees(theta)
+    n_cold_in_plane = int(np.sum(np.abs(b_deg) &lt;= 20.0))
+
+    # Fraction of cold pixels in the galactic plane band
+    frac_in_plane = n_cold_in_plane / n_cold
+
+    # Geometric expectation: area fraction of band |b| &lt;= 20 deg on the sphere
+    # = [cos(70 deg) - cos(110 deg)] / 2 = sin(20 deg)
+    f_geo = np.sin(np.radians(20.0))  # ≈ 0.342
+
+    stat = float(frac_in_plane / f_geo)
+    if not np.isfinite(stat):
+        return 1.0
+    return stat
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ell Cold-Spot Galactic-Plane Fraction test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Cold-Spot Galactic-Plane Fraction Ratio&quot;,
+                &quot;xlabel&quot;: &quot;Fraction in |b|≤20° / f_geo&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 50,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    p_value_upper = float(np.mean(sim &gt;= planck_stat))
+    p_value_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value_two_sided = min(2.0 * min(p_value_upper, p_value_lower), 1.0)
+
+    rank_above = int(np.sum(sim &gt;= planck_stat))
+    rank_below = int(np.sum(sim &lt;= planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    if p_value_two_sided &lt;= 0.01:
+        strength = &quot;strong&quot;
+    elif p_value_two_sided &lt;= 0.05:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    interp = (
+        f&quot;Low-ℓ cold-spot galactic-plane fraction ratio = {planck_stat:.4f}. &quot;
+        f&quot;Sim mean = {mean_sim:.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value_two_sided:.4f}. Strength: {strength}. &quot;
+    )
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        interp += (
+            &quot;The low-ℓ cold spots in the Planck map show a significantly higher &quot;
+            &quot;concentration near the galactic plane than expected from ΛCDM &quot;
+            &quot;simulations. This could indicate residual galactic foreground &quot;
+            &quot;contamination at large angular scales, or a genuine cosmological &quot;
+            &quot;anomaly where cold large-scale structures are aligned with the &quot;
+            &quot;galactic coordinate system.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        interp += (
+            &quot;The low-ℓ cold spots in the Planck map show a significantly lower &quot;
+            &quot;concentration near the galactic plane than expected from ΛCDM &quot;
+            &quot;simulations, suggesting the large-scale cold features preferentially &quot;
+            &quot;avoid the galactic equator.&quot;
+        )
+    else:
+        interp += (
+            &quot;The galactic-plane fraction of low-ℓ cold spots is consistent with &quot;
+            &quot;ΛCDM expectations. No significant spatial association between &quot;
+            &quot;large-scale cold features and the galactic plane is detected.&quot;
+        )
+
+    caption = (
+        &quot;Histogram of the normalized cold-pixel galactic-plane fraction for the &quot;
+        &quot;ℓ=2–5 band-limited CMB temperature map across ΛCDM simulations. &quot;
+        &quot;Values near 1.0 indicate no preferential concentration of cold pixels &quot;
+        &quot;near the galactic plane. Values above 1.0 indicate excess cold pixels &quot;
+        &quot;near |b|≤20°. The red line marks the Planck observed value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value_one_sided_upper&quot;: p_value_upper,
+        &quot;p_value_one_sided_lower&quot;: p_value_lower,
+        &quot;p_value_two_sided&quot;: p_value_two_sided,
+        &quot;rank_above&quot;: rank_above,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Cold-Spot Galactic-Plane Fraction Ratio&quot;,
+            &quot;xlabel&quot;: &quot;Fraction in |b|≤20° / f_geo&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 50,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-57-low-cold-spot-galactic-plane-fraction.png" alt="Statistic distribution for Low-ℓ Cold-Spot Galactic-Plane Fraction">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.836</td></tr>
+<tr><th>One-tailed p-value</th><td>0.418</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.836</td></tr>
+<tr><th>Sigma</th><td>0.207</td></tr>
+<tr><th>Planck statistic</th><td>0.468</td></tr>
+<tr><th>Simulation mean</th><td>0.425</td></tr>
+<tr><th>Simulation std.</th><td>0.272</td></tr>
+<tr><th>Simulation median</th><td>0.406</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-57-low-cold-spot-galactic-plane-fraction.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-57-low-cold-spot-galactic-plane-fraction.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-57-low-cold-spot-galactic-plane-fraction.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-57-low-cold-spot-galactic-plane-fraction.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-57-low-cold-spot-galactic-plane-fraction.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-57-low-cold-spot-galactic-plane-fraction.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

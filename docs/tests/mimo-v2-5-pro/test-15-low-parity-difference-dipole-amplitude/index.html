@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Parity Difference Dipole Amplitude · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 15 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Parity Difference Dipole Amplitude</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · parity · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The dipole amplitude of the low-ℓ parity difference map D = T_odd − T_even is inconsistent with predictions from ΛCDM simulations, indicating an unexpected directional preference in the parity asymmetry.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Constructs a parity difference map D = T_odd − T_even from CMB temperature multipoles ℓ=2–20 (odd ℓ: 3,5,... vs even ℓ: 2,4,...), then fits a dipole-plus-monopole to unmasked pixels. The statistic is the dipole amplitude √(A_x²+A_y²+A_z²), quantifying whether the low-ℓ parity asymmetry has a directional preference.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck dipole amplitude = 1.94 µK, compared to ΛCDM simulation mean of 2.16 ± 1.11 µK (median = 2.04 µK). Two-sided p = 0.936 (z = −0.19σ). The observed value sits near the center of the simulation distribution with no excess in either tail.</p>
+          <p>The dipole amplitude of the odd−even parity difference map is fully consistent with ΛCDM expectations. There is no evidence that the low-ℓ parity power imbalance (odd &gt; even) is concentrated along any preferred spatial direction. The parity asymmetry, if present at the power-spectrum level, does not manifest as a directional signal in pixel space.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test statistic is a non-negative scalar (dipole amplitude), and the anomaly could manifest as either an unusually large or an unusually small value. While a large amplitude directly indicates a directional preference, an unusually small amplitude could also be anomalous if it suggests excessive isotropy or an improbable cancellation. The provided code explicitly calculates a two-sided p-value (taking the minimum of the upper and lower tail probabilities) and the description notes that &quot;a large amplitude is anomalous,&quot; but the analysis framework treats both extremes as noteworthy. Therefore, as a general exploratory test for any deviation, it is appropriately two-tailed.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Previous work by Zhao (2017) and Creswell &amp; Naselsky (2021) examined directional dependence of parity asymmetry using power/alignment tensors and found ~2–3σ alignments with kinematic dipole axes. Aluri et al. (2017) used alignment statistics for even/odd multipoles up to ℓ=61. The present pixel-space dipole-fit approach differs from these tensor-based methods, though it probes a related question. No directly analogous statistic was found in the literature.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Parity Difference Dipole Amplitude. Extracts a_{ℓm} up to ℓ=20 &quot;
+    &quot;from the masked temperature map and constructs two maps: one using only &quot;
+    &quot;odd-ℓ coefficients (ℓ=3,5,7,...) and another using only even-ℓ coefficients &quot;
+    &quot;(ℓ=2,4,6,...). Computes the pixel-wise difference D = T_odd − T_even, then &quot;
+    &quot;fits a dipole (ℓ=1 pattern) plus monopole to the unmasked pixels of D via &quot;
+    &quot;least squares. The statistic is the dipole amplitude √(A_x² + A_y² + A_z²), &quot;
+    &quot;quantifying whether the low-ℓ parity asymmetry (odd−even power imbalance) &quot;
+    &quot;has a directional preference. Under ΛCDM parity symmetry, D should be &quot;
+    &quot;isotropic and not favour a dipole direction, so a large amplitude is anomalous.&quot;
+)
+
+
+def analyze_map(m):
+    m = np.asarray(m, dtype=np.float64)
+    mask = np.isfinite(m)
+    m_clean = np.where(mask, m, 0.0)
+
+    lmax = 20
+
+    # Extract alm up to lmax
+    alm = hp.map2alm(m_clean, lmax=lmax)
+
+    # Build odd-l alm (l = 3, 5, 7, ...)
+    alm_odd = np.zeros_like(alm)
+    for ell in range(3, lmax + 1, 2):
+        for mm in range(ell + 1):
+            idx = hp.Alm.getidx(lmax, ell, mm)
+            alm_odd[idx] = alm[idx]
+
+    # Build even-l alm (l = 2, 4, 6, ...)
+    alm_even = np.zeros_like(alm)
+    for ell in range(2, lmax + 1, 2):
+        for mm in range(ell + 1):
+            idx = hp.Alm.getidx(lmax, ell, mm)
+            alm_even[idx] = alm[idx]
+
+    # Reconstruct maps from partial alm
+    nside = hp.npix2nside(len(m))
+    T_odd = hp.alm2map(alm_odd, nside, lmax=lmax, verbose=False)
+    T_even = hp.alm2map(alm_even, nside, lmax=lmax, verbose=False)
+
+    # Difference map
+    D = T_odd - T_even
+
+    # Fit monopole + dipole to unmasked pixels of D
+    # Use pixel coordinates (x, y, z) for the dipole pattern
+    valid = mask  # pixels with real data
+    if valid.sum() &lt; 4:
+        return 0.0
+
+    theta, phi = hp.pix2ang(nside, np.arange(hp.nside2npix(nside)))
+    x = np.sin(theta) * np.cos(phi)
+    y = np.sin(theta) * np.sin(phi)
+    z = np.cos(theta)
+
+    # Design matrix: [1, x, y, z] for valid pixels
+    b = D[valid]
+    A = np.column_stack([
+        np.ones(valid.sum()),
+        x[valid],
+        y[valid],
+        z[valid]
+    ])
+
+    # Least-squares fit
+    coeffs, _, _, _ = np.linalg.lstsq(A, b, rcond=None)
+    # coeffs = [A_mono, A_x, A_y, A_z]
+    A_x, A_y, A_z = coeffs[1], coeffs[2], coeffs[3]
+
+    dipole_amplitude = np.sqrt(A_x**2 + A_y**2 + A_z**2)
+    return float(dipole_amplitude)
+
+
+def summarize_results(planck_stat, sim_results):
+    sim_arr = np.array(sim_results, dtype=np.float64)
+    finite_mask = np.isfinite(sim_arr)
+    n_finite = int(finite_mask.sum())
+
+    if n_finite &gt; 0:
+        valid = sim_arr[finite_mask]
+        sim_median = float(np.median(valid))
+        p_upper = float(np.sum(valid &gt;= planck_stat) / n_finite)
+        p_lower = float(np.sum(valid &lt;= planck_stat) / n_finite)
+        p_value = min(p_upper, p_lower)
+        rank_upper = int(np.sum(valid &gt;= planck_stat))
+        rank_lower = int(np.sum(valid &lt;= planck_stat))
+    else:
+        p_value = float(&quot;nan&quot;)
+        rank_upper = rank_lower = 0
+        sim_median = float(&quot;nan&quot;)
+
+    sim_mean = float(np.nanmean(sim_arr))
+    sim_std = float(np.nanstd(sim_arr))
+
+    if n_finite &gt; 0 and not np.isnan(p_value):
+        if p_upper &lt;= p_lower:
+            direction, rank = &quot;high&quot;, rank_upper
+        else:
+            direction, rank = &quot;low&quot;, rank_lower
+    else:
+        direction, rank = &quot;unknown&quot;, 0
+
+    parts = [
+        f&quot;Planck dipole amplitude in parity difference map D = T_odd − T_even &quot;
+        f&quot;at low ℓ is {planck_stat:.4f} µK.&quot;,
+        f&quot;Two-sided p = {p_value:.3f} ({rank}/{n_finite} simulations &quot;
+        f&quot;at least as extreme in the {direction} direction).&quot;,
+        f&quot;Simulation mean = {sim_mean:.4f} ± {sim_std:.4f} µK, &quot;
+        f&quot;median = {sim_median:.4f} µK.&quot;,
+    ]
+
+    if not np.isnan(p_value) and p_value &lt; 0.05:
+        parts.append(
+            &quot;Anomalous: the dipole amplitude of the odd−even parity difference &quot;
+            &quot;map is unusually large, suggesting the low-ℓ parity asymmetry &quot;
+            &quot;has a preferred spatial direction rather than being isotropic.&quot;
+        )
+    else:
+        parts.append(
+            &quot;The dipole amplitude of the parity difference map is consistent &quot;
+            &quot;with ΛCDM simulation expectations — no evidence for a directional &quot;
+            &quot;preference in the low-ℓ parity asymmetry.&quot;
+        )
+
+    result = {
+        &quot;test_description&quot;: test_description,
+        &quot;planck_stat&quot;: float(planck_stat),
+        &quot;p_value&quot;: float(p_value),
+        &quot;rank&quot;: rank,
+        &quot;n_simulations&quot;: len(sim_results),
+        &quot;n_valid&quot;: n_finite,
+        &quot;sim_mean&quot;: sim_mean,
+        &quot;sim_std&quot;: sim_std,
+        &quot;sim_median&quot;: sim_median,
+        &quot;exceeds_95th_percentile&quot;: bool(p_value &lt; 0.05) if not np.isnan(p_value) else False,
+        &quot;anomaly_direction&quot;: direction,
+        &quot;interpretation&quot;: &quot; &quot;.join(parts),
+        &quot;ell_range&quot;: &quot;odd: 3,5,... vs even: 2,4,... (up to lmax=20)&quot;,
+    }
+
+    result[&quot;plot_spec&quot;] = {
+        &quot;kind&quot;: &quot;histogram&quot;,
+        &quot;title&quot;: &quot;Low-ℓ Parity Difference Dipole Amplitude&quot;,
+        &quot;xlabel&quot;: &quot;Dipole amplitude in D = T_odd − T_even (µK)&quot;,
+        &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+        &quot;bins&quot;: 50,
+        &quot;caption&quot;: (
+            f&quot;Histogram of dipole amplitudes from {n_finite} ΛCDM simulations. &quot;
+            f&quot;Planck value = {planck_stat:.4f} µK &quot;
+            f&quot;(two-sided p = {p_value:.3f}, rank {rank}/{n_finite}, &quot;
+            f&quot;{direction} tail). Simulation mean = {sim_mean:.4f} ± {sim_std:.4f} µK. &quot;
+            f&quot;A large dipole indicates the odd−even parity imbalance has a &quot;
+            f&quot;preferred spatial direction.&quot;
+        ),
+    }
+
+    return result</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-15-low-parity-difference-dipole-amplitude.png" alt="Statistic distribution for Low-ℓ Parity Difference Dipole Amplitude">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.936</td></tr>
+<tr><th>One-tailed p-value</th><td>0.468</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.936</td></tr>
+<tr><th>Sigma</th><td>0.0803</td></tr>
+<tr><th>Planck statistic</th><td>1.944</td></tr>
+<tr><th>Simulation mean</th><td>2.158</td></tr>
+<tr><th>Simulation std.</th><td>1.111</td></tr>
+<tr><th>Simulation median</th><td>2.037</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>parity</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-15-low-parity-difference-dipole-amplitude.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-15-low-parity-difference-dipole-amplitude.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-15-low-parity-difference-dipole-amplitude.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-15-low-parity-difference-dipole-amplitude.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-15-low-parity-difference-dipole-amplitude.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-15-low-parity-difference-dipole-amplitude.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

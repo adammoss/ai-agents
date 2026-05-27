@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Genus Density · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 40 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Genus Density</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The genus density (n_hot - n_cold)/(4π) of the CMB temperature map at large angular scales (ℓ ≤ 32) deviates from the expected distribution under the standard ΛCDM Gaussian isotropic model.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Computes the topological asymmetry between hot and cold connected regions in the CMB temperature map at a single zero-temperature threshold, defined as genus density G/(4π) = (n_hot − n_cold)/(4π). The map is band-limited to ℓ ≤ 32. This compact scalar summary is sensitive to non-Gaussian features distinct from peak-count or moment-based tests.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The Planck genus density is 0.637, while 1000 ΛCDM simulations yield a mean of 0.010 ± 0.770. The Planck value falls at the 78.1st percentile (z = +0.81σ), yielding a two-sided p-value of 0.438. Anomaly strength: negligible.</p>
+          <p>The asymmetry between hot and cold connected regions in the low-ℓ CMB is fully consistent with Gaussian isotropic ΛCDM expectations. There is no indication of topological excess in either hot or cold connected components at large angular scales.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test statistic is fundamentally symmetric—it can be positive (more hot regions) or negative (more cold regions)—and the anomaly could plausibly manifest in either direction (e.g., an excess of hot or cold spots). The analysis code explicitly computes a two-sided p‑value (taking twice the minimum of the upper and lower tail probabilities), and there is no stated prior expectation for a specific direction in the description. Thus, the test is exploratory, checking for any deviation without directional preference.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The genus statistic is well-established in CMB topology studies (e.g., Gott, Melott &amp; Dickinson 1986; Park et al. 2001; Ducos et al. 2020), typically computed at multiple threshold levels to reconstruct the full genus curve across the temperature distribution. However, no published studies were found specifically applying a single zero-threshold genus density to low-ℓ CMB maps. The search returned no directly relevant CMB genus results, suggesting this particular formulation has limited prior coverage.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Genus Density: &quot;
+    &quot;Compute the genus number of the CMB temperature map at a zero-temperature &quot;
+    &quot;threshold, defined as G = N_hot − N_cold, where N_hot and N_cold are the &quot;
+    &quot;numbers of connected hot (T &gt; 0) and cold (T &lt; 0) regions respectively. &quot;
+    &quot;Divide by the total sky area in steradians to obtain genus density. &quot;
+    &quot;This topological statistic measures the asymmetry between hot and cold &quot;
+    &quot;connected components, providing a compact summary sensitive to &quot;
+    &quot;non-Gaussian features in the large-scale temperature distribution.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute genus density: (n_hot - n_cold) / (4π) at zero threshold.&quot;&quot;&quot;
+    from scipy.sparse import csr_matrix
+    from scipy.sparse.csgraph import connected_components
+    
+    nside = hp.get_nside(m)
+    npix = hp.nside2npix(nside)
+
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 100:
+        return 0.0
+
+    vals = m.copy()
+    vals[~mask] = 0.0
+
+    # Band-limit to ell &lt;= 32 for low-ℓ analysis
+    alm = hp.map2alm(vals, lmax=32)
+    vals = hp.alm2map(alm, nside, lmax=32, verbose=False)
+    vals[~mask] = 0.0
+
+    # Classify pixels
+    is_hot = mask &amp; (vals &gt; 0)
+    is_cold = mask &amp; (vals &lt; 0)
+
+    if not np.any(is_hot) and not np.any(is_cold):
+        return 0.0
+
+    # Vectorized adjacency construction using scipy sparse
+    # Get neighbors: shape (8, npix)
+    neighbors = hp.get_all_neighbours(nside, np.arange(npix))
+
+    rows_list = []
+    cols_list = []
+    for i in range(8):
+        nbrs = neighbors[i]
+        # Valid: both pixel and neighbor are unmasked, and neighbor index is valid
+        valid = mask &amp; (nbrs &gt;= 0) &amp; mask[nbrs]
+        # Same sign: both hot or both cold
+        same = valid &amp; ((is_hot &amp; is_hot[nbrs]) | (is_cold &amp; is_cold[nbrs]))
+        idx = np.where(same)[0]
+        rows_list.append(idx)
+        cols_list.append(nbrs[idx])
+
+    if len(rows_list) &gt; 0:
+        rows = np.concatenate(rows_list)
+        cols = np.concatenate(cols_list)
+    else:
+        rows = np.array([], dtype=int)
+        cols = np.array([], dtype=int)
+
+    # Build sparse adjacency matrix (symmetric, so one direction suffices for connectivity)
+    data = np.ones(len(rows), dtype=np.int8)
+    graph = csr_matrix((data, (rows, cols)), shape=(npix, npix))
+
+    # Find connected components
+    n_components, labels = connected_components(graph, directed=False)
+
+    # Count hot and cold components
+    hot_labels = labels[is_hot]
+    cold_labels = labels[is_cold]
+
+    n_hot_components = len(np.unique(hot_labels)) if len(hot_labels) &gt; 0 else 0
+    n_cold_components = len(np.unique(cold_labels)) if len(cold_labels) &gt; 0 else 0
+
+    genus = n_hot_components - n_cold_components
+    sky_area = 4.0 * np.pi
+    genus_density = float(genus) / sky_area
+
+    return genus_density if np.isfinite(genus_density) else 0.0
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Genus Density test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Genus Density&quot;,
+                &quot;xlabel&quot;: &quot;Genus density G / (4π)&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck has significantly more hot connected regions than cold &quot;
+            &quot;connected regions compared to LCDM simulations, suggesting a &quot;
+            &quot;topological asymmetry inconsistent with Gaussian isotropy at &quot;
+            &quot;large scales.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck has significantly fewer hot connected regions relative &quot;
+            &quot;to cold connected regions compared to LCDM simulations, &quot;
+            &quot;indicating an unusual cold-spot topology at large scales.&quot;
+        )
+    else:
+        direction = (
+            &quot;The asymmetry between hot and cold connected regions is &quot;
+            &quot;consistent with Gaussian LCDM expectations.&quot;
+        )
+
+    interp = (
+        f&quot;Genus density (n_hot - n_cold) / (4π) = {planck_stat:.6f}. &quot;
+        f&quot;Simulation mean = {mean_sim:.6f} ± {std_sim:.6f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of genus density G / (4π), where G = n_hot − n_cold &quot;
+        &quot;counts the difference between connected hot (T &gt; 0) and cold &quot;
+        &quot;(T &lt; 0) regions in the zero-thresholded low-ℓ CMB map. &quot;
+        &quot;Positive values indicate more hot regions; negative values &quot;
+        &quot;indicate more cold regions. Red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Genus Density&quot;,
+            &quot;xlabel&quot;: &quot;Genus density G / (4π)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-40-low-genus-density.png" alt="Statistic distribution for Low-ℓ Genus Density">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.438</td></tr>
+<tr><th>One-tailed p-value</th><td>0.219</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.438</td></tr>
+<tr><th>Sigma</th><td>0.776</td></tr>
+<tr><th>Planck statistic</th><td>0.637</td></tr>
+<tr><th>Simulation mean</th><td>0.00955</td></tr>
+<tr><th>Simulation std.</th><td>0.77</td></tr>
+<tr><th>Simulation median</th><td>0</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-40-low-genus-density.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-40-low-genus-density.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-40-low-genus-density.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-40-low-genus-density.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-40-low-genus-density.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-40-low-genus-density.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Extrema Ellipticity · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 39 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Extrema Ellipticity</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The mean ellipticity of low-ℓ temperature extrema in the Planck CMB map is inconsistent with the distribution expected from isotropic Gaussian LCDM simulations, indicating either unusually elongated or unusually round extrema.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The mean ellipticity of temperature extrema is computed in the SMICA map band-limited to ℓ ≤ 32. Local maxima and minima are identified via nearest-neighbour comparison on the HEALPix grid. For each extremum, the Hessian matrix is estimated by fitting a quadratic surface to the 9-point neighbourhood, yielding eigenvalues λ₁ ≥ λ₂. The ellipticity is e = (|λ₁|−|λ₂|)/(|λ₁|+|λ₂|), averaged over all extrema to produce a single scalar quantifying mean elongation of large-scale CMB features.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck mean ellipticity = 0.4190. Simulation mean = 0.4015 ± 0.0152, giving a deviation of +1.15σ. Two-tailed p-value = 0.222, percentile = 88.9%. Anomaly strength is negligible; the Planck value lies comfortably within the simulation distribution.</p>
+          <p>The ellipticity of low-ℓ extrema in the Planck SMICA map is fully consistent with isotropic Gaussian LCDM expectations. There is no evidence for unusually elongated or round temperature features at large angular scales. The ~1σ upward shift is well within statistical fluctuations from 1000 simulations and does not suggest any morphological anomaly.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect unexpected morphological coherence or isotropy by measuring the elongation of extrema. The anomaly could manifest as either unusually high ellipticity (elongated features) or unusually low ellipticity (round features), as both could indicate deviations from statistical isotropy. The analysis code computes a two-sided p-value and interprets deviations in both directions, confirming the exploratory nature of the test without a prior directional preference.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No directly comparable studies of Hessian-derived extrema ellipticity in the low-ℓ CMB were found in the literature. Related morphological analyses exist (e.g., Minkowski functionals, extrema counts), but this specific statistic appears not to have been previously investigated.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Extrema Ellipticity: &quot;
+    &quot;Band-limit the temperature map to ℓ ≤ 32 via spherical-harmonic cutoff. &quot;
+    &quot;Identify all local maxima and minima in the smoothed map by comparing &quot;
+    &quot;each pixel with its 8 HEALPix neighbours. For each extremum, fit a &quot;
+    &quot;quadratic surface to the 9-point neighbourhood in a local tangent plane &quot;
+    &quot;to estimate the Hessian matrix of the temperature field. The ellipticity &quot;
+    &quot;is e = (|λ₁| - |λ₂|) / (|λ₁| + |λ₂|), where λ₁, λ₂ are the Hessian &quot;
+    &quot;eigenvalues with |λ₁| ≥ |λ₂|. Average over all extrema to obtain a &quot;
+    &quot;single scalar per map. This statistic quantifies the mean elongation of &quot;
+    &quot;the most significant temperature features, testing for unexpected &quot;
+    &quot;morphological coherence or isotropy.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute mean ellipticity of low-ℓ temperature extrema.&quot;&quot;&quot;
+    nside = hp.get_nside(m)
+    npix = hp.nside2npix(nside)
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 100:
+        return 0.0
+
+    m_filled = np.where(mask, m, 0.0)
+
+    # Band-limit to ell &lt;= 32
+    alm = hp.map2alm(m_filled, lmax=32)
+    m_low = hp.alm2map(alm, nside, lmax=32, verbose=False)
+
+    vals = m_low  # (npix,)
+
+    # Get neighbours: hp returns (8, npix), transpose to (npix, 8)
+    neigh = hp.get_all_neighbours(nside, np.arange(npix)).T  # (npix, 8)
+    valid_neigh = neigh &gt;= 0  # (npix, 8)
+
+    # Safe indexing: replace invalid neighbor indices with 0
+    safe_neigh_idx = np.where(valid_neigh, neigh, 0)
+    neigh_vals = vals[safe_neigh_idx]  # (npix, 8)
+
+    # For invalid neighbors, use pixel&#x27;s own value (strict comparison fails)
+    safe_neigh = np.where(valid_neigh, neigh_vals, vals[:, None])  # (npix, 8)
+
+    n_valid_neigh = np.sum(valid_neigh, axis=1)  # (npix,)
+    has_enough = n_valid_neigh &gt;= 6
+
+    is_max = has_enough &amp; mask &amp; np.all(vals[:, None] &gt; safe_neigh, axis=1)
+    is_min = has_enough &amp; mask &amp; np.all(vals[:, None] &lt; safe_neigh, axis=1)
+    is_ext = is_max | is_min
+    ext_idx = np.where(is_ext)[0]
+    n_ext = len(ext_idx)
+    if n_ext &lt; 3:
+        return 0.0
+
+    # Pixel positions in Cartesian
+    theta_all, phi_all = hp.pix2ang(nside, np.arange(npix))
+    sin_t = np.sin(theta_all)
+    pos_all = np.column_stack([sin_t * np.cos(phi_all),
+                               sin_t * np.sin(phi_all),
+                               np.cos(theta_all)])  # (npix, 3)
+
+    pos = pos_all[ext_idx]  # (n_ext, 3)
+
+    # Build local tangent basis for each extremum
+    z_comp = np.abs(pos[:, 2])
+    ref = np.zeros_like(pos)
+    near_pole = z_comp &gt;= 0.9
+    ref[~near_pole] = [0.0, 0.0, 1.0]
+    ref[near_pole] = [0.0, 1.0, 0.0]
+
+    t1 = np.cross(pos, ref)
+    t1_norms = np.linalg.norm(t1, axis=1, keepdims=True)
+    t1 = t1 / np.maximum(t1_norms, 1e-30)
+    t2 = np.cross(pos, t1)
+    t2_norms = np.linalg.norm(t2, axis=1, keepdims=True)
+    t2 = t2 / np.maximum(t2_norms, 1e-30)
+
+    # Neighbors for each extremum
+    ext_neigh = neigh[ext_idx]  # (n_ext, 8)
+    ext_valid = valid_neigh[ext_idx]  # (n_ext, 8)
+    safe_ext_neigh = np.where(ext_valid, ext_neigh, 0)
+
+    neigh_pos = pos_all[safe_ext_neigh]  # (n_ext, 8, 3)
+    disp = neigh_pos - pos[:, None, :]   # (n_ext, 8, 3)
+
+    # Project displacement onto tangent plane using broadcasting
+    # t1[:, None, :] has shape (n_ext, 1, 3), disp has shape (n_ext, 8, 3)
+    x_neigh = np.sum(disp * t1[:, None, :], axis=2)  # (n_ext, 8)
+    y_neigh = np.sum(disp * t2[:, None, :], axis=2)  # (n_ext, 8)
+
+    # Center + neighbors = 9 points
+    xc = np.concatenate([np.zeros((n_ext, 1)), x_neigh], axis=1)  # (n_ext, 9)
+    yc = np.concatenate([np.zeros((n_ext, 1)), y_neigh], axis=1)  # (n_ext, 9)
+
+    ext_vals = vals[ext_idx]  # (n_ext,)
+    ext_neigh_vals = vals[safe_ext_neigh]  # (n_ext, 8)
+    b_full = np.concatenate([ext_vals[:, None], ext_neigh_vals], axis=1)  # (n_ext, 9)
+
+    # Design matrix: z = a + b*x + c*y + d*x² + e*xy + f*y²
+    A = np.stack([
+        np.ones_like(xc), xc, yc,
+        xc ** 2, xc * yc, yc ** 2
+    ], axis=-1)  # (n_ext, 9, 6)
+
+    # Solve via loop with lstsq for robustness
+    coeffs = np.empty((n_ext, 6))
+    for i in range(n_ext):
+        result = np.linalg.lstsq(A[i], b_full[i], rcond=None)
+        coeffs[i] = result[0]
+
+    # Filter non-finite coefficients
+    valid_coefs = np.all(np.isfinite(coeffs), axis=1)
+    if np.sum(valid_coefs) &lt; 3:
+        return 0.0
+    coeffs = coeffs[valid_coefs]
+
+    # Hessian coefficients: H = [[2d, e], [e, 2f]]
+    d_c = coeffs[:, 3]
+    e_c = coeffs[:, 4]
+    f_c = coeffs[:, 5]
+
+    # Eigenvalues: λ = (d+f) ± sqrt((d-f)² + e²)
+    trace = d_c + f_c
+    disc_sq = (d_c - f_c) ** 2 + e_c ** 2
+    disc = np.sqrt(np.maximum(disc_sq, 0.0))
+
+    ev1 = trace + disc
+    ev2 = trace - disc
+
+    # Ellipticity using absolute eigenvalues
+    abs_ev1 = np.abs(ev1)
+    abs_ev2 = np.abs(ev2)
+    larger = np.maximum(abs_ev1, abs_ev2)
+    smaller = np.minimum(abs_ev1, abs_ev2)
+    denom = larger + smaller
+    valid = denom &gt; 1e-12
+
+    if not np.any(valid):
+        return 0.0
+
+    ellipticities = (larger[valid] - smaller[valid]) / denom[valid]
+    result = float(np.mean(ellipticities))
+
+    return result if np.isfinite(result) else 0.0
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Extrema Ellipticity test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Extrema Ellipticity&quot;,
+                &quot;xlabel&quot;: &quot;Mean ellipticity e&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck&#x27;s low-ℓ extrema are unusually elongated compared to &quot;
+            &quot;LCDM realizations, indicating unexpected morphological coherence &quot;
+            &quot;in large-scale temperature features inconsistent with &quot;
+            &quot;statistical isotropy.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck&#x27;s low-ℓ extrema are unusually round compared to LCDM &quot;
+            &quot;realizations, suggesting suppressed anisotropic power at low &quot;
+            &quot;multipoles.&quot;
+        )
+    else:
+        direction = (
+            &quot;The ellipticity of low-ℓ extrema is consistent with isotropic &quot;
+            &quot;Gaussian LCDM expectations.&quot;
+        )
+
+    interp = (
+        f&quot;Mean extrema ellipticity = {planck_stat:.4f}. &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of mean ellipticity e = (|λ₁|-|λ₂|)/(|λ₁|+|λ₂|) of &quot;
+        &quot;temperature extrema in the low-ℓ (ℓ≤32) CMB map. The Hessian is &quot;
+        &quot;estimated by fitting a quadratic surface to the 9-point &quot;
+        &quot;neighbourhood of each local maximum and minimum. Red line marks &quot;
+        &quot;the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Extrema Ellipticity&quot;,
+            &quot;xlabel&quot;: &quot;Mean ellipticity e&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-39-low-extrema-ellipticity.png" alt="Statistic distribution for Low-ℓ Extrema Ellipticity">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.222</td></tr>
+<tr><th>One-tailed p-value</th><td>0.111</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.222</td></tr>
+<tr><th>Sigma</th><td>1.221</td></tr>
+<tr><th>Planck statistic</th><td>0.419</td></tr>
+<tr><th>Simulation mean</th><td>0.402</td></tr>
+<tr><th>Simulation std.</th><td>0.0152</td></tr>
+<tr><th>Simulation median</th><td>0.402</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-39-low-extrema-ellipticity.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-39-low-extrema-ellipticity.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-39-low-extrema-ellipticity.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-39-low-extrema-ellipticity.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-39-low-extrema-ellipticity.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-39-low-extrema-ellipticity.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

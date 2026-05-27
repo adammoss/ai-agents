@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Agents for Cosmological Anomaly Detection Test Catalogue</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Frozen catalogue v1.0 · 1 model</p>
+      <h1>AI Agents for Cosmological Anomaly Detection Test Catalogue</h1>
+    </div>
+    <nav class="toplinks" aria-label="Catalogue navigation">
+      <a href="index.html">← Paper</a>
+      <a href="data/tests.json">JSON</a>
+      <a href="data/tests.csv">CSV</a>
+      <a href="data/manifest.json">Manifest</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="summary-grid" id="summary-grid" aria-label="Catalogue summary"></section>
+
+    <section class="controls" aria-label="Catalogue filters">
+      <label class="searchbox">
+        <span>Search</span>
+        <input id="search" type="search" placeholder="Name, hypothesis, family, interpretation">
+      </label>
+      <label>
+        <span>Model</span>
+        <select id="model-filter"></select>
+      </label>
+      <label>
+        <span>Verdict</span>
+        <select id="verdict-filter"></select>
+      </label>
+      <label>
+        <span>Novelty</span>
+        <select id="novelty-filter"></select>
+      </label>
+      <label>
+        <span>Family</span>
+        <select id="family-filter"></select>
+      </label>
+      <label>
+        <span>Sort</span>
+        <select id="sort-order">
+          <option value="pvalue">Smallest p-value</option>
+          <option value="number">Test number</option>
+          <option value="sigma">Largest sigma</option>
+          <option value="title">Title</option>
+        </select>
+      </label>
+      <button id="reset" type="button">Reset</button>
+    </section>
+
+    <section class="table-shell" aria-label="Agent-generated tests">
+      <div class="table-meta">
+        <h2>Tests</h2>
+        <p id="result-count"></p>
+      </div>
+      <div id="test-list" class="test-list"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Generated from 1 model on 2026-05-26T15:21:52+00:00.</p>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>

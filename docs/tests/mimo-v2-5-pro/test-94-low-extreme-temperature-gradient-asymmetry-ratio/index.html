@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Extreme-Temperature Gradient Asymmetry Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 94 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Extreme-Temperature Gradient Asymmetry Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The ratio of mean squared gradient magnitudes between the hottest 5% and coldest 5% pixels in the low-ℓ CMB temperature map deviates from 1, indicating asymmetry in gradient sharpness between positive and negative temperature extremes.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The CMB temperature map is band-limited to ℓ = 2–16 via spherical harmonic synthesis. Squared gradient magnitudes |∇T|² are computed using spin-1 harmonic derivatives. The hottest and coldest 5% of pixels in the band-limited map are identified, and the statistic R_hot/R_cold is formed from their mean squared gradients. This ratio tests whether extreme-positive and extreme-negative temperature regions have equal gradient sharpness, which is expected under Gaussian random field symmetry.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck R_hot/R_cold = 0.693, with simulated mean ± std = 1.068 ± 0.406. The observed ratio falls at the 15.7th percentile of simulations (rank 157/1000), yielding z = −0.92 and a two-tailed p-value of 0.314. Cold extremes show somewhat sharper gradients than hot extremes, but the deviation is not statistically significant.</p>
+          <p>The asymmetry ratio is consistent with Gaussian random field expectations within roughly one standard deviation. While the observed value lies outside the interquartile range of simulations, the p-value is far from the 0.05 threshold, indicating no compelling departure from isotropy in gradient structure between temperature extremes.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect deviations from Gaussian symmetry in either direction (hot extremes having sharper gradients or cold extremes having sharper gradients). The analysis code explicitly calculates a two-sided p-value (p_two), and the interpretation describes asymmetries in both directions. There is no prior directional expectation, making a two-tailed test appropriate for general exploration.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>A 2022 study by Khan &amp; Saha examined isotropy statistics of CMB hot and cold spot distributions using orientation-matrix methods (arXiv), but addressed spatial uniformity rather than gradient sharpness asymmetry. No directly comparable statistic combining low-ℓ gradient magnitudes with extreme-region comparisons was found in the literature.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Extreme-Temperature Gradient Asymmetry Ratio. &quot;
+    &quot;Band-limit the CMB temperature map to ℓ = 2–16 using spherical harmonic synthesis, &quot;
+    &quot;then compute the squared gradient magnitude |∇T|² at each pixel via spin-1 harmonic &quot;
+    &quot;derivatives. Identify the hottest 5% and coldest 5% of pixels in the band-limited map &quot;
+    &quot;(above the 95th percentile and below the 5th percentile). Compute the mean squared &quot;
+    &quot;gradient magnitude ⟨|∇T|²⟩ over the hot pixels and separately over the cold pixels. &quot;
+    &quot;The statistic is their ratio: R_hot / R_cold. This tests whether extreme-positive and &quot;
+    &quot;extreme-negative regions of the low-ℓ temperature field have equal gradient sharpness; &quot;
+    &quot;in a Gaussian random field the two should be statistically symmetric, so a deviation &quot;
+    &quot;from unity flags tail asymmetry in the field&#x27;s spatial structure.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the ratio of mean squared gradient in hot vs cold extreme regions at low ℓ.&quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    lmax = 16
+    valid = np.isfinite(m)
+
+    # Replace masked pixels with 0.0 for spherical harmonic transforms
+    m_filled = np.where(valid, m, 0.0)
+
+    # Get a_ℓm coefficients
+    alm = hp.map2alm(m_filled, lmax=lmax)
+
+    # Band-limit to ℓ = 2–16: zero out ℓ &lt; 2
+    l_arr, m_arr = hp.Alm.getlm(lmax)
+    low_mask = l_arr &lt; 2
+    alm[low_mask] = 0.0 + 0.0j
+
+    # Reconstruct band-limited map for identifying hot/cold pixels
+    m_band = hp.alm2map(alm, nside, lmax=lmax, pol=False)
+
+    # Compute squared gradient magnitude via spin-1 derivatives
+    # The eth operator for spin-0 → spin-1 has coefficient sqrt(ℓ(ℓ+1))
+    ell = l_arr.astype(np.float64)
+    eth_coeff = np.sqrt(ell * (ell + 1.0))
+    eth_alm = alm * eth_coeff
+    b_alm = np.zeros_like(alm)
+
+    # alm2map_spin returns (Q, U) for spin-1 field
+    # Q = ∂T/∂θ, U = (1/sinθ)(∂T/∂φ)
+    # |∇T|² = Q² + U²
+    Q_map, U_map = hp.alm2map_spin([eth_alm, b_alm], nside, spin=1, lmax=lmax)
+    grad_sq = Q_map**2 + U_map**2
+
+    # Identify hot (95th percentile) and cold (5th percentile) pixels
+    # Use only valid (unmasked) pixels for percentile calculation
+    band_valid = m_band[valid]
+    p95 = np.percentile(band_valid, 95)
+    p05 = np.percentile(band_valid, 5)
+
+    hot_mask = valid &amp; (m_band &gt;= p95)
+    cold_mask = valid &amp; (m_band &lt;= p05)
+
+    # Mean squared gradient in each extreme region
+    R_hot = np.mean(grad_sq[hot_mask])
+    R_cold = np.mean(grad_sq[cold_mask])
+
+    # Ratio; guard against division by zero
+    if R_cold &lt; 1e-30:
+        result = 0.0
+    else:
+        result = float(R_hot / R_cold)
+
+    if not np.isfinite(result):
+        return 0.0
+    return result
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the Low-ℓ Extreme-Temperature Gradient Asymmetry Ratio.&quot;&quot;&quot;
+    sims = np.asarray(sim_results, dtype=float)
+    sims = sims[np.isfinite(sims)]
+    n = len(sims)
+    if n == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims))
+    std_s = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    median_s = float(np.median(sims))
+    rank = int(np.sum(sims &lt;= planck_stat))
+    p_upper = float(np.mean(sims &gt;= planck_stat))
+    p_lower = float(np.mean(sims &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else 0.0
+    pct_rank = rank / n * 100 if n &gt; 0 else 50.0
+
+    if pct_rank &lt; 2.5 or pct_rank &gt; 97.5:
+        sig_desc = &quot;highly anomalous (&lt;2.5% or &gt;97.5% of sims)&quot;
+    elif pct_rank &lt; 5 or pct_rank &gt; 95:
+        sig_desc = &quot;marginally anomalous (&lt;5% or &gt;95% of sims)&quot;
+    elif pct_rank &lt; 25 or pct_rank &gt; 75:
+        sig_desc = &quot;noteworthy (outside IQR of sims)&quot;
+    else:
+        sig_desc = &quot;typical (within IQR of sims)&quot;
+
+    deviation = planck_stat - 1.0
+    if planck_stat &gt; mean_s + std_s:
+        asym_desc = (
+            &quot;hot extreme regions have sharper gradients than cold extremes, &quot;
+            &quot;suggesting positive-temperature features are more spatially concentrated&quot;
+        )
+    elif planck_stat &lt; mean_s - std_s:
+        asym_desc = (
+            &quot;cold extreme regions have sharper gradients than hot extremes, &quot;
+            &quot;suggesting negative-temperature features are more spatially concentrated&quot;
+        )
+    else:
+        asym_desc = (
+            &quot;gradient sharpness between hot and cold extremes is consistent &quot;
+            &quot;with Gaussian symmetry expectations&quot;
+        )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;gradient_asymmetry_ratio&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;sim_median&quot;: median_s,
+        &quot;z_score&quot;: z_score,
+        &quot;rank&quot;: rank,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n,
+        &quot;percentile_rank&quot;: pct_rank,
+        &quot;deviation_from_unity&quot;: deviation,
+        &quot;asymmetry_description&quot;: asym_desc,
+        &quot;significance_description&quot;: sig_desc,
+        &quot;interpretation&quot;: (
+            f&quot;Gradient asymmetry ratio R_hot/R_cold = {planck_stat:.4f}. &quot;
+            f&quot;Deviation from unity = {deviation:+.4f}. {asym_desc}. &quot;
+            f&quot;Sim mean ± std = {mean_s:.4f} ± {std_s:.4f}. &quot;
+            f&quot;{sig_desc}. z = {z_score:.2f}, two-sided p = {p_two:.4f}.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Extreme-Temperature Gradient Asymmetry Ratio&quot;,
+            &quot;xlabel&quot;: &quot;R_hot / R_cold&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck ratio = {planck_stat:.4f} (unity = symmetric). &quot;
+                f&quot;Sim mean ± std = {mean_s:.4f} ± {std_s:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, P(two-sided) = {p_two:.4f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-94-low-extreme-temperature-gradient-asymmetry-ratio.png" alt="Statistic distribution for Low-ℓ Extreme-Temperature Gradient Asymmetry Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.314</td></tr>
+<tr><th>One-tailed p-value</th><td>0.157</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.314</td></tr>
+<tr><th>Sigma</th><td>1.007</td></tr>
+<tr><th>Planck statistic</th><td>0.693</td></tr>
+<tr><th>Simulation mean</th><td>1.068</td></tr>
+<tr><th>Simulation std.</th><td>0.406</td></tr>
+<tr><th>Simulation median</th><td>0.999</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-94-low-extreme-temperature-gradient-asymmetry-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-94-low-extreme-temperature-gradient-asymmetry-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-94-low-extreme-temperature-gradient-asymmetry-ratio.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-94-low-extreme-temperature-gradient-asymmetry-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-94-low-extreme-temperature-gradient-asymmetry-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-94-low-extreme-temperature-gradient-asymmetry-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

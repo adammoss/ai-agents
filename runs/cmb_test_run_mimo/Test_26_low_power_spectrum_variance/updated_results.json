@@ -1,0 +1,54 @@
+{
+  "results": {
+    "test_name": "Low-\u2113 Power Spectrum Variance",
+    "test_description": "Compute the angular power spectrum C_l for multipoles l=2 to 10. Then calculate the variance of these nine C_l values, i.e., the mean of the squared differences from their mean. This scalar measures the dispersion of power among low multipoles and can indicate anomalies if the observed value is unusually high or low compared to \u039bCDM simulations.",
+    "test_hypothesis": "The observed variance of C_\u2113 for \u2113=2 to 10 is inconsistent with the distribution predicted by \u039bCDM simulations.",
+    "test_type": "two-tailed",
+    "justification": "The test is designed for general exploration of anomalies in low-\u2113 power dispersion, checking for significant deviations in both high and low variance directions. The code explicitly calculates two-sided p-values and interprets both high and low variance cases as potential anomalies, indicating no clear directional preference.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 5300.29846168814,
+    "mean_sim_stat": 90377.49772218772,
+    "std_sim_stat": 149257.3814456956,
+    "median_sim_stat": 47124.718007266434,
+    "sigma": 2.120071689742151,
+    "p_value_two_tailed": 0.034
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Low-\u2113 Power Spectrum Variance: Compute the angular power spectrum C_\u2113 \"\n    \"for multipoles \u2113=2 to 10, then calculate the variance of these nine \"\n    \"C_\u2113 values. This scalar measures the dispersion of power among low \"\n    \"multipoles. Under \u039bCDM, each C_\u2113 is a \u03c7\u00b2-distributed random variable \"\n    \"with 2\u2113+1 degrees of freedom, so the expected variance depends on the \"\n    \"underlying power spectrum. An unusually high or low variance may \"\n    \"indicate anomalies in how power is distributed across low multipoles, \"\n    \"such as the low quadrupole or oscillatory patterns in the Sachs-Wolfe \"\n    \"plateau.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Compute the variance of C_\u2113 for \u2113=2..10 from the angular power spectrum.\n\n    Steps:\n      1. Replace masked (NaN) pixels with 0.0 for healpy compatibility.\n      2. Compute the pseudo power spectrum via hp.anafast up to lmax=10.\n      3. Extract C_\u2113 for \u2113 = 2, 3, ..., 10 (9 values).\n      4. Return the variance of these 9 values.\n\n    Returns\n    -------\n    float\n        The sample variance of C_\u2113 for \u2113 in [2, 10].\n    \"\"\"\n    m_filled = np.where(np.isfinite(m), m, 0.0)\n\n    lmax = 10\n    cl = hp.anafast(m_filled, lmax=lmax)\n\n    # cl[\u2113] = C_\u2113; we want \u2113 = 2 through 10 inclusive\n    cl_low = cl[2:lmax + 1]  # 9 values\n\n    var_cl = np.var(cl_low)\n\n    return float(var_cl)\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Summarize the Low-\u2113 Power Spectrum Variance test.\"\"\"\n    sim = np.array(sim_results, dtype=float)\n    sim = sim[np.isfinite(sim)]\n    n_sims = len(sim)\n\n    if n_sims == 0:\n        return {\n            \"planck_stat\": planck_stat,\n            \"p_value\": float(\"nan\"),\n            \"n_sims\": 0,\n            \"interpretation\": \"No simulation results to compare.\",\n            \"plot_spec\": {\n                \"kind\": \"histogram\",\n                \"title\": \"Low-\u2113 Power Spectrum Variance\",\n                \"xlabel\": \"Var(C_\u2113), \u2113 = 2\u201310 [\u03bcK\u2074]\",\n                \"ylabel\": \"Number of simulations\",\n                \"bins\": 40,\n                \"caption\": \"No simulation data available.\",\n            },\n        }\n\n    mean_sim = float(np.mean(sim))\n    std_sim = float(np.std(sim))\n\n    p_upper = float(np.mean(sim >= planck_stat))\n    p_lower = float(np.mean(sim <= planck_stat))\n    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))\n\n    rank_below = int(np.sum(sim < planck_stat))\n    percentile = 100.0 * rank_below / n_sims\n\n    if p_value <= 0.02:\n        strength = \"strong\"\n    elif p_value <= 0.10:\n        strength = \"moderate\"\n    else:\n        strength = \"negligible\"\n\n    direction = \"\"\n    if planck_stat > mean_sim + 2 * std_sim:\n        direction = (\n            \"Planck shows significantly high low-\u2113 power spectrum variance, \"\n            \"indicating an unusual distribution of power among the lowest \"\n            \"multipoles. This could reflect features such as excess power in \"\n            \"specific \u2113 bands or oscillatory behavior in the Sachs\u2013Wolfe plateau.\"\n        )\n    elif planck_stat < mean_sim - 2 * std_sim:\n        direction = (\n            \"Planck shows significantly low low-\u2113 power spectrum variance, \"\n            \"indicating an unusually uniform distribution of power across \"\n            \"multipoles \u2113=2\u201310. This is consistent with the well-known low \"\n            \"quadrupole anomaly if power is suppressed across the board.\"\n        )\n    else:\n        direction = (\n            \"The variance of low-\u2113 power is consistent with isotropic \u039bCDM \"\n            \"expectations, showing no anomalous dispersion of power among \"\n            \"the lowest multipoles.\"\n        )\n\n    interp = (\n        f\"Var(C_\u2113) = {planck_stat:.4f} \u03bcK\u2074. \"\n        f\"Simulation mean = {mean_sim:.4f} \u00b1 {std_sim:.4f} \u03bcK\u2074. \"\n        f\"Percentile = {percentile:.1f}%, two-sided p = {p_value:.4f}. \"\n        f\"Anomaly strength: {strength}. {direction}\"\n    )\n\n    caption = (\n        \"Histogram of the variance of C_\u2113 for multipoles \u2113=2\u201310 from \"\n        \"isotropic \u039bCDM simulations. The variance measures how unevenly \"\n        \"power is distributed among the lowest multipoles. Under \u039bCDM, each \"\n        \"C_\u2113 is \u03c7\u00b2(2\u2113+1)-distributed with known mean and variance, so the \"\n        \"expected variance of the nine C_\u2113 values is determined by the \"\n        \"fiducial power spectrum. Significantly high variance may indicate \"\n        \"localized excess or deficit of power; low variance suggests \"\n        \"suppressed fluctuations. The red line marks the Planck value.\"\n    )\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"p_value\": p_value,\n        \"p_value_upper\": p_upper,\n        \"p_value_lower\": p_lower,\n        \"rank_below\": rank_below,\n        \"n_sims\": n_sims,\n        \"percentile\": percentile,\n        \"sim_mean\": mean_sim,\n        \"sim_std\": std_sim,\n        \"anomaly_strength\": strength,\n        \"interpretation\": interp,\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-\u2113 Power Spectrum Variance\",\n            \"xlabel\": \"Var(C_\u2113), \u2113 = 2\u201310 [\u03bcK\u2074]\",\n            \"ylabel\": \"Number of simulations\",\n            \"bins\": 40,\n            \"caption\": caption,\n        },\n    }\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": 1452.8911201640522,
+    "sim_max": 2511556.502097933,
+    "z_score": -0.5700032952236488,
+    "thresholds": [
+      6100.789368561888,
+      467027.0183193382
+    ],
+    "p_value_upper": 0.983,
+    "p_value_lower": 0.017,
+    "rank_below": 17,
+    "percentile": 1.7,
+    "anomaly_strength": "moderate",
+    "interpretation": "Var(C_\u2113) = 5300.2985 \u03bcK\u2074. Simulation mean = 90377.4977 \u00b1 149257.3814 \u03bcK\u2074. Percentile = 1.7%, two-sided p = 0.0340. Anomaly strength: moderate. The variance of low-\u2113 power is consistent with isotropic \u039bCDM expectations, showing no anomalous dispersion of power among the lowest multipoles.",
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-\u2113 Power Spectrum Variance",
+      "xlabel": "Var(C_\u2113), \u2113 = 2\u201310 [\u03bcK\u2074]",
+      "ylabel": "Number of simulations",
+      "bins": 40,
+      "caption": "Histogram of the variance of C_\u2113 for multipoles \u2113=2\u201310 from isotropic \u039bCDM simulations. The variance measures how unevenly power is distributed among the lowest multipoles. Under \u039bCDM, each C_\u2113 is \u03c7\u00b2(2\u2113+1)-distributed with known mean and variance, so the expected variance of the nine C_\u2113 values is determined by the fiducial power spectrum. Significantly high variance may indicate localized excess or deficit of power; low variance suggests suppressed fluctuations. The red line marks the Planck value."
+    }
+  },
+  "updated_summary": {
+    "Test name": "** Low-\u2113 Power Spectrum Variance",
+    "Description": "** The angular power spectrum C_\u2113 for multipoles \u2113 = 2\u201310 is computed, and the sample variance of these nine values is taken. This scalar quantifies how unevenly power is distributed across the lowest multipoles. Under \u039bCDM each C_\u2113 is \u03c7\u00b2(2\u2113+1)-distributed, so the expected variance is set by the fiducial spectrum. Both unusually high and low variance can signal anomalies such as suppressed low-\u2113 power or oscillatory features in the Sachs\u2013Wolfe plateau.",
+    "Results": "** Var(C_\u2113) = 5,300 \u03bcK\u2074, well below the simulation mean of 90,377 \u00b1 149,257 \u03bcK\u2074. The observed value sits at the 1.7th percentile of 1,000 \u039bCDM simulations, yielding a two-tailed p-value of 0.034 (z \u2248 \u22120.57; the wide spread reflects the skewed distribution of the variance estimator). Anomaly strength is moderate.",
+    "Interpretation": "** The Planck low-\u2113 power spectrum variance is notably low relative to \u039bCDM expectations. The very low observed value suggests power among \u2113 = 2\u201310 is more uniformly suppressed than typical simulations predict, consistent with the well-documented low quadrupole and overall low-\u2113 power deficit. However, the two-tailed p = 0.034 falls just above the conventional 2\u03c3 threshold (p = 0.046 corresponds to 2\u03c3 for a Gaussian; here the non-Gaussianity of the test statistic complicates interpretation).",
+    "Meets hypothesis?": "** No",
+    "Comparison to literature": "** The low-\u2113 power deficit, particularly the low quadrupole, is a long-standing anomaly noted since COBE and confirmed by WMAP and Planck (e.g., arXiv:2509.03719; Eriksen et al. 2004). However, testing the *variance* of C_\u2113 across \u2113 = 2\u201310 as a single scalar statistic is not a standard approach in the literature; most studies examine individual multipoles or ratios. No directly comparable published analysis was found.",
+    "Test novelty": "** Variation",
+    "Verdict": "** Borderline"
+  }
+}

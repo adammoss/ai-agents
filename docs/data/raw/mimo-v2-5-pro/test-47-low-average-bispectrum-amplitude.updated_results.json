@@ -1,0 +1,55 @@
+{
+  "results": {
+    "test_name": "Low-ℓ Average Bispectrum Amplitude",
+    "test_description": "For the temperature map band-limited to multipoles ℓ ≤ 30, compute the bispectrum B(ℓ₁, ℓ₂, ℓ₃) for all triples satisfying the triangle condition (|ℓ₁ - ℓ₂| ≤ ℓ₃ ≤ ℓ₁ + ℓ₂ and ℓ₁ + ℓ₂ + ℓ₃ even). The bispectrum is defined as the product of three spherical harmonic coefficients averaged over the sky. Take the absolute value of each triple and compute the mean over all valid triples to obtain a single scalar. This statistic quantifies the average level of phase coupling (non-Gaussianity) among low-ℓ modes. A higher value suggests stronger departure from Gaussianity. The computation is efficient for nside=256 maps using standard spherical harmonic transforms up to ℓ_max = 30.",
+    "test_hypothesis": "The low-ℓ average bispectrum amplitude of the Planck CMB temperature map is consistent with the expected distribution from ΛCDM Gaussian simulations, indicating no significant anomaly in phase coupling among low-ℓ modes.",
+    "test_type": "two-tailed",
+    "justification": "The test description notes that a higher average bispectrum amplitude suggests stronger departure from Gaussianity, but the implementation in the code considers both directions of deviation. Specifically, the `summarize_results` function calculates two-sided p-values by comparing the Planck statistic to both higher and lower extremes of the simulation distribution, and provides interpretations for cases where the statistic is significantly higher or lower. This approach is appropriate for general exploration without a strong prior directional prediction, making the test two-tailed.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 4580.764973970158,
+    "mean_sim_stat": 8231.447254331391,
+    "std_sim_stat": 6708.490269021113,
+    "median_sim_stat": 6150.758037396519,
+    "sigma": 0.3212776395459965,
+    "p_value_two_tailed": 0.748
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Low-ℓ Average Bispectrum Amplitude: \"\n    \"For the temperature map band-limited to multipoles ℓ ≤ 30, compute the \"\n    \"bispectrum B(ℓ₁, ℓ₂, ℓ₃) for all triples satisfying the triangle condition \"\n    \"(|ℓ₁ - ℓ₂| ≤ ℓ₃ ≤ ℓ₁ + ℓ₂ and ℓ₁ + ℓ₂ + ℓ₃ even). The bispectrum is \"\n    \"defined as the product of three spherical harmonic coefficients averaged \"\n    \"over the sky. Take the absolute value of each triple and compute the mean \"\n    \"over all valid triples to obtain a single scalar. This statistic quantifies \"\n    \"the average level of phase coupling (non-Gaussianity) among low-ℓ modes. \"\n    \"A higher value suggests stronger departure from Gaussianity.\"\n)\n\n\ndef analyze_map(m):\n    mask = np.isfinite(m)\n    n_valid = int(np.sum(mask))\n    if n_valid < 100:\n        return 0.0\n\n    lmax = 30\n    clean = np.where(mask, m, 0.0)\n\n    # Compute alm from the full-resolution map for accuracy\n    alm = hp.map2alm(clean, lmax=lmax, iter=0)\n\n    # Use low nside for per-ℓ map construction (lmax=30 needs nside >= 31)\n    nside_low = min(32, hp.get_nside(m))\n    npix_low = 12 * nside_low ** 2\n\n    # Build per-ℓ maps at low nside via alm2map\n    n_alm = hp.Alm.getsize(lmax)\n    per_l_maps = np.empty((lmax + 1, npix_low), dtype=np.float64)\n    for ell in range(lmax + 1):\n        alm_ell = np.zeros_like(alm)\n        idx0 = hp.Alm.getidx(lmax, ell, 0)\n        idx1 = hp.Alm.getidx(lmax, ell, ell) + 1\n        alm_ell[idx0:idx1] = alm[idx0:idx1]\n        per_l_maps[ell] = hp.alm2map(alm_ell, nside_low, lmax=lmax, verbose=False)\n\n    # Enumerate valid unordered triples (l1 <= l2 <= l3) and compute mean |B|\n    abs_sum = 0.0\n    count = 0\n    inv_npix = 1.0 / npix_low\n\n    for l1 in range(lmax + 1):\n        m1 = per_l_maps[l1]\n        for l2 in range(l1, lmax + 1):\n            m12 = m1 * per_l_maps[l2]\n            l3_min = l2\n            l3_max = min(l1 + l2, lmax)\n            if l3_max < l3_min:\n                continue\n            parity = (l1 + l2) & 1\n            l3_start = l3_min if (l3_min & 1) == parity else l3_min + 1\n            for l3 in range(l3_start, l3_max + 1, 2):\n                B = np.dot(m12, per_l_maps[l3]) * inv_npix\n                abs_sum += abs(B)\n                count += 1\n\n    if count == 0:\n        return 0.0\n\n    return float(abs_sum / count)\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Summarize the Low-ℓ Average Bispectrum Amplitude test.\"\"\"\n    sim = np.array(sim_results, dtype=float)\n    sim = sim[np.isfinite(sim)]\n    n_sims = len(sim)\n\n    if n_sims == 0:\n        return {\n            \"planck_stat\": planck_stat,\n            \"p_value\": float(\"nan\"),\n            \"n_sims\": 0,\n            \"interpretation\": \"No simulation results available.\",\n            \"plot_spec\": {\n                \"kind\": \"histogram\",\n                \"title\": \"Low-ℓ Average Bispectrum Amplitude\",\n                \"xlabel\": \"⟨|B|⟩ (μK³)\",\n                \"ylabel\": \"Count\",\n                \"bins\": 40,\n                \"caption\": \"No simulation data.\",\n            },\n        }\n\n    mean_sim = float(np.mean(sim))\n    std_sim = float(np.std(sim))\n\n    p_upper = float(np.mean(sim >= planck_stat))\n    p_lower = float(np.mean(sim <= planck_stat))\n    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))\n\n    rank_below = int(np.sum(sim < planck_stat))\n    percentile = 100.0 * rank_below / n_sims\n    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim > 0 else 0.0\n\n    if p_value <= 0.02:\n        strength = \"strong\"\n    elif p_value <= 0.10:\n        strength = \"moderate\"\n    else:\n        strength = \"negligible\"\n\n    if planck_stat > mean_sim + 2 * std_sim:\n        direction = (\n            \"Planck shows significantly higher average bispectrum \"\n            \"amplitude than ΛCDM simulations, indicating stronger phase coupling \"\n            \"(non-Gaussianity) among low-ℓ modes than expected.\"\n        )\n    elif planck_stat < mean_sim - 2 * std_sim:\n        direction = (\n            \"Planck shows significantly lower average bispectrum \"\n            \"amplitude than ΛCDM simulations, indicating unusually weak phase \"\n            \"coupling among low-ℓ modes.\"\n        )\n    else:\n        direction = (\n            \"The average bispectrum amplitude is consistent with \"\n            \"ΛCDM Gaussian expectations.\"\n        )\n\n    interp = (\n        f\"⟨|B|⟩ = {planck_stat:.4f} μK³. \"\n        f\"Sim mean = {mean_sim:.4f} ± {std_sim:.4f} μK³ \"\n        f\"({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, \"\n        f\"two-sided p = {p_value:.4f}. \"\n        f\"Strength: {strength}. {direction}\"\n    )\n\n    caption = (\n        \"Histogram of the average bispectrum amplitude ⟨|B|⟩ for the low-ℓ \"\n        \"(ℓ ≤ 30) CMB temperature field. The bispectrum B(ℓ₁,ℓ₂,ℓ₃) measures \"\n        \"phase coupling between three multipole modes. For a Gaussian field, \"\n        \"B fluctuates around zero; systematically larger |B| indicates \"\n        \"non-Gaussianity. Red line marks the Planck value.\"\n    )\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"p_value\": p_value,\n        \"p_value_upper\": p_upper,\n        \"p_value_lower\": p_lower,\n        \"rank_below\": rank_below,\n        \"n_sims\": n_sims,\n        \"percentile\": percentile,\n        \"sim_mean\": mean_sim,\n        \"sim_std\": std_sim,\n        \"deviation_sigma\": deviation_sigma,\n        \"anomaly_strength\": strength,\n        \"interpretation\": interp,\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-ℓ Average Bispectrum Amplitude\",\n            \"xlabel\": \"⟨|B|⟩ (μK³)\",\n            \"ylabel\": \"Number of simulations\",\n            \"bins\": 40,\n            \"caption\": caption,\n        },\n    }\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": 429.03322193260476,
+    "sim_max": 47585.91850724093,
+    "z_score": -0.5441883544528018,
+    "thresholds": [
+      1121.230385326797,
+      25613.50895460021
+    ],
+    "p_value_upper": 0.626,
+    "p_value_lower": 0.374,
+    "rank_below": 374,
+    "percentile": 37.4,
+    "deviation_sigma": -0.5441883544528018,
+    "anomaly_strength": "negligible",
+    "interpretation": "⟨|B|⟩ = 4580.7650 μK³. Sim mean = 8231.4473 ± 6708.4903 μK³ (-0.54σ). Percentile = 37.4%, two-sided p = 0.7480. Strength: negligible. The average bispectrum amplitude is consistent with ΛCDM Gaussian expectations.",
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-ℓ Average Bispectrum Amplitude",
+      "xlabel": "⟨|B|⟩ (μK³)",
+      "ylabel": "Number of simulations",
+      "bins": 40,
+      "caption": "Histogram of the average bispectrum amplitude ⟨|B|⟩ for the low-ℓ (ℓ ≤ 30) CMB temperature field. The bispectrum B(ℓ₁,ℓ₂,ℓ₃) measures phase coupling between three multipole modes. For a Gaussian field, B fluctuates around zero; systematically larger |B| indicates non-Gaussianity. Red line marks the Planck value."
+    }
+  },
+  "updated_summary": {
+    "Test name": "Low-ℓ Average Bispectrum Amplitude",
+    "Description": "For the Planck CMB temperature map limited to ℓ ≤ 30, compute the mean absolute bispectrum ⟨|B|⟩ over all valid mode triples (satisfying triangle and parity conditions) to quantify average phase coupling (non-Gaussianity) among low-ℓ modes.",
+    "Results": "Planck ⟨|B|⟩ = 4580.76 μK³. ΛCDM Gaussian simulations (1000 runs): mean 8231.45 ± 6708.49 μK³, yielding a z-score of -0.54σ and a two-tailed p-value of 0.748.",
+    "Interpretation": "The Planck statistic is consistent with the simulated distribution, indicating no significant departure from Gaussian expectations for low-ℓ phase coupling.",
+    "Meets hypothesis?": "Yes",
+    "Comparison to literature": "Previous web searches did not find direct references to this exact statistic; bispectrum analyses in CMB literature (e.g., lensing bispectrum studies) are common, but low-ℓ average amplitude is not a standard metric.",
+    "Test novelty": "Variation (a specific scalar derived from bispectrum analysis, not a well-documented standalone statistic)",
+    "Verdict": "No anomalies found"
+  }
+}

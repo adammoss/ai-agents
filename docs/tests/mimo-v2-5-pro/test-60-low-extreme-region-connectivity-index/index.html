@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Extreme-Region Connectivity Index · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 60 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Extreme-Region Connectivity Index</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Planck CMB temperature map exhibits an anomalous number of connected components in extreme temperature regions (|T| &gt; 1.5 × T_rms) at large angular scales (ℓ ≤ 30) compared to the distribution predicted by ΛCDM simulations, indicating a deviation in morphological fragmentation.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>For a CMB temperature map band-limited to ℓ ≤ 30, extreme regions are defined as connected pixel sets where |T| &gt; 1.5 × T_rms, using HEALPix 8-neighbor adjacency. The statistic is ln(N_components + 1), where N is the total count of distinct connected components (hot and cold). This measures morphological fragmentation of large-scale temperature extremes.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck observed value = 4.174, simulation mean = 4.093 ± 0.155. The Planck map lies at +0.53σ from the ΛCDM simulation mean, corresponding to the 70.8th percentile. Two-sided p-value = 0.666. Anomaly strength is classified as negligible.</p>
+          <p>The morphological fragmentation of large-scale temperature extremes (ℓ ≤ 30) in the Planck map is fully consistent with ΛCDM predictions. No anomalous coherence or fragmentation pattern is detected — the number of distinct connected components in extreme regions is typical for a Gaussian random field.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect any deviation from Gaussian random field predictions in the morphology of large-scale temperature extremes, which could manifest as either more coherent extremes (fewer connected components, lower statistic) or more fragmented extremes (more connected components, higher statistic). The code calculates both one-sided p-values and uses a two-sided p-value as the primary metric for anomaly strength, with interpretations provided for both directions. There is no strong prior or clear directional preference in the test description; it explores general anomalies such as the CMB cold spot or hemispherical asymmetry, which could affect fragmentation in either way, thus warranting a two-tailed test.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Morphological analyses of the CMB have been conducted using Minkowski functionals and genus statistics, which are topologically related to connected component counting (e.g., Planck 2018 results VII; Gott et al. 1990; Ducout et al. 2013). However, the specific metric of counting connected components in thresholded extreme regions at low multipoles does not appear to have a direct prior analogue in published studies. Online searches returned no closely matching literature for this particular statistic.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;For a CMB temperature map band-limited to ℓ ≤ 30, compute the RMS temperature T_rms. &quot;
+    &quot;Define &#x27;extreme regions&#x27; as connected sets of pixels where |T| &gt; 1.5 × T_rms, with &quot;
+    &quot;connectivity defined using the HEALPix 8-neighbor adjacency rule. Count the total number &quot;
+    &quot;of distinct connected components (both hot and cold) across the full map. The statistic is &quot;
+    &quot;the natural logarithm of this count plus one. This measures the morphological fragmentation &quot;
+    &quot;or coherence of large-scale temperature extremes, which can differ between Gaussian random &quot;
+    &quot;fields and maps with specific anomaly patterns.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return ln(N_components + 1) for extreme regions in the ℓ ≤ 30 filtered map.&quot;&quot;&quot;
+    mask = np.isfinite(m)
+    n_valid = int(mask.sum())
+    if n_valid &lt; 10:
+        return 0.0
+
+    nside = hp.npix2nside(len(m))
+    work_nside = 32
+    npix_work = hp.nside2npix(work_nside)
+
+    # Replace NaN with 0 for healpy transforms
+    m_filled = np.where(mask, m, 0.0)
+
+    # Low-pass filter to ℓ ≤ 30 and downgrade to work nside
+    alm = hp.map2alm(m_filled, lmax=30)
+    m_filtered = hp.alm2map(alm, nside=work_nside, lmax=30, verbose=False)
+
+    # Build validity mask at work nside
+    if nside != work_nside:
+        mask_lo = hp.ud_grade(mask.astype(float), nside_out=work_nside)
+        work_mask = mask_lo &gt; 0.5
+    else:
+        work_mask = mask
+
+    # Compute T_rms from valid pixels only
+    valid_temps = m_filtered[work_mask]
+    T_rms = float(np.sqrt(np.mean(valid_temps ** 2)))
+
+    if T_rms &lt; 1e-30:
+        return 0.0
+
+    # Identify extreme pixels: |T| &gt; 1.5 * T_rms
+    threshold = 1.5 * T_rms
+    extreme_mask = (np.abs(m_filtered) &gt; threshold) &amp; work_mask
+    extreme_pixels = np.where(extreme_mask)[0].astype(np.int64)
+    n_extreme = len(extreme_pixels)
+
+    if n_extreme == 0:
+        return 0.0
+
+    # Vectorized neighbor computation for ALL pixels at once
+    all_pixels = np.arange(npix_work, dtype=np.int64)
+    neighbors = hp.get_all_neighbours(work_nside, all_pixels)  # shape (8, npix_work)
+
+    # Build set for fast lookup
+    extreme_set = set(extreme_pixels.tolist())
+
+    # Union-Find with path compression
+    parent = np.arange(npix_work, dtype=np.int64)
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+
+    # For each extreme pixel, union with extreme neighbors
+    # Restrict neighbor lookup to extreme pixels only
+    nbs_of_extreme = neighbors[:, extreme_pixels]  # shape (8, n_extreme)
+    for idx in range(n_extreme):
+        pix = extreme_pixels[idx]
+        for nb in nbs_of_extreme[:, idx]:
+            if nb &gt;= 0 and nb in extreme_set:
+                union(pix, nb)
+
+    # Count distinct roots among extreme pixels
+    roots = set()
+    for pix in extreme_pixels:
+        roots.add(find(pix))
+    n_components = len(roots)
+
+    return float(np.log(n_components + 1.0))
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Extreme-Region Connectivity Index test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value_two_sided&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Extreme-Region Connectivity Index&quot;,
+                &quot;xlabel&quot;: &quot;ln(N_components + 1)&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 50,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    rank_below = int(np.sum(sim &lt;= planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    dev_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    strength = (
+        &quot;strong&quot; if p_two &lt;= 0.01
+        else &quot;moderate&quot; if p_two &lt;= 0.05
+        else &quot;negligible&quot;
+    )
+
+    interp = (
+        f&quot;Extreme-region connectivity index = {planck_stat:.4f} (ln(N+1)). &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} ± {std_sim:.4f} ({dev_sigma:+.2f}σ). &quot;
+        f&quot;Percentile = {percentile:.1f}%, two-sided p = {p_two:.4f}. &quot;
+        f&quot;Strength: {strength}. &quot;
+    )
+
+    if planck_stat &lt; mean_sim - 2 * std_sim:
+        interp += (
+            &quot;Planck has FEWER connected extreme regions than expected, indicating unusually &quot;
+            &quot;coherent (less fragmented) large-scale temperature extremes. This could be &quot;
+            &quot;linked to the CMB cold spot or hemispherical power asymmetry, where a small &quot;
+            &quot;number of large, dominant extreme regions persist rather than many smaller ones.&quot;
+        )
+    elif planck_stat &gt; mean_sim + 2 * std_sim:
+        interp += (
+            &quot;Planck has MORE connected extreme regions than expected, indicating unusually &quot;
+            &quot;fragmented large-scale temperature extremes. This could suggest patchy or &quot;
+            &quot;anisotropic power distribution at the largest angular scales.&quot;
+        )
+    else:
+        interp += (
+            &quot;The morphological fragmentation of large-scale temperature extremes (ℓ ≤ 30) &quot;
+            &quot;is consistent with ΛCDM predictions. No anomalous coherence or fragmentation &quot;
+            &quot;pattern is detected from this statistic.&quot;
+        )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value_one_sided_upper&quot;: p_upper,
+        &quot;p_value_one_sided_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: dev_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Extreme-Region Connectivity Index&quot;,
+            &quot;xlabel&quot;: &quot;ln(N_components + 1)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 50,
+            &quot;caption&quot;: (
+                &quot;Histogram of the connectivity index ln(N+1) across ΛCDM simulations, &quot;
+                &quot;where N is the number of distinct connected components among pixels with &quot;
+                &quot;|T| &gt; 1.5 T_rms in the ℓ ≤ 30 filtered map. Lower values indicate more &quot;
+                &quot;coherent (fewer, larger) extreme regions; higher values indicate more &quot;
+                &quot;fragmented extremes. The red line marks the Planck observed value.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-60-low-extreme-region-connectivity-index.png" alt="Statistic distribution for Low-ℓ Extreme-Region Connectivity Index">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.666</td></tr>
+<tr><th>One-tailed p-value</th><td>0.333</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.666</td></tr>
+<tr><th>Sigma</th><td>0.432</td></tr>
+<tr><th>Planck statistic</th><td>4.174</td></tr>
+<tr><th>Simulation mean</th><td>4.093</td></tr>
+<tr><th>Simulation std.</th><td>0.155</td></tr>
+<tr><th>Simulation median</th><td>4.094</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-60-low-extreme-region-connectivity-index.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-60-low-extreme-region-connectivity-index.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-60-low-extreme-region-connectivity-index.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-60-low-extreme-region-connectivity-index.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-60-low-extreme-region-connectivity-index.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-60-low-extreme-region-connectivity-index.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Cross-Parity Correlation Asymmetry · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 14 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Cross-Parity Correlation Asymmetry</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · parity · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Planck SMICA map exhibits unusually large coherent parity-odd phase correlations between adjacent low-ℓ multipoles (ℓ=2-10) compared to ΛCDM simulations, as measured by the mean |R_ℓ| statistic.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Measures the mean of the absolute values of a dimensionless parity-odd cross-spectrum ratio, |R_ℓ|, computed for consecutive multipole pairs (ℓ, ℓ+1) from ℓ=2 to 9. This statistic quantifies coherent phase correlations between adjacent low-ℓ multipoles that would break parity symmetry.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The Planck SMICA map yielded a statistic T = 1.388. From 1000 ΛCDM simulations, the mean was 1.369 ± 0.379. The one-tailed p-value (upper) was 0.451, corresponding to a z-score of ~0.05σ.</p>
+          <p>The observed statistic is well within the range expected from ΛCDM simulations. There is no evidence for an excess of coherent parity-odd phase correlations between adjacent low-ℓ multipoles in the Planck data.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test statistic T is the mean of absolute values of R_ℓ, which is non-negative. The physical motivation is to detect an excess of parity-odd cross-correlations, which would manifest as T being significantly larger than expected from simulations. The test description explicitly states that non-zero T indicates coherent parity-odd phase correlations, implying interest in values larger than the null expectation. There is no physical reason to consider unusually small T as an anomaly; small T is expected under the null. Therefore, a one-tailed test focusing on the upper tail is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The test examines a distinct phase-correlation statistic. While related to known low-ℓ parity asymmetries found in power spectra and multipole alignments (e.g., Aluri et al. 2017, Hansen et al. 2011), this specific cross-parity correlation between adjacent ℓ has not been the primary focus of those studies.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Cross-Parity Correlation Asymmetry. Extracts spherical harmonic &quot;
+    &quot;coefficients a_{ℓm} for ℓ = 2–10 from the Planck SMICA map (masked). &quot;
+    &quot;For each consecutive multipole pair (ℓ, ℓ+1) with ℓ = 2–9, computes &quot;
+    &quot;the parity-odd cross-correlation X_ℓ = Σ_{m≥0} Im[a_{ℓ,m} a*_{ℓ+1,m}] &quot;
+    &quot;and forms the dimensionless ratio R_ℓ = X_ℓ / √(C_ℓ C_{ℓ+1}), where &quot;
+    &quot;C_ℓ is the pseudo-power spectrum. The scalar statistic is the mean &quot;
+    &quot;|R_ℓ| over the 8 pairs. Under ΛCDM with parity symmetry, Im[a_{ℓ,m} a*_{ℓ+1,m}] &quot;
+    &quot;products are symmetrically distributed with zero mean, so T should be &quot;
+    &quot;small. Non-zero T indicates coherent parity-odd phase correlations &quot;
+    &quot;between adjacent multipoles — a signature not captured by power-based &quot;
+    &quot;odd/even comparisons.&quot;
+)
+
+
+def analyze_map(m):
+    m = np.asarray(m, dtype=np.float64)
+    mask = np.isfinite(m)
+    m_clean = np.where(mask, m, 0.0)
+
+    lmin = 2
+    lmax = 10
+    n_pairs = lmax - lmin  # 8 pairs: (2,3) through (9,10)
+
+    # Compute alm up to lmax
+    alm = hp.map2alm(m_clean, lmax=lmax)
+
+    # Compute pseudo-spectrum C_ell for ell = 2..10
+    # hp.anafast returns pseudo-Cl with proper m&gt;=0 weighting
+    cl = hp.anafast(m_clean, lmax=lmax)
+
+    # Compute the parity-odd cross-statistic
+    R_values = []
+    for l in range(lmin, lmax):  # l = 2..9
+        # Sum Im[a_{l,m} * conj(a_{l+1,m})] for m = 0..l
+        X_l = 0.0
+        for mm in range(0, l + 1):
+            idx_l = hp.Alm.getidx(lmax, l, mm)
+            idx_lp1 = hp.Alm.getidx(lmax, l + 1, mm)
+            a_lm = alm[idx_l]
+            a_lp1_m = alm[idx_lp1]
+            X_l += np.imag(a_lm * np.conj(a_lp1_m))
+
+        C_l = cl[l]
+        C_lp1 = cl[l + 1]
+
+        denom = np.sqrt(C_l * C_lp1)
+        if denom &gt; 1e-30:
+            R_l = X_l / denom
+        else:
+            R_l = 0.0
+
+        R_values.append(np.abs(R_l))
+
+    T = float(np.mean(R_values))
+    return T
+
+
+def summarize_results(planck_stat, sim_results):
+    sim_arr = np.array(sim_results, dtype=np.float64)
+    finite_mask = np.isfinite(sim_arr)
+    n_finite = int(finite_mask.sum())
+
+    if n_finite &gt; 0:
+        valid = sim_arr[finite_mask]
+        sim_median = float(np.median(valid))
+        p_upper = float(np.sum(valid &gt;= planck_stat) / n_finite)
+        p_lower = float(np.sum(valid &lt;= planck_stat) / n_finite)
+        p_value = min(p_upper, p_lower)
+        rank_upper = int(np.sum(valid &gt;= planck_stat))
+        rank_lower = int(np.sum(valid &lt;= planck_stat))
+    else:
+        p_value = float(&quot;nan&quot;)
+        rank_upper = rank_lower = 0
+        sim_median = float(&quot;nan&quot;)
+
+    sim_mean = float(np.nanmean(sim_arr))
+    sim_std = float(np.nanstd(sim_arr))
+
+    if n_finite &gt; 0 and not np.isnan(p_value):
+        if p_upper &lt;= p_lower:
+            direction, rank = &quot;high&quot;, rank_upper
+        else:
+            direction, rank = &quot;low&quot;, rank_lower
+    else:
+        direction, rank = &quot;unknown&quot;, 0
+
+    # Build interpretation
+    parts = [
+        f&quot;Mean |R_ℓ| (cross-parity correlation) = {planck_stat:.6f}. &quot;
+        f&quot;Under ΛCDM with parity symmetry, Im[a_{{ℓ,m}} a*_{{ℓ+1,m}}] products &quot;
+        f&quot;are symmetrically distributed with zero mean, so this statistic should be small.&quot;,
+        f&quot;Two-sided p = {p_value:.3f} ({rank}/{n_finite} simulations &quot;
+        f&quot;at least as extreme in the {direction} direction).&quot;,
+        f&quot;Simulation mean = {sim_mean:.6f} ± {sim_std:.6f}, &quot;
+        f&quot;median = {sim_median:.6f}.&quot;,
+    ]
+
+    if not np.isnan(p_value) and p_value &lt; 0.05:
+        parts.append(
+            &quot;Anomalous: the coherent parity-odd cross-correlation between adjacent &quot;
+            &quot;low-ℓ multipoles is unusually large compared to ΛCDM simulations, &quot;
+            &quot;suggesting unexpected phase correlations that break parity symmetry.&quot;
+        )
+    else:
+        parts.append(
+            &quot;The low-ℓ cross-parity correlation is consistent with ΛCDM &quot;
+            &quot;simulation expectations (parity symmetry preserved).&quot;
+        )
+
+    result = {
+        &quot;test_description&quot;: test_description,
+        &quot;planck_stat&quot;: float(planck_stat),
+        &quot;p_value&quot;: float(p_value),
+        &quot;rank&quot;: rank,
+        &quot;n_simulations&quot;: len(sim_results),
+        &quot;n_valid&quot;: n_finite,
+        &quot;sim_mean&quot;: sim_mean,
+        &quot;sim_std&quot;: sim_std,
+        &quot;sim_median&quot;: sim_median,
+        &quot;exceeds_95th_percentile&quot;: bool(p_value &lt; 0.05) if not np.isnan(p_value) else False,
+        &quot;anomaly_direction&quot;: direction,
+        &quot;interpretation&quot;: &quot; &quot;.join(parts),
+        &quot;ell_range&quot;: &quot;2-10&quot;,
+    }
+
+    result[&quot;plot_spec&quot;] = {
+        &quot;kind&quot;: &quot;histogram&quot;,
+        &quot;title&quot;: &quot;Low-ℓ Cross-Parity Correlation Asymmetry&quot;,
+        &quot;xlabel&quot;: &quot;Mean |R_ℓ| (parity-odd cross-spectrum ratio)&quot;,
+        &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+        &quot;bins&quot;: 50,
+        &quot;caption&quot;: (
+            f&quot;Histogram of mean |R_ℓ| from {n_finite} ΛCDM simulations. &quot;
+            f&quot;Planck value = {planck_stat:.6f} &quot;
+            f&quot;(two-sided p = {p_value:.3f}, rank {rank}/{n_finite}, &quot;
+            f&quot;{direction} tail). Simulation mean = {sim_mean:.6f} ± {sim_std:.6f}. &quot;
+            f&quot;High values indicate coherent parity-odd phase correlations &quot;
+            f&quot;between adjacent low-ℓ multipoles.&quot;
+        ),
+    }
+
+    return result</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-14-low-cross-parity-correlation-asymmetry.png" alt="Statistic distribution for Low-ℓ Cross-Parity Correlation Asymmetry">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.451</td></tr>
+<tr><th>One-tailed p-value</th><td>0.451</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.902</td></tr>
+<tr><th>Sigma</th><td>0.123</td></tr>
+<tr><th>Planck statistic</th><td>1.388</td></tr>
+<tr><th>Simulation mean</th><td>1.369</td></tr>
+<tr><th>Simulation std.</th><td>0.379</td></tr>
+<tr><th>Simulation median</th><td>1.342</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>parity</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-14-low-cross-parity-correlation-asymmetry.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-14-low-cross-parity-correlation-asymmetry.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-14-low-cross-parity-correlation-asymmetry.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-14-low-cross-parity-correlation-asymmetry.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-14-low-cross-parity-correlation-asymmetry.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-14-low-cross-parity-correlation-asymmetry.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,56 @@
+{
+  "results": {
+    "test_name": "Low-\u2113 Gradient Magnitude Coefficient of Variation",
+    "test_description": "Compute the gradient magnitude map of the temperature anisotropy field using spherical harmonic derivatives up to \u2113_max=10. For each pixel, calculate the magnitude of the gradient vector (sqrt((dT/d\u03b8)\u00b2 + (1/sin\u03b8 dT/d\u03c6)\u00b2)). Then compute the coefficient of variation: the standard deviation of gradient magnitudes divided by the mean of gradient magnitudes across the masked sky. This single scalar measures the relative variability of temperature gradients, which can distinguish between Gaussian isotropic fluctuations and anisotropic or non-Gaussian structures.",
+    "test_hypothesis": "The coefficient of variation of the low-\u2113 gradient magnitude in the Planck CMB map is consistent with the distribution predicted by the standard \u039bCDM model (no anomaly in gradient variability).",
+    "test_type": "two-tailed",
+    "justification": "The test is designed to detect deviations from the \u039bCDM expectation in either direction\u2014either unusually high variability (which could indicate anisotropic or non-Gaussian structures) or unusually low variability (which could indicate an overly uniform gradient field). The analysis code explicitly computes both p-values and a two-sided p-value, and the interpretation logic in `summarize_results` checks for both higher and lower variability relative to simulations. Since there is no strong prior prediction for a specific direction of deviation, a two-tailed test is appropriate.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 0.5152543718830299,
+    "mean_sim_stat": 0.5275919382271385,
+    "std_sim_stat": 0.028036868858877153,
+    "median_sim_stat": 0.5255853807501404,
+    "sigma": 0.3826220751625341,
+    "p_value_two_tailed": 0.702
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Low-\u2113 Gradient Magnitude Coefficient of Variation. \"\n    \"Compute the gradient magnitude map of the temperature anisotropy field \"\n    \"using spherical harmonic derivatives up to \u2113_max=10. For each pixel, \"\n    \"calculate the magnitude of the gradient vector sqrt((dT/d\u03b8)\u00b2 + (1/sin\u03b8 dT/d\u03c6)\u00b2). \"\n    \"Then compute the coefficient of variation: the standard deviation of gradient \"\n    \"magnitudes divided by the mean of gradient magnitudes across the masked sky. \"\n    \"This single scalar measures the relative variability of temperature gradients, \"\n    \"which can distinguish between Gaussian isotropic fluctuations and anisotropic \"\n    \"or non-Gaussian structures.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return the coefficient of variation of the gradient magnitude at low \u2113.\"\"\"\n    nside = hp.npix2nside(len(m))\n    lmax = 10\n\n    # Replace masked pixels with 0.0 for spherical harmonic transforms\n    valid = np.isfinite(m)\n    m_filled = np.where(valid, m, 0.0)\n\n    # Forward transform to get a_{\u2113m}\n    alm = hp.map2alm(m_filled, lmax=lmax)\n\n    # Compute gradient maps using healpy's alm2map_der1\n    # Returns (T_map, dT_dtheta, dT_dphi_over_sintheta)\n    _, dT_dtheta, dT_dphi_sintheta = hp.alm2map_der1(alm, nside, lmax=lmax)\n\n    # Compute gradient magnitude: sqrt((dT/d\u03b8)\u00b2 + (1/sin\u03b8 dT/d\u03c6)\u00b2)\n    grad_mag = np.sqrt(dT_dtheta**2 + dT_dphi_sintheta**2)\n\n    # Extract valid (unmasked) pixel values\n    grad_valid = grad_mag[valid]\n\n    n = len(grad_valid)\n    if n < 2:\n        return 0.0\n\n    # Compute coefficient of variation\n    mean_grad = np.mean(grad_valid)\n    if mean_grad <= 0 or not np.isfinite(mean_grad):\n        return 0.0\n\n    std_grad = np.std(grad_valid, ddof=1)\n    if not np.isfinite(std_grad):\n        return 0.0\n\n    cv = std_grad / mean_grad\n\n    if not np.isfinite(cv):\n        return 0.0\n\n    return float(cv)\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Interpret the Low-\u2113 Gradient Magnitude Coefficient of Variation.\"\"\"\n    sims = np.asarray(sim_results, dtype=float)\n    sims = sims[np.isfinite(sims)]\n    n = len(sims)\n    if n == 0:\n        return {\"planck_stat\": planck_stat, \"note\": \"No finite simulation results.\"}\n\n    mean_s = float(np.mean(sims))\n    std_s = float(np.std(sims, ddof=1)) if n > 1 else 0.0\n    median_s = float(np.median(sims))\n    rank = int(np.sum(sims <= planck_stat))\n    p_upper = float(np.mean(sims >= planck_stat))\n    p_lower = float(np.mean(sims <= planck_stat))\n    p_two = min(2.0 * min(p_upper, p_lower), 1.0)\n    z_score = (planck_stat - mean_s) / std_s if std_s > 0 else 0.0\n    pct_rank = rank / n * 100 if n > 0 else 50.0\n\n    if pct_rank < 2.5 or pct_rank > 97.5:\n        sig_desc = \"highly anomalous (<2.5% or >97.5% of sims)\"\n    elif pct_rank < 5 or pct_rank > 95:\n        sig_desc = \"marginally anomalous (<5% or >95% of sims)\"\n    elif pct_rank < 25 or pct_rank > 75:\n        sig_desc = \"noteworthy (outside IQR of sims)\"\n    else:\n        sig_desc = \"typical (within IQR of sims)\"\n\n    if planck_stat > mean_s + std_s:\n        cv_desc = \"higher gradient variability than typical LCDM (possible anisotropic structures)\"\n    elif planck_stat < mean_s - std_s:\n        cv_desc = \"lower gradient variability than typical LCDM (unusually uniform gradient field)\"\n    else:\n        cv_desc = \"gradient variability consistent with LCDM expectations\"\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"coefficient_of_variation\": planck_stat,\n        \"sim_mean\": mean_s,\n        \"sim_std\": std_s,\n        \"sim_median\": median_s,\n        \"z_score\": z_score,\n        \"rank\": rank,\n        \"p_value_upper\": p_upper,\n        \"p_value_lower\": p_lower,\n        \"p_value_two_sided\": p_two,\n        \"n_sims\": n,\n        \"percentile_rank\": pct_rank,\n        \"cv_description\": cv_desc,\n        \"significance_description\": sig_desc,\n        \"interpretation\": (\n            f\"Gradient magnitude CoV = {planck_stat:.6f}. {cv_desc}. \"\n            f\"Sim mean \u00b1 std = {mean_s:.6f} \u00b1 {std_s:.6f}. \"\n            f\"{sig_desc}. z = {z_score:.2f}, two-sided p = {p_two:.4f}.\"\n        ),\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-\u2113 Gradient Magnitude Coefficient of Variation\",\n            \"xlabel\": \"Coefficient of Variation (std/mean of |\u2207T|)\",\n            \"ylabel\": \"Count\",\n            \"bins\": 30,\n            \"caption\": (\n                f\"Planck CoV = {planck_stat:.6f}. \"\n                f\"Sim mean \u00b1 std = {mean_s:.6f} \u00b1 {std_s:.6f}. \"\n                f\"z = {z_score:.2f}, P(two-sided) = {p_two:.4f}.\"\n            ),\n        },\n    }\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": 0.45629273159413203,
+    "sim_max": 0.6303919269121978,
+    "z_score": -0.4398278595245023,
+    "thresholds": [
+      0.4788011371781641,
+      0.5881703168105213
+    ],
+    "coefficient_of_variation": 0.5152543718830299,
+    "rank": 351,
+    "p_value_upper": 0.649,
+    "p_value_lower": 0.351,
+    "percentile_rank": 35.099999999999994,
+    "cv_description": "gradient variability consistent with LCDM expectations",
+    "significance_description": "typical (within IQR of sims)",
+    "interpretation": "Gradient magnitude CoV = 0.515254. gradient variability consistent with LCDM expectations. Sim mean \u00b1 std = 0.527592 \u00b1 0.028051. typical (within IQR of sims). z = -0.44, two-sided p = 0.7020.",
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-\u2113 Gradient Magnitude Coefficient of Variation",
+      "xlabel": "Coefficient of Variation (std/mean of |\u2207T|)",
+      "ylabel": "Count",
+      "bins": 30,
+      "caption": "Planck CoV = 0.515254. Sim mean \u00b1 std = 0.527592 \u00b1 0.028051. z = -0.44, P(two-sided) = 0.7020."
+    }
+  },
+  "updated_summary": {
+    "Test name": "Low-\u2113 Gradient Magnitude Coefficient of Variation",
+    "Description": "The gradient magnitude of the CMB temperature field is computed via spherical harmonic derivatives up to \u2113_max=10. For each unmasked pixel, the gradient magnitude |\u2207T| = \u221a((dT/d\u03b8)\u00b2 + (1/sin\u03b8 \u00b7 dT/d\u03c6)\u00b2) is calculated. The coefficient of variation (CoV = std/mean of |\u2207T|) is then extracted as a single scalar probing the relative spatial variability of low-\u2113 temperature gradients, sensitive to anisotropic or non-Gaussian structures.",
+    "Results": "Planck CoV = 0.515; simulation mean \u00b1 std = 0.528 \u00b1 0.028. The Planck value corresponds to z = \u22120.44 and a two-sided p-value of 0.702, placing it at the 35th percentile of 1000 \u039bCDM realizations\u2014well within the interquartile range.",
+    "Interpretation": "The gradient variability in Planck data is entirely typical of \u039bCDM expectations. No evidence for unusually high variability (which would suggest anisotropic/non-Gaussian structure) or unusually low variability (suggesting an overly uniform gradient field) is found. The CoV lies comfortably within one standard deviation of the simulation mean.",
+    "Meets hypothesis?": "Yes",
+    "Comparison to literature": "No prior studies using gradient magnitude coefficient of variation as a CMB anomaly statistic were identified in available literature. Related low-\u2113 anomaly work\u2014such as multipole vector analyses (Copi et al. 2004) and bipolar power spectrum tests (Ghosh et al. 2007)\u2014addresses statistical isotropy through entirely different statistics. This gradient-based approach probes complementary spatial structure but has no direct published precedent.",
+    "Test novelty": "Novel",
+    "Verdict": "No anomalies found"
+  }
+}

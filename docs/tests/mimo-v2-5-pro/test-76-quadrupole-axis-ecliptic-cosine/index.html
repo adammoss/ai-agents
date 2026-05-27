@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quadrupole Axis Ecliptic Cosine · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 76 · Mimo V2.5 Pro</p>
+      <h1>Quadrupole Axis Ecliptic Cosine</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · lower tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The absolute value of the cosine of the angle between the quadrupole preferred axis and the ecliptic north pole is anomalously small, indicating the quadrupole axis lies close to the ecliptic plane.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The preferred axis of the CMB quadrupole (ℓ=2) is extracted by diagonalizing the quadrupole moment tensor built from a₂ₘ coefficients. The eigenvector of the largest eigenvalue is expressed in ecliptic Cartesian coordinates, and the cosine of its angle with the ecliptic north pole (0,0,1) is reported as the anomaly statistic.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The Planck quadrupole axis yields cos(θ) = −0.673 (|cos(θ)| = 0.673), corresponding to ~48° from the ecliptic pole (~42° from the ecliptic plane). The z-score is −1.24 with one-tailed lower p-value = 0.154. The simulation-based p-value for the absolute cosine test is P(|cos| ≥ 0.673) = 0.389, meaning the Planck value sits comfortably within the simulated distribution and is not in the lower tail.</p>
+          <p>The hypothesis predicted an anomalously small |cos(θ)|, indicating alignment with the ecliptic plane. Instead, |cos(θ)| = 0.673 is entirely consistent with statistical isotropy — roughly 61% of isotropic realizations have |cos| ≤ 0.673. The quadrupole axis is moderately inclined relative to the ecliptic pole but shows no statistically significant preference for the ecliptic plane.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test description explicitly states that a small absolute cosine is anomalous because the CMB quadrupole is known to have a preferred direction near the ecliptic plane. This is a directional hypothesis: under statistical isotropy, the absolute cosine should be uniformly distributed, but the alternative hypothesis predicts it to be concentrated near zero (lower tail). Thus, the test is one-tailed, focusing on small values of the absolute cosine.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The ecliptic alignment of the CMB quadrupole has been investigated extensively (e.g., Tegmark et al. 2003; Copi et al. 2004; Planck 2013 XVI; Planck 2020). Most prior studies focus on quadrupole–octupole alignment or multipole axis correlations rather than isolating this single cosine statistic, though related directional tests exist. The search results did not return a directly comparable published analysis using this exact statistic.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;For the low-ℓ temperature map (ℓ=2 only), compute the quadrupole moment tensor &quot;
+    &quot;T_{ij} from the spherical harmonic coefficients a_{2m} by reconstructing the ℓ=2 map &quot;
+    &quot;and numerically summing T_2(p) * n_i(p) * n_j(p) over all pixels. Diagonalize the &quot;
+    &quot;3×3 tensor to find the eigenvector corresponding to the largest eigenvalue, representing &quot;
+    &quot;the preferred axis of the quadrupole. Express this eigenvector as a unit vector in &quot;
+    &quot;Cartesian coordinates aligned with the ecliptic system (z-axis = ecliptic north pole). &quot;
+    &quot;The anomaly statistic is the cosine of the angle between this quadrupole axis and the &quot;
+    &quot;ecliptic north pole (0,0,1), which equals simply the z-component of the eigenvector. &quot;
+    &quot;This cosine ranges from -1 (anti-aligned) to +1 (aligned), with values near 0 indicating &quot;
+    &quot;an axis perpendicular to the ecliptic pole. The CMB quadrupole is known to have a &quot;
+    &quot;preferred direction near the ecliptic plane, so a small absolute cosine would be &quot;
+    &quot;anomalous. The computation is efficient as it only requires low-ℓ harmonics and a 3×3 &quot;
+    &quot;matrix diagonalization.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return cos(angle) between the quadrupole preferred axis and ecliptic north pole.&quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    npix = hp.nside2npix(nside)
+    lmax = 2
+
+    # --- 1. Replace NaNs with 0 for healpy compatibility ---
+    mask_valid = np.isfinite(m)
+    m_clean = np.where(mask_valid, m, 0.0)
+
+    # --- 2. Compute a_lm and keep only ℓ=2 ---
+    alm = hp.map2alm(m_clean, lmax=lmax, iter=10)
+    # Zero out ℓ=0 and ℓ=1
+    for ell in range(2):
+        for m_idx in range(ell + 1):
+            alm[hp.Alm.getidx(lmax, ell, m_idx)] = 0.0
+
+    # --- 3. Reconstruct the ℓ=2 only map ---
+    T2 = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # --- 4. Compute pixel unit vectors ---
+    vecs = np.array(hp.pix2vec(nside, np.arange(npix)))  # shape (3, npix)
+    # vecs[0] = x, vecs[1] = y, vecs[2] = z (ecliptic coords)
+
+    # --- 5. Build the quadrupole moment tensor Q_{ij} = Σ_p T2(p) * n_i(p) * n_j(p) ---
+    # This is a symmetric 3x3 tensor
+    Q = np.zeros((3, 3))
+    for i in range(3):
+        for j in range(i, 3):
+            Q[i, j] = np.sum(T2 * vecs[i] * vecs[j])
+            Q[j, i] = Q[i, j]
+
+    # --- 6. Diagonalize to find preferred axis ---
+    eigenvalues, eigenvectors = np.linalg.eigh(Q)
+    # eigh returns eigenvalues in ascending order
+    # The preferred axis corresponds to the largest eigenvalue (index 2)
+    preferred_axis = eigenvectors[:, 2]  # unit eigenvector
+
+    # --- 7. Cosine of angle with ecliptic north pole (0, 0, 1) ---
+    cos_angle = preferred_axis[2]  # z-component of the eigenvector
+
+    return float(cos_angle)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the Quadrupole Axis Ecliptic Cosine statistic.&quot;&quot;&quot;
+    sims = np.asarray(sim_results, dtype=float)
+    sims = sims[np.isfinite(sims)]
+    n = len(sims)
+
+    if n == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims))
+    std_s = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    p_upper = float(np.mean(sims &gt;= planck_stat))
+    p_lower = float(np.mean(sims &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else np.nan
+
+    abs_planck = abs(planck_stat)
+    p_abs_upper = float(np.mean(np.abs(sims) &gt;= abs_planck))
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;planck_stat_abs&quot;: abs_planck,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;p_value_abs_upper&quot;: p_abs_upper,
+        &quot;n_sims&quot;: n,
+        &quot;interpretation&quot;: (
+            &quot;The cosine of the angle between the quadrupole preferred axis and the ecliptic &quot;
+            &quot;north pole. A value near ±1 means the quadrupole axis is aligned/anti-aligned with &quot;
+            &quot;the ecliptic pole, while a value near 0 means it lies in or near the ecliptic &quot;
+            &quot;plane. The CMB quadrupole is known to have its axis close to the ecliptic plane, &quot;
+            &quot;so a small |cos(angle)| (p_value_abs_upper small) would indicate an anomalous &quot;
+            &quot;alignment with the ecliptic. Under statistical isotropy, the cosine should be &quot;
+            &quot;uniformly distributed in [-1, 1].&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Quadrupole Axis Ecliptic Cosine&quot;,
+            &quot;xlabel&quot;: &quot;cos(angle) with ecliptic north pole&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck cos(θ) = {planck_stat:.4f} (|cos(θ)| = {abs_planck:.4f}). &quot;
+                f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, p(two-sided) = {p_two:.3f}. &quot;
+                f&quot;P(|cos| ≥ |cos_planck|) = {p_abs_upper:.3f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-76-quadrupole-axis-ecliptic-cosine.png" alt="Statistic distribution for Quadrupole Axis Ecliptic Cosine">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.154</td></tr>
+<tr><th>One-tailed p-value</th><td>0.154</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.308</td></tr>
+<tr><th>Sigma</th><td>1.019</td></tr>
+<tr><th>Planck statistic</th><td>-0.673</td></tr>
+<tr><th>Simulation mean</th><td>0.0871</td></tr>
+<tr><th>Simulation std.</th><td>0.612</td></tr>
+<tr><th>Simulation median</th><td>0.167</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>lower</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-76-quadrupole-axis-ecliptic-cosine.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-76-quadrupole-axis-ecliptic-cosine.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-76-quadrupole-axis-ecliptic-cosine.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-76-quadrupole-axis-ecliptic-cosine.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-76-quadrupole-axis-ecliptic-cosine.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-76-quadrupole-axis-ecliptic-cosine.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

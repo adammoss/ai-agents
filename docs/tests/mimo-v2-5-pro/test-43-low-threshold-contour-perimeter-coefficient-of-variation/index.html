@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Threshold-Contour Perimeter Coefficient of Variation · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 43 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Threshold-Contour Perimeter Coefficient of Variation</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The coefficient of variation of iso-temperature contour perimeters for the Planck CMB map differs from the distribution expected under the standard ΛCDM Gaussian random field model.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>A morphological statistic measuring the coefficient of variation (CV) of iso-temperature contour perimeter lengths across nine percentile thresholds (10th–90th) of the low-ℓ (ℓ=2–30) CMB temperature field. Boundary pixels are identified at each threshold as hot pixels with at least one cold or masked neighbor, and perimeters are scaled by average pixel diameter at nside=256. Higher CV indicates uneven distribution of morphological complexity across temperature levels, which can signal non-Gaussian features such as cold spots or dipole modulation.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The Planck SMICA map yields CV = 0.2447, compared to the simulation mean of 0.2646 ± 0.0176 (−1.13σ, percentile = 13.0%). The two-sided p-value is 0.26, indicating no significant departure from Gaussian LCDM expectations. Anomaly strength is classified as negligible.</p>
+          <p>The contour perimeter variability across temperature thresholds is fully consistent with the standard ΛCDM Gaussian random field model. The Planck value sits slightly below the simulation mean but well within the expected scatter, showing no evidence that morphological complexity is preferentially concentrated at particular temperature levels (e.g., due to a cold spot or modulation pattern).</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect any deviation in morphological complexity distribution from Gaussian expectations. The anomaly could manifest as either higher CV (uneven complexity, e.g., from a cold spot) or lower CV (unusually uniform complexity). The summary function explicitly computes a two-sided p-value and interprets both higher and lower directions, indicating a general exploratory test for any significant change.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No directly comparable studies using a coefficient of variation of iso-temperature contour perimeters were found. Related morphological analyses include Minkowski functionals, genus curves, and spot ellipticity studies (e.g., Gurzadyan et al. 2003), but this specific statistic appears unexplored in the CMB anomaly literature.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Threshold-Contour Perimeter Coefficient of Variation: &quot;
+    &quot;This statistic measures the relative variability of iso-temperature &quot;
+    &quot;contour perimeter lengths across temperature thresholds, capturing &quot;
+    &quot;how morphological complexity distributes across the temperature field. &quot;
+    &quot;In Gaussian random fields, contour complexity distributes relatively &quot;
+    &quot;uniformly across temperature percentiles, while modulated or &quot;
+    &quot;non-Gaussian fields produce uneven complexity (e.g., a cold spot &quot;
+    &quot;concentrates perimeter at low thresholds). The statistic is &quot;
+    &quot;independent of the one-point PDF and distinct from topological &quot;
+    &quot;measures like genus. It belongs to the morphological/spatial-structure &quot;
+    &quot;family of anomaly statistics.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Low-ℓ Threshold-Contour Perimeter Coefficient of Variation.
+
+    Steps:
+    1. Filter to ℓ = 2–30 via spherical harmonic decomposition (zero ℓ=0,1).
+    2. Compute 9 percentile thresholds (10th–90th) on valid (unmasked) pixels.
+    3. For each threshold, identify boundary pixels (hot pixel with at least
+       one cold or masked neighbor) and compute contour perimeter.
+    4. Return CV = std(perimeters) / mean(perimeters).
+    &quot;&quot;&quot;
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 100:
+        return 0.0
+
+    nside = hp.get_nside(m)
+    npix = 12 * nside ** 2
+
+    # Step 1: Filter to ℓ = 2–30
+    clean = m.copy()
+    clean[~mask] = 0.0
+
+    lmax = 30
+    alm = hp.map2alm(clean, lmax=lmax)
+    # Zero out ℓ=0 and ℓ=1 to retain only ℓ=2–30
+    # alm index layout: (l, m) -&gt; l*(l+1)//2 + m
+    alm[0] = 0.0   # (0, 0)
+    alm[1] = 0.0   # (1, 0)
+    alm[2] = 0.0   # (1, 1)
+    filtered = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Step 3: Compute 9 thresholds (10th through 90th percentiles)
+    temps_valid = filtered[mask]
+    thresholds = np.percentile(temps_valid, np.arange(10, 100, 10))  # 9 values
+
+    # Average pixel diameter at nside=256 ≈ 0.23°, converted to radians
+    pixel_diam_rad = 0.23 * np.pi / 180.0
+
+    # Precompute neighbor indices once (shape: 8 x npix)
+    neighbors = hp.get_all_neighbours(nside, np.arange(npix))
+    # Replace -1 (missing neighbor at poles) with 0 for safe indexing
+    safe_neighbors = np.where(neighbors &gt;= 0, neighbors, 0).astype(np.intp)
+    valid_neighbors = neighbors &gt;= 0  # bool mask for real neighbors
+
+    # Step 4: For each threshold, compute contour perimeter
+    perimeters = np.zeros(9)
+    for i, T_i in enumerate(thresholds):
+        # Hot pixels: unmasked AND filtered temperature &gt;= T_i
+        hot = np.zeros(npix, dtype=bool)
+        hot[mask] = filtered[mask] &gt;= T_i
+
+        # Cold pixels: masked OR filtered &lt; T_i (complement of hot)
+        cold = ~hot
+
+        # Vectorized neighbor check: any neighbor that is cold?
+        neighbor_cold = cold[safe_neighbors]        # (8, npix)
+        neighbor_cold[~valid_neighbors] = False      # missing neighbors don&#x27;t count
+        any_neighbor_cold = np.any(neighbor_cold, axis=0)
+
+        # Boundary pixels: hot AND at least one cold neighbor
+        boundary = hot &amp; any_neighbor_cold
+        perimeters[i] = int(np.sum(boundary)) * pixel_diam_rad
+
+    # Step 5: Coefficient of variation of perimeter values
+    mean_L = np.mean(perimeters)
+    if mean_L &lt;= 0:
+        return 0.0
+
+    cv = float(np.std(perimeters) / mean_L)
+    return cv if np.isfinite(cv) else 0.0
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Threshold-Contour Perimeter CV test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Threshold-Contour Perimeter CV&quot;,
+                &quot;xlabel&quot;: &quot;CV&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck shows significantly higher contour perimeter variability &quot;
+            &quot;than LCDM simulations, indicating non-uniform morphological &quot;
+            &quot;complexity across temperature thresholds — consistent with &quot;
+            &quot;modulated or non-Gaussian structure (e.g., a cold spot &quot;
+            &quot;concentrating perimeter at low thresholds).&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck shows significantly lower contour perimeter variability &quot;
+            &quot;than LCDM simulations, suggesting unusually uniform morphological &quot;
+            &quot;complexity across temperature thresholds.&quot;
+        )
+    else:
+        direction = (
+            &quot;The contour perimeter variability is consistent with Gaussian &quot;
+            &quot;LCDM expectations.&quot;
+        )
+
+    interp = (
+        f&quot;Threshold-contour perimeter CV = {planck_stat:.4f}. &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the coefficient of variation (CV) of iso-temperature &quot;
+        &quot;contour perimeters computed at 9 percentile thresholds (10th–90th) &quot;
+        &quot;of the low-ℓ (ℓ=2–30) CMB temperature field. Higher CV indicates &quot;
+        &quot;that morphological complexity is unevenly distributed across &quot;
+        &quot;temperature levels, which can signal non-Gaussian features such &quot;
+        &quot;as cold spots or modulation. Red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Threshold-Contour Perimeter CV&quot;,
+            &quot;xlabel&quot;: &quot;CV of contour perimeters&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-43-low-threshold-contour-perimeter-coefficient-of-variation.png" alt="Statistic distribution for Low-ℓ Threshold-Contour Perimeter Coefficient of Variation">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.26</td></tr>
+<tr><th>One-tailed p-value</th><td>0.13</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.26</td></tr>
+<tr><th>Sigma</th><td>1.126</td></tr>
+<tr><th>Planck statistic</th><td>0.245</td></tr>
+<tr><th>Simulation mean</th><td>0.265</td></tr>
+<tr><th>Simulation std.</th><td>0.0176</td></tr>
+<tr><th>Simulation median</th><td>0.264</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-43-low-threshold-contour-perimeter-coefficient-of-variation.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-43-low-threshold-contour-perimeter-coefficient-of-variation.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-43-low-threshold-contour-perimeter-coefficient-of-variation.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-43-low-threshold-contour-perimeter-coefficient-of-variation.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-43-low-threshold-contour-perimeter-coefficient-of-variation.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-43-low-threshold-contour-perimeter-coefficient-of-variation.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

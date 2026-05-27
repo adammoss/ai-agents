@@ -1,0 +1,52 @@
+{
+  "results": {
+    "test_name": "Low-\u2113 Extreme-Direction Dipole Magnitude",
+    "test_description": "Smooth the temperature map to a maximum multipole of \u2113=10. Identify the single hottest and single coldest pixel in the smoothed map. Treat their sky positions as unit vectors \\(\\mathbf{\\hat{n}}_{hot}\\) and \\(\\mathbf{\\hat{n}}_{cold}\\). Compute the dipole vector \\(\\mathbf{D} = \\mathbf{\\hat{n}}_{hot} + \\mathbf{\\hat{n}}_{cold}\\). The statistic is the magnitude \\(|\\mathbf{D}|\\). This measures the net directional preference of the two most extreme temperature features at large angular scales, testing for an unexpected dipole in their spatial arrangement.",
+    "test_hypothesis": "The Planck CMB temperature map exhibits an unusually large magnitude of the dipole vector formed by the hottest and coldest spots in the low-\u2113 smoothed map, indicating a net directional alignment (rather than antipodality) compared to simulations from the standard cosmological model.",
+    "test_type": "one-tailed, upper",
+    "justification": "The test statistic |D| ranges from 0 (perfect antipodality) to 2 (perfect alignment). The test description explicitly states it measures \"the net directional preference\" and is \"testing for an unexpected dipole in their spatial arrangement.\" The summary interpretation highlights that values significantly above the simulation mean indicate the extremes are \"preferentially aligned rather than antipodal, suggesting a dipolar directional preference.\" This defines a clear directional hypothesis favoring high |D|, justifying a one-tailed upper test.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 1.1625549940512485,
+    "mean_sim_stat": 1.4255242062163456,
+    "std_sim_stat": 0.39639471003173377,
+    "median_sim_stat": 1.5327475778773154,
+    "sigma": 0.7355575573851105,
+    "p_value_one_tailed": 0.769,
+    "tail": "upper"
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"Smooth the temperature map to a maximum multipole of \u2113=10. \"\n    \"Identify the single hottest and single coldest pixel in the smoothed map. \"\n    \"Treat their sky positions as unit vectors n_hot and n_cold. \"\n    \"Compute the dipole vector D = n_hot + n_cold. \"\n    \"The statistic is the magnitude |D|. This measures the net directional preference \"\n    \"of the two most extreme temperature features at large angular scales, testing for \"\n    \"an unexpected dipole in their spatial arrangement.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return |D|: magnitude of dipole vector from hot and cold extreme directions at low-\u2113.\"\"\"\n    nside = hp.npix2nside(len(m))\n    lmax = 10\n\n    # Track which pixels are unmasked\n    valid = np.isfinite(m)\n\n    # Replace NaNs with 0 for healpy compatibility\n    m_clean = np.where(valid, m, 0.0)\n\n    # Decompose into spherical harmonics up to lmax=10 and reconstruct\n    alm = hp.map2alm(m_clean, lmax=lmax, iter=10)\n    m_smooth = hp.alm2map(alm, nside=nside, lmax=lmax)\n\n    # Only consider unmasked pixels for finding extremes\n    valid_indices = np.where(valid)[0]\n    if len(valid_indices) == 0:\n        return 0.0\n\n    m_valid = m_smooth[valid_indices]\n\n    # Find hottest and coldest pixels among unmasked set (vectorized)\n    idx_hot_local = np.argmax(m_valid)\n    idx_cold_local = np.argmin(m_valid)\n\n    pix_hot = valid_indices[idx_hot_local]\n    pix_cold = valid_indices[idx_cold_local]\n\n    # Get unit vectors for these pixels\n    n_hot = np.array(hp.pix2vec(nside, pix_hot))\n    n_cold = np.array(hp.pix2vec(nside, pix_cold))\n\n    # Compute dipole vector D = n_hot + n_cold, return magnitude |D|\n    D = n_hot + n_cold\n    return float(np.sqrt(np.sum(D ** 2)))\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Interpret the Low-\u2113 Extreme-Direction Dipole Magnitude statistic.\"\"\"\n    sims = np.asarray(sim_results, dtype=float)\n    sims = sims[np.isfinite(sims)]\n    n = len(sims)\n\n    if n == 0:\n        return {\"planck_stat\": planck_stat, \"note\": \"No finite simulation results.\"}\n\n    mean_s = float(np.mean(sims))\n    std_s = float(np.std(sims, ddof=1)) if n > 1 else 0.0\n    median_s = float(np.median(sims))\n\n    # p-value upper: fraction of sims with |D| >= Planck (anomalously aligned extremes)\n    p_upper = float(np.mean(sims >= planck_stat))\n    # p-value lower: fraction of sims with |D| <= Planck (anomalously antipodal extremes)\n    p_lower = float(np.mean(sims <= planck_stat))\n    # Two-sided p-value\n    p_two = min(2.0 * min(p_upper, p_lower), 1.0)\n\n    # z-score relative to simulation ensemble\n    z_score = (planck_stat - mean_s) / std_s if std_s > 0 else 0.0\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"sim_mean\": mean_s,\n        \"sim_std\": std_s,\n        \"sim_median\": median_s,\n        \"z_score\": z_score,\n        \"p_value_upper\": p_upper,\n        \"p_value_lower\": p_lower,\n        \"p_value_two_sided\": p_two,\n        \"n_sims\": n,\n        \"interpretation\": (\n            f\"|D| = magnitude of dipole vector from hot and cold extreme directions at low-\u2113. \"\n            f\"|D|=0 means hottest and coldest spots are perfectly antipodal; \"\n            f\"|D|=2 means they are co-located (physically unlikely). \"\n            f\"Values significantly above the simulation mean indicate the two most extreme \"\n            f\"temperature features are preferentially aligned rather than antipodal, \"\n            f\"suggesting a dipolar directional preference in the arrangement of low-\u2113 extremes. \"\n            f\"Planck z-score = {z_score:.2f} relative to simulations. \"\n            f\"P(|D| \u2265 Planck) = {p_upper:.4f}.\"\n        ),\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-\u2113 Extreme-Direction Dipole Magnitude\",\n            \"xlabel\": \"|D| (Dipole magnitude from extreme directions)\",\n            \"ylabel\": \"Count\",\n            \"bins\": 30,\n            \"caption\": (\n                f\"Planck |D| = {planck_stat:.4f}. \"\n                f\"Sim mean \u00b1 \u03c3 = {mean_s:.4f} \u00b1 {std_s:.4f}. \"\n                f\"z = {z_score:.2f}, P(\u2265 Planck) = {p_upper:.4f}.\"\n            ),\n        },\n    }\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": 0.11587526996887593,
+    "sim_max": 1.9476749616403348,
+    "z_score": -0.6630706415087512,
+    "thresholds": [
+      0.4147478166846382,
+      1.9161931984769227
+    ],
+    "p_value_upper": 0.769,
+    "p_value_lower": 0.231,
+    "interpretation": "|D| = magnitude of dipole vector from hot and cold extreme directions at low-\u2113. |D|=0 means hottest and coldest spots are perfectly antipodal; |D|=2 means they are co-located (physically unlikely). Values significantly above the simulation mean indicate the two most extreme temperature features are preferentially aligned rather than antipodal, suggesting a dipolar directional preference in the arrangement of low-\u2113 extremes. Planck z-score = -0.66 relative to simulations. P(|D| \u2265 Planck) = 0.7690.",
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-\u2113 Extreme-Direction Dipole Magnitude",
+      "xlabel": "|D| (Dipole magnitude from extreme directions)",
+      "ylabel": "Count",
+      "bins": 30,
+      "caption": "Planck |D| = 1.1626. Sim mean \u00b1 \u03c3 = 1.4255 \u00b1 0.3966. z = -0.66, P(\u2265 Planck) = 0.7690."
+    }
+  },
+  "updated_summary": {
+    "Test name": "Low-\u2113 Extreme-Direction Dipole Magnitude",
+    "Description": "Smooth the Planck CMB temperature map to \u2113=10, identify the single hottest and coldest pixels, and form unit vectors from their sky positions. The statistic |D| = |n_hot + n_cold| ranges from 0 (perfectly antipodal extremes) to 2 (co-located extremes), testing whether the two most extreme low-\u2113 temperature features show an unexpected directional alignment rather than the expected antipodal arrangement.",
+    "Results": "Planck |D| = 1.1626, compared to simulation mean \u00b1 \u03c3 = 1.4255 \u00b1 0.3964. The z-score is \u22120.66 with an upper-tail p-value of 0.769. The Planck value lies below the simulation median (1.5327), indicating the extremes are slightly more antipodal than typical LCDM realizations.",
+    "Interpretation": "There is no evidence of anomalous alignment among the hottest and coldest low-\u2113 features. If anything, the Planck extremes are marginally more antipodal than the simulation average, entirely consistent with statistical fluctuations in the standard model. The high p-value (0.769) rules out any upper-tail anomaly.",
+    "Meets hypothesis?": "No",
+    "Comparison to literature": "No prior studies were found testing this specific statistic\u2014constructing a dipole vector from the hottest and coldest pixel positions in a low-\u2113 smoothed CMB map. Related literature examines CMB dipole alignments with large-scale structure (e.g., Luongo et al. 2022 on H\u2080 hemispherical variations along the CMB dipole direction), but none use this particular directional-extreme diagnostic.",
+    "Test novelty": "Novel",
+    "Verdict": "No anomalies found"
+  }
+}

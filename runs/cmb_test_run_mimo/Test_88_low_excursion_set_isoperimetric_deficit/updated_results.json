@@ -1,0 +1,54 @@
+{
+  "results": {
+    "test_name": "Low-\u2113 Excursion Set Isoperimetric Deficit",
+    "test_description": "For the low-\u2113 filtered temperature map (\u2113 \u2264 20), define an excursion set as all pixels where the temperature exceeds 0 \u00b5K (the mean). Compute the set's total area A in square degrees and the total perimeter P in degrees of the set's boundary (counting the edges between pixels where one is inside the set and the other is outside). The statistic is the isoperimetric deficit: 1 - (4\u03c0A / P\u00b2). This measures the shape compactness of the hot excursion region, where a perfect hemisphere on a sphere gives a deficit of 0 and more convoluted, fractal-like boundaries yield values closer to 1.",
+    "test_hypothesis": "The isoperimetric deficit of the low-\u2113 hot excursion set in the Planck CMB temperature map deviates significantly from the distribution expected under \u039bCDM simulations, indicating an anomaly in the compactness or boundary structure of the hot region.",
+    "test_type": "two-tailed",
+    "justification": "The test measures compactness, and anomalies could appear as either unusually compact (low deficit) or highly convoluted (high deficit) boundaries. The analysis code computes both upper and lower p-values and a two-sided p-value, showing no inherent directional bias. Since this is an exploratory anomaly test without a prior expectation for a specific change, a two-tailed test is appropriate for detecting deviations in either direction.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 0.9968407968272001,
+    "mean_sim_stat": 0.9959692315568734,
+    "std_sim_stat": 0.0007087192817580028,
+    "median_sim_stat": 0.9960858290002026,
+    "sigma": 1.4985130678799752,
+    "p_value_two_tailed": 0.134
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"For the low-\u2113 filtered temperature map (\u2113 \u2264 20), define an excursion set \"\n    \"as all pixels where the temperature exceeds 0 \u00b5K (the mean). Compute the \"\n    \"set's total area A in square degrees and the total perimeter P in degrees \"\n    \"of the set's boundary (counting the edges between pixels where one is inside \"\n    \"the set and the other is outside). The statistic is the isoperimetric deficit: \"\n    \"1 - (4\u03c0A / P\u00b2). This measures the shape compactness of the hot excursion region, \"\n    \"where a perfect hemisphere on a sphere gives a deficit of 0 and more convoluted, \"\n    \"fractal-like boundaries yield values closer to 1.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return isoperimetric deficit of the low-\u2113 excursion set boundary.\n\n    The deficit is 1 - (4\u03c0 n_pixels / n_edges\u00b2), which measures how convoluted\n    the hot excursion-set boundary is relative to a compact (hemisphere-like) shape.\n    0 = perfectly compact; approaches 1 for fractal-like boundaries.\n    \"\"\"\n    valid = np.isfinite(m)\n    n_valid = int(np.sum(valid))\n\n    if n_valid < 50:\n        return 0.0\n\n    # Replace NaN with 0.0 for healpy compatibility\n    m_clean = np.where(valid, m, 0.0)\n    nside = hp.npix2nside(len(m_clean))\n\n    # Band-limit to \u2113 \u2264 20\n    lmax = 20\n    alm = hp.map2alm(m_clean, lmax=lmax)\n    m_low = hp.alm2map(alm, nside=nside, lmax=lmax, verbose=False)\n\n    # Excursion set: valid pixels where T > 0 (mean after filtering)\n    excursion = (m_low > 0.0) & valid\n    n_pixels = int(np.sum(excursion))\n\n    if n_pixels == 0:\n        return 0.0\n\n    # Count boundary edges between excursion and non-excursion pixels\n    npix = len(m)\n    all_pix = np.arange(npix)\n    neighbors = hp.get_all_neighbours(nside, all_pix)  # (8, npix)\n\n    # For each neighbor direction, count boundary edges\n    # Each boundary edge is counted twice (once from each side), so divide by 2\n    n_boundary_edges = 0\n    for d in range(8):\n        nb = neighbors[d]  # (npix,)\n        valid_nb = (nb >= 0) & valid[nb]  # valid neighbor exists\n        # Boundary edge: exactly one of (pixel, neighbor) is in excursion set\n        is_boundary = valid_nb & (excursion != excursion[nb])\n        n_boundary_edges += int(np.sum(is_boundary))\n\n    # Divide by 2 since each edge is counted from both sides\n    n_boundary_edges = n_boundary_edges // 2\n\n    if n_boundary_edges == 0:\n        return 0.0\n\n    # Isoperimetric deficit: 1 - (4\u03c0 n_pixels / n_edges\u00b2)\n    # This is the discrete analogue of 1 - (4\u03c0A / P\u00b2) where\n    # the pixel edge length L cancels: A = n_pixels * L\u00b2, P = n_edges * L\n    ratio = 4.0 * np.pi * n_pixels / (n_boundary_edges ** 2)\n    deficit = 1.0 - ratio\n\n    return float(np.clip(deficit, 0.0, 1.0))\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Interpret the Low-\u2113 Excursion Set Isoperimetric Deficit.\"\"\"\n    sims = np.asarray(sim_results, dtype=float)\n    sims = sims[np.isfinite(sims)]\n    n = len(sims)\n\n    if n == 0:\n        return {\"planck_stat\": planck_stat, \"note\": \"No finite simulation results.\"}\n\n    mean_s = float(np.mean(sims))\n    std_s = float(np.std(sims, ddof=1)) if n > 1 else 0.0\n    median_s = float(np.median(sims))\n    rank = int(np.sum(sims <= planck_stat))\n    p_upper = float(np.mean(sims >= planck_stat))\n    p_lower = float(np.mean(sims <= planck_stat))\n    p_two = min(2.0 * min(p_upper, p_lower), 1.0)\n    z_score = (planck_stat - mean_s) / std_s if std_s > 0 else 0.0\n\n    # Interpret the compactness of the hot excursion region\n    if planck_stat < 0.2:\n        compactness = \"very compact, hemisphere-like hot region\"\n    elif planck_stat < 0.4:\n        compactness = \"moderately compact with some boundary irregularity\"\n    elif planck_stat < 0.6:\n        compactness = \"moderately convoluted boundary\"\n    elif planck_stat < 0.8:\n        compactness = \"highly convoluted, filamentary boundary\"\n    else:\n        compactness = \"extremely complex, near-fractal boundary structure\"\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"isoperimetric_deficit\": planck_stat,\n        \"sim_mean\": mean_s,\n        \"sim_std\": std_s,\n        \"sim_median\": median_s,\n        \"z_score\": z_score,\n        \"rank\": rank,\n        \"p_value_upper\": p_upper,\n        \"p_value_lower\": p_lower,\n        \"p_value_two_sided\": p_two,\n        \"n_sims\": n,\n        \"excursion_compactness\": compactness,\n        \"interpretation\": (\n            f\"The isoperimetric deficit of the low-\u2113 (\u2113\u226420) hot excursion set is \"\n            f\"D = {planck_stat:.4f}. Values near 0 indicate a compact, hemisphere-like \"\n            f\"hot region; values approaching 1 indicate highly convoluted, fractal-like \"\n            f\"boundaries. Planck deficit = {planck_stat:.4f} ({compactness}). \"\n            f\"Simulation mean \u00b1 std = {mean_s:.4f} \u00b1 {std_s:.4f}. \"\n            f\"z = {z_score:.2f}, two-sided p = {p_two:.4f}.\"\n        ),\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-\u2113 Excursion Set Isoperimetric Deficit\",\n            \"xlabel\": \"Isoperimetric deficit (1 \u2212 4\u03c0A/P\u00b2)\",\n            \"ylabel\": \"Count\",\n            \"bins\": 30,\n            \"caption\": (\n                f\"Planck deficit = {planck_stat:.4f}. \"\n                f\"Sim mean \u00b1 std = {mean_s:.4f} \u00b1 {std_s:.4f}. \"\n                f\"z = {z_score:.2f}, P(two-sided) = {p_two:.4f}.\"\n            ),\n        },\n    }\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": 0.9921193727844386,
+    "sim_max": 0.9973175312403563,
+    "z_score": 1.229159980705502,
+    "thresholds": [
+      0.9942981394275325,
+      0.9970163761093698
+    ],
+    "isoperimetric_deficit": 0.9968407968272001,
+    "rank": 933,
+    "p_value_upper": 0.067,
+    "p_value_lower": 0.933,
+    "excursion_compactness": "extremely complex, near-fractal boundary structure",
+    "interpretation": "The isoperimetric deficit of the low-\u2113 (\u2113\u226420) hot excursion set is D = 0.9968. Values near 0 indicate a compact, hemisphere-like hot region; values approaching 1 indicate highly convoluted, fractal-like boundaries. Planck deficit = 0.9968 (extremely complex, near-fractal boundary structure). Simulation mean \u00b1 std = 0.9960 \u00b1 0.0007. z = 1.23, two-sided p = 0.1340.",
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-\u2113 Excursion Set Isoperimetric Deficit",
+      "xlabel": "Isoperimetric deficit (1 \u2212 4\u03c0A/P\u00b2)",
+      "ylabel": "Count",
+      "bins": 30,
+      "caption": "Planck deficit = 0.9968. Sim mean \u00b1 std = 0.9960 \u00b1 0.0007. z = 1.23, P(two-sided) = 0.1340."
+    }
+  },
+  "updated_summary": {
+    "Test name": "** Low-\u2113 Excursion Set Isoperimetric Deficit",
+    "Description": "** For the Planck CMB temperature map band-limited to \u2113 \u2264 20, an excursion set is defined as pixels exceeding the mean (0 \u00b5K). The isoperimetric deficit D = 1 \u2212 (4\u03c0A/P\u00b2) is computed from the set's area A and boundary perimeter P, quantifying shape compactness: D = 0 for a perfect hemisphere, approaching 1 for fractal-like boundaries.",
+    "Results": "** Planck deficit D = 0.9968, indicating an extremely complex, near-fractal boundary structure for the hot excursion region. Simulation mean \u00b1 std = 0.9960 \u00b1 0.0007 from 1000 \u039bCDM realisations. The Planck value ranks 933/1000. z-score = 1.23, two-sided p-value = 0.134.",
+    "Interpretation": "** The hot excursion region in the low-\u2113 Planck map exhibits highly convoluted boundary morphology, but this is expected: both Planck data and simulations yield deficits near 0.996, reflecting that the \u2113 \u2264 20 excursion set on a sphere inherently has a complex, fragmented boundary. The slight excess (z = 1.23) is not statistically significant. The boundary complexity is a generic geometric property of low-\u2113 excursion sets rather than an anomaly.",
+    "Meets hypothesis?": "** No",
+    "Comparison to literature": "** No prior studies were found applying the isoperimetric deficit specifically to CMB excursion sets. Related work includes excursion set correlation analyses for non-Gaussianity testing (Barreiro et al. 1997) and isoperimetric deficit theory in differential geometry (R\u00f6ger & Sch\u00e4tzle 2011), but neither addresses this particular statistic on CMB maps.",
+    "Test novelty": "** Novel",
+    "Verdict": "** No anomalies found"
+  }
+}

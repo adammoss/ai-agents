@@ -1,0 +1,56 @@
+{
+  "results": {
+    "test_name": "Low-\u2113 Band-Limited Correlation Coherence Length",
+    "test_description": "First, generate a set of simulated maps. For both the real and simulated maps, compute the temperature-temperature two-point correlation function, C(\u03b8), over a restricted range of angles \u03b8, using only the low-\u2113 (2 \u2264 \u2113 \u2264 10) part of the map (e.g., by smoothing with a high-pass filter or reconstructing from these multipoles). Define the coherence length, L_c, as the smallest angle \u03b8 at which C(\u03b8) first drops to 1/e of its maximum value (C(\u03b8_max)). The statistic is the ratio L_c(real) / L_c(simulated_average), where the simulated average is the mean coherence length from the 1000 LCDM simulations. This scalar ratio measures how the spatial coherence scale of the low-\u2113 pattern in the real sky compares to the typical scale expected in random realizations.",
+    "test_hypothesis": "The low-\u2113 (\u2113=2\u201310) temperature-temperature correlation coherence length in the Planck SMICA map is larger than the average coherence length predicted by standard \u039bCDM simulations.",
+    "test_type": "one-tailed, upper",
+    "justification": "The test description and code explicitly define the anomaly as a ratio greater than 1, indicating \"an anomalously large coherence length.\" The interpretation within the code states: \"A ratio > 1 means the low-\u2113 pattern in the real sky is more spatially coherent than typical \u039bCDM realizations.\" This establishes a clear, directional prediction that the real sky's coherence length is greater than the simulated average. Therefore, a one-tailed test examining the upper tail (ratio > 1) is appropriate.",
+    "n_sims": 1000,
+    "plot_kind": "histogram",
+    "planck_stat": 0.2919272310027225,
+    "mean_sim_stat": 0.34063808962741066,
+    "std_sim_stat": 0.039443113081442695,
+    "median_sim_stat": 0.3347472485888182,
+    "sigma": 1.3851716082134353,
+    "p_value_one_tailed": 0.917,
+    "tail": "upper"
+  },
+  "analysis_code": "\nimport numpy as np\nimport healpy as hp\n\ntest_description = (\n    \"For the masked Planck SMICA map, compute the two-point temperature correlation function \"\n    \"C(\u03b8) restricted to multipoles \u2113=2\u201310. Define the coherence length L_c as the smallest \"\n    \"angle \u03b8 at which C(\u03b8) first drops to 1/e of its maximum value (which occurs at \u03b8=0). \"\n    \"The per-map statistic is L_c in radians. The final anomaly statistic is the ratio \"\n    \"L_c(Planck) / mean(L_c(simulations)), measuring how the spatial coherence scale of the \"\n    \"low-\u2113 pattern in the real sky compares to the typical scale expected in random \u039bCDM \"\n    \"realizations. A ratio > 1 indicates an anomalously large coherence length.\"\n)\n\n\ndef analyze_map(m):\n    \"\"\"Return coherence length L_c (radians) for the low-\u2113 correlation function.\n\n    Computes C(\u03b8) = \u03a3_{\u2113=2}^{10} (2\u2113+1)/(4\u03c0) C_\u2113 P_\u2113(cos \u03b8) on a fine grid,\n    then finds the smallest angle where C(\u03b8) first drops to C(0)/e.\n    \"\"\"\n    # Replace NaN masked pixels with 0 for healpy compatibility\n    valid = np.isfinite(m)\n    m_clean = np.where(valid, m, 0.0)\n\n    # Compute pseudo-C_\u2113 up to \u2113=10\n    cl = hp.anafast(m_clean, lmax=10)\n\n    # Fine angular grid from 0 to \u03c0\n    n_theta = 2000\n    theta = np.linspace(0.0, np.pi, n_theta)\n    cos_theta = np.cos(theta)\n\n    # Compute C(\u03b8) = \u03a3_{\u2113=2}^{10} (2\u2113+1)/(4\u03c0) * C_\u2113 * P_\u2113(cos \u03b8)\n    c_theta = np.zeros(n_theta)\n    for ell in range(2, 11):\n        coeffs = np.zeros(ell + 1)\n        coeffs[ell] = 1\n        P_ell = np.polynomial.legendre.legval(cos_theta, coeffs)\n        c_theta += (2 * ell + 1) / (4 * np.pi) * cl[ell] * P_ell\n\n    # C(0) is the global maximum since all C_\u2113 >= 0 and P_\u2113(1) = 1\n    c_max = c_theta[0]\n\n    if c_max <= 0:\n        return 1.0  # fallback for maps with no power at low \u2113\n\n    # Find L_c: smallest \u03b8 where C(\u03b8) first drops to c_max / e\n    threshold = c_max / np.e\n\n    below = np.where(c_theta < threshold)[0]\n\n    if len(below) == 0:\n        # Correlation never drops below threshold within [0, \u03c0]\n        return float(np.pi)\n\n    idx = below[0]\n    if idx > 0:\n        # Linear interpolation for a more accurate crossing point\n        frac = (threshold - c_theta[idx - 1]) / (c_theta[idx] - c_theta[idx - 1])\n        L_c = theta[idx - 1] + frac * (theta[idx] - theta[idx - 1])\n    else:\n        L_c = theta[0]\n\n    return float(L_c)\n\n\ndef summarize_results(planck_stat, sim_results):\n    \"\"\"Interpret the Low-\u2113 Band-Limited Correlation Coherence Length.\"\"\"\n    sims = np.asarray(sim_results, dtype=float)\n    sims = sims[np.isfinite(sims)]\n    n = len(sims)\n\n    if n == 0:\n        return {\"planck_stat\": planck_stat, \"note\": \"No finite simulation results.\"}\n\n    mean_s = float(np.mean(sims))\n    std_s = float(np.std(sims, ddof=1)) if n > 1 else 0.0\n    median_s = float(np.median(sims))\n\n    # The anomaly ratio: Planck coherence / mean sim coherence\n    ratio = planck_stat / mean_s if mean_s > 0 else float('inf')\n\n    # p-values\n    p_value_upper = float(np.mean(sims >= planck_stat))  # tail toward large L_c\n    p_value_lower = float(np.mean(sims <= planck_stat))  # tail toward small L_c\n    p_two = min(2.0 * min(p_value_upper, p_value_lower), 1.0)\n\n    z_score = (planck_stat - mean_s) / std_s if std_s > 0 else 0.0\n\n    return {\n        \"planck_stat\": planck_stat,\n        \"planck_coherence_length_rad\": planck_stat,\n        \"planck_coherence_length_deg\": float(np.degrees(planck_stat)),\n        \"anomaly_ratio\": ratio,\n        \"sim_mean\": mean_s,\n        \"sim_std\": std_s,\n        \"sim_mean_deg\": float(np.degrees(mean_s)),\n        \"sim_median\": median_s,\n        \"z_score\": z_score,\n        \"p_value_upper\": p_value_upper,\n        \"p_value_lower\": p_value_lower,\n        \"p_value_two_sided\": p_two,\n        \"n_sims\": n,\n        \"interpretation\": (\n            f\"The coherence length L_c is the smallest angle at which the low-\u2113 (2\u201310) \"\n            f\"two-point correlation function C(\u03b8) first drops to 1/e of its maximum value. \"\n            f\"Planck L_c = {planck_stat:.4f} rad ({np.degrees(planck_stat):.1f}\u00b0). \"\n            f\"Sim mean \u00b1 \u03c3 = {mean_s:.4f} \u00b1 {std_s:.4f} rad \"\n            f\"({np.degrees(mean_s):.1f}\u00b0 \u00b1 {np.degrees(std_s):.1f}\u00b0). \"\n            f\"Anomaly ratio (Planck/sim_mean) = {ratio:.4f}. \"\n            f\"A ratio > 1 means the low-\u2113 pattern in the real sky is more spatially \"\n            f\"coherent than typical \u039bCDM realizations. \"\n            f\"z = {z_score:.2f}, two-sided p = {p_two:.4f}.\"\n        ),\n        \"plot_spec\": {\n            \"kind\": \"histogram\",\n            \"title\": \"Low-\u2113 Band-Limited Correlation Coherence Length\",\n            \"xlabel\": \"Coherence length L_c (radians)\",\n            \"ylabel\": \"Count\",\n            \"bins\": 30,\n            \"caption\": (\n                f\"Planck L_c = {planck_stat:.4f} rad ({np.degrees(planck_stat):.1f}\u00b0). \"\n                f\"Sim mean \u00b1 \u03c3 = {mean_s:.4f} \u00b1 {std_s:.4f} rad. \"\n                f\"Anomaly ratio = {ratio:.4f}. \"\n                f\"z = {z_score:.2f}, P(two-sided) = {p_two:.4f}.\"\n            ),\n        },\n    }\n",
+  "custom_summary": {
+    "is_null_test": false,
+    "summary_source": "model",
+    "n_valid_simulations": 1000,
+    "sim_min": 0.2612963168778328,
+    "sim_max": 0.5322327532067577,
+    "z_score": -1.234347223124696,
+    "thresholds": [
+      0.28182664486815145,
+      0.434402357511646
+    ],
+    "planck_coherence_length_rad": 0.2919272310027225,
+    "planck_coherence_length_deg": 16.72619826139664,
+    "anomaly_ratio": 0.8570011396025382,
+    "sim_mean_deg": 19.517124877049696,
+    "p_value_upper": 0.917,
+    "p_value_lower": 0.083,
+    "interpretation": "The coherence length L_c is the smallest angle at which the low-\u2113 (2\u201310) two-point correlation function C(\u03b8) first drops to 1/e of its maximum value. Planck L_c = 0.2919 rad (16.7\u00b0). Sim mean \u00b1 \u03c3 = 0.3406 \u00b1 0.0395 rad (19.5\u00b0 \u00b1 2.3\u00b0). Anomaly ratio (Planck/sim_mean) = 0.8570. A ratio > 1 means the low-\u2113 pattern in the real sky is more spatially coherent than typical \u039bCDM realizations. z = -1.23, two-sided p = 0.1660.",
+    "plot_spec": {
+      "kind": "histogram",
+      "title": "Low-\u2113 Band-Limited Correlation Coherence Length",
+      "xlabel": "Coherence length L_c (radians)",
+      "ylabel": "Count",
+      "bins": 30,
+      "caption": "Planck L_c = 0.2919 rad (16.7\u00b0). Sim mean \u00b1 \u03c3 = 0.3406 \u00b1 0.0395 rad. Anomaly ratio = 0.8570. z = -1.23, P(two-sided) = 0.1660."
+    }
+  },
+  "updated_summary": {
+    "Test name": "Low-\u2113 Band-Limited Correlation Coherence Length",
+    "Description": "Compute the temperature-temperature two-point correlation function C(\u03b8) restricted to multipoles \u2113=2\u201310 from the Planck SMICA map. Define the coherence length L_c as the smallest angle where C(\u03b8) first drops to 1/e of its maximum value. The anomaly statistic is the ratio L_c(Planck) / mean(L_c(1000 \u039bCDM simulations)), testing whether the real sky's low-\u2113 pattern is more spatially coherent than typical random realizations.",
+    "Results": "Planck L_c = 0.2919 rad (16.7\u00b0), while the simulation mean \u00b1 \u03c3 = 0.3406 \u00b1 0.0395 rad (19.5\u00b0 \u00b1 2.3\u00b0). The anomaly ratio is 0.857, meaning the Planck coherence length is actually *smaller* than the simulation average. z = \u22121.23, one-tailed upper p-value = 0.917, two-sided p = 0.166.",
+    "Interpretation": "The hypothesis predicted an anomalously *large* coherence length in the real sky. Instead, the Planck map shows a coherence length ~14% shorter than the \u039bCDM mean, sitting at roughly the 8th percentile of simulations toward smaller scales. This deviation is modest (1.2\u03c3 below the mean) and falls well within the range expected from normal statistical fluctuation. There is no evidence that the low-\u2113 correlation pattern is unusually coherent.",
+    "Meets hypothesis?": "No",
+    "Comparison to literature": "No prior studies were found that specifically test a \"coherence length\" statistic derived from the band-limited (\u2113=2\u201310) two-point correlation function. Related work exists on large-angle C(\u03b8) anomalies and low-\u2113 alignment/planarity, but this particular statistic does not appear in the searched literature.",
+    "Test novelty": "Novel",
+    "Verdict": "No anomalies found"
+  }
+}

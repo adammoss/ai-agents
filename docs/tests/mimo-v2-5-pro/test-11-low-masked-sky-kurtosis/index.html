@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Masked-Sky Kurtosis · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 11 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Masked-Sky Kurtosis</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The observed excess kurtosis κ of the low-ℓ (ℓ ≤ 5) masked-sky temperature distribution from the Planck SMICA map is inconsistent with the distribution of κ from ΛCDM simulations, indicating an anomaly in large-scale non-Gaussianity.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The low-ℓ temperature map (ℓ ≤ 5) is reconstructed from SMICA spherical harmonic coefficients, the Planck common mask is applied, and the excess kurtosis κ of the standardized unmasked pixel temperatures is computed. This statistic probes the heaviness of tails in the large-scale temperature distribution on the masked sky. The observed κ is compared to the distribution from 1000 ΛCDM simulations processed identically.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The observed excess kurtosis is κ = −0.483. The ΛCDM simulation mean is −0.182 ± 0.448, giving a z-score of 0.63σ and a two-tailed p-value of 0.528. The Planck value lies comfortably within the simulation envelope, showing no significant departure from Gaussian ΛCDM expectations.</p>
+          <p>The low-ℓ masked-sky temperature distribution has marginally lighter tails than the median simulation but is fully consistent with the scatter expected from ΛCDM. There is no evidence for anomalous large-scale non-Gaussianity in the tail behaviour of the temperature field.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to capture both heavier tails (positive κ) and lighter tails (negative κ) as indicated in the test description, which mentions &quot;positive κ indicates heavier tails&quot; and &quot;negative κ indicates lighter tails.&quot; The analysis code computes a two-sided p-value by taking the minimum of the upper and lower ranks, showing no directional preference. Since the test is exploratory and aims to detect any deviation from ΛCDM expectations without a strong prior on the direction of kurtosis change, a two-tailed test is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Previous low-ℓ anomaly studies have focused on quadrupole–octupole alignment, hemispherical power asymmetry, and the cold spot, rather than on masked-sky kurtosis specifically. Searches for direct prior studies of this exact statistic returned no relevant results, though excess kurtosis is a standard non-Gaussianity probe used in other CMB contexts (e.g., local f_NL analyses). This test therefore extends the low-ℓ anomaly battery to a new observable.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Masked-Sky Kurtosis. Reconstructs the low-ℓ temperature map (ℓ ≤ 5) &quot;
+    &quot;from the spherical harmonic coefficients of the SMICA map, applies the Planck &quot;
+    &quot;common mask, and computes the excess kurtosis of the standardized unmasked &quot;
+    &quot;pixel temperatures: κ = (1/N) Σ t_i⁴ − 3, where t_i = (T_i − μ)/σ. This &quot;
+    &quot;captures the non-Gaussian heaviness of the low-ℓ temperature distribution &quot;
+    &quot;tails on the masked sky. Positive κ indicates heavier tails than Gaussian &quot;
+    &quot;(potential localized anomalies), while negative κ indicates lighter tails &quot;
+    &quot;(suppressed large-scale structure). Evaluated by comparing the Planck value &quot;
+    &quot;against 1000 FFP ΛCDM simulations processed identically.&quot;
+)
+
+
+def analyze_map(m):
+    m = np.asarray(m, dtype=np.float64)
+
+    # Determine mask: unmasked pixels are finite
+    mask = np.isfinite(m)
+
+    # Replace NaN with 0.0 for healpy spherical harmonic transforms
+    m_clean = np.where(mask, m, 0.0)
+
+    # Extract spherical harmonic coefficients up to ℓ = 5
+    lmax_reconstruct = 5
+    alm = hp.map2alm(m_clean, lmax=lmax_reconstruct)
+
+    # Reconstruct the low-ℓ map from these coefficients
+    m_low_ell = hp.alm2map(alm, nside=hp.npix2nside(len(m)))
+
+    # Apply the mask: only consider unmasked pixels
+    m_masked = m_low_ell[mask]
+
+    N = len(m_masked)
+    if N &lt; 10:
+        return 0.0
+
+    # Compute mean and std of unmasked pixels
+    mu = np.mean(m_masked)
+    sigma = np.std(m_masked)
+
+    if sigma &lt; 1e-15 or not np.isfinite(sigma):
+        return 0.0
+
+    # Standardized temperatures: t_i = (T_i - mu) / sigma
+    t = (m_masked - mu) / sigma
+
+    # Excess kurtosis: kappa = (1/N) * sum(t_i^4) - 3
+    kappa = float(np.mean(t ** 4) - 3.0)
+
+    if not np.isfinite(kappa):
+        return 0.0
+
+    return kappa
+
+
+def summarize_results(planck_stat, sim_results):
+    sim_arr = np.array(sim_results, dtype=np.float64)
+    finite_mask = np.isfinite(sim_arr)
+    n_finite = int(finite_mask.sum())
+
+    if n_finite &gt; 0:
+        valid = sim_arr[finite_mask]
+        sim_median = float(np.median(valid))
+        p_upper = float(np.sum(valid &gt;= planck_stat) / n_finite)
+        p_lower = float(np.sum(valid &lt;= planck_stat) / n_finite)
+        p_value = min(p_upper, p_lower)
+        rank_upper = int(np.sum(valid &gt;= planck_stat))
+        rank_lower = int(np.sum(valid &lt;= planck_stat))
+    else:
+        p_value = float(&#x27;nan&#x27;)
+        rank_upper = 0
+        rank_lower = 0
+        sim_median = float(&#x27;nan&#x27;)
+
+    sim_mean = float(np.nanmean(sim_arr))
+    sim_std = float(np.nanstd(sim_arr))
+
+    if n_finite &gt; 0 and not np.isnan(p_value):
+        if p_upper &lt;= p_lower:
+            direction = &quot;high&quot;
+            rank = rank_upper
+        else:
+            direction = &quot;low&quot;
+            rank = rank_lower
+    else:
+        direction = &quot;unknown&quot;
+        rank = 0
+
+    interpretation_parts = []
+    interpretation_parts.append(
+        f&quot;Low-ℓ masked-sky excess kurtosis κ = {planck_stat:.4f}.&quot;
+    )
+    interpretation_parts.append(
+        f&quot;Two-sided p = {p_value:.3f} ({rank}/{n_finite} simulations &quot;
+        f&quot;at least as extreme in the {direction} direction).&quot;
+    )
+    interpretation_parts.append(
+        f&quot;Simulation mean = {sim_mean:.4f}, std = {sim_std:.4f}, &quot;
+        f&quot;median = {sim_median:.4f}.&quot;
+    )
+
+    if not np.isnan(p_value) and p_value &lt; 0.05:
+        if direction == &quot;high&quot;:
+            interpretation_parts.append(
+                &quot;Anomalous: the kurtosis is unusually HIGH, indicating heavier tails &quot;
+                &quot;than expected from Gaussian ΛCDM — the low-ℓ temperature distribution &quot;
+                &quot;on the masked sky has more extreme outliers (potential localized cold &quot;
+                &quot;or hot spots at large angular scales).&quot;
+            )
+        else:
+            interpretation_parts.append(
+                &quot;Anomalous: the kurtosis is unusually LOW (more negative), indicating &quot;
+                &quot;lighter/thinner tails than expected — the low-ℓ temperature distribution &quot;
+                &quot;is unusually platykurtic on the masked sky, suggesting suppressed &quot;
+                &quot;large-scale fluctuations or an overly uniform pattern.&quot;
+            )
+    else:
+        interpretation_parts.append(
+            &quot;The excess kurtosis is consistent with ΛCDM simulation expectations.&quot;
+        )
+
+    result = {
+        &quot;test_description&quot;: test_description,
+        &quot;planck_stat&quot;: float(planck_stat),
+        &quot;p_value&quot;: float(p_value),
+        &quot;rank&quot;: rank,
+        &quot;n_simulations&quot;: len(sim_results),
+        &quot;n_valid&quot;: n_finite,
+        &quot;sim_mean&quot;: sim_mean,
+        &quot;sim_std&quot;: sim_std,
+        &quot;sim_median&quot;: sim_median,
+        &quot;exceeds_95th_percentile&quot;: bool(p_value &lt; 0.05) if not np.isnan(p_value) else False,
+        &quot;anomaly_direction&quot;: direction,
+        &quot;interpretation&quot;: &quot; &quot;.join(interpretation_parts),
+        &quot;ell_max&quot;: 5,
+    }
+
+    result[&quot;plot_spec&quot;] = {
+        &quot;kind&quot;: &quot;histogram&quot;,
+        &quot;title&quot;: &quot;Low-ℓ Masked-Sky Excess Kurtosis&quot;,
+        &quot;xlabel&quot;: &quot;Excess kurtosis κ&quot;,
+        &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+        &quot;bins&quot;: 50,
+        &quot;caption&quot;: (
+            f&quot;Histogram of the excess kurtosis κ of the standardized low-ℓ (ℓ ≤ 5) &quot;
+            f&quot;temperature distribution on the masked sky from {n_finite} FFP ΛCDM &quot;
+            f&quot;simulations. Planck value = {planck_stat:.4f} &quot;
+            f&quot;(two-sided p = {p_value:.3f}, rank {rank}/{n_finite}, &quot;
+            f&quot;{direction} direction). Simulation mean = {sim_mean:.4f} ± {sim_std:.4f}. &quot;
+            f&quot;Positive κ signals heavier tails (localized anomalies); &quot;
+            f&quot;negative κ signals lighter tails (suppressed structure).&quot;
+        ),
+    }
+
+    return result</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-11-low-masked-sky-kurtosis.png" alt="Statistic distribution for Low-ℓ Masked-Sky Kurtosis">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.528</td></tr>
+<tr><th>One-tailed p-value</th><td>0.264</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.528</td></tr>
+<tr><th>Sigma</th><td>0.631</td></tr>
+<tr><th>Planck statistic</th><td>-0.483</td></tr>
+<tr><th>Simulation mean</th><td>-0.182</td></tr>
+<tr><th>Simulation std.</th><td>0.448</td></tr>
+<tr><th>Simulation median</th><td>-0.253</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-11-low-masked-sky-kurtosis.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-11-low-masked-sky-kurtosis.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-11-low-masked-sky-kurtosis.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-11-low-masked-sky-kurtosis.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-11-low-masked-sky-kurtosis.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-11-low-masked-sky-kurtosis.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

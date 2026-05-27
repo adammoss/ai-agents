@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Sublevel-Set Persistence Lifetime Skewness · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 44 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Sublevel-Set Persistence Lifetime Skewness</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Planck CMB temperature map has a persistence lifetime skewness statistic that differs from the mean of the LCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Band-pass filter the Planck CMB temperature map to retain multipoles 2 ≤ ℓ ≤ 30, then apply a sublevel-set filtration on HEALPix pixel centres, tracking connected components as the temperature threshold rises. Each component&#x27;s persistence lifetime (death − birth temperature) quantifies its topological significance. The skewness of positive lifetimes captures whether the low-ℓ field is dominated by many short-lived features (negative skewness) or a few very persistent large-scale structures (positive skewness).</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck persistence lifetime skewness = 1.631. Simulation mean = 1.585 ± 0.264. The Planck value deviates by only +0.17σ from the LCDM simulation mean, yielding a two-tailed p-value of 0.788. Anomaly strength is negligible.</p>
+          <p>The persistence lifetime skewness of the Planck low-ℓ map is fully consistent with Gaussian LCDM expectations. There is no evidence that large-scale topological features (e.g., the cold spot, hemispherical asymmetry) produce an unusual excess of persistent connected components relative to the simulation ensemble.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to explore any significant deviation in the skewness statistic, which can be either positive (indicating dominance of a few persistent large-scale features) or negative (indicating dominance of many short-lived features). The analysis code explicitly checks for both directions by computing a two-sided p-value and interpreting anomaly strength for both high and low values. There is no strong prior directional prediction stated; the test is general exploration for an anomaly. Therefore, a two-tailed test is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Prior online searches for persistent homology applied to CMB anomaly detection returned no directly relevant studies. The general statistical theory of persistent homology has been explored (e.g., Bubenik &amp; Kim 2007), but application of persistence lifetime skewness to CMB maps as an anomaly test does not appear in the literature to my knowledge.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Sublevel-Set Persistence Lifetime Skewness: &quot;
+    &quot;Band-pass filter the CMB temperature map to retain multipoles 2 ≤ ℓ ≤ 30. &quot;
+    &quot;Build a sublevel-set filtration on HEALPix pixel centres, tracking connected &quot;
+    &quot;components as the temperature threshold rises from minimum to maximum. &quot;
+    &quot;Each component&#x27;s persistence lifetime (death − birth temperature) quantifies &quot;
+    &quot;its topological significance. The skewness of positive lifetimes captures &quot;
+    &quot;whether short-lived small-scale features dominate (negative skewness) or &quot;
+    &quot;a few very persistent large-scale structures dominate (positive skewness). &quot;
+    &quot;This statistic probes the spatial organization of temperature extrema and &quot;
+    &quot;is sensitive to features like the CMB cold spot and hemispherical asymmetry.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Low-ℓ Sublevel-Set Persistence Lifetime Skewness.
+
+    Efficient implementation: band-pass filter at full nside, then downgrade
+    to nside=32 for fast topological computation (band-limit ℓ≤30 means
+    nside=32 captures all spatial information). Uses MST + array-based
+    union-find with path halving for 0-dim persistent homology.
+    &quot;&quot;&quot;
+    from scipy.sparse import csr_matrix
+    from scipy.sparse.csgraph import minimum_spanning_tree
+
+    nside = hp.get_nside(m)
+    npix = 12 * nside ** 2
+
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 100:
+        return 0.0
+
+    # Step 1: Band-pass filter to ℓ = 2–30 at original nside
+    clean = np.where(mask, m, 0.0)
+    lmax = 30
+    alm = hp.map2alm(clean, lmax=lmax)
+    # Zero monopole (ℓ=0) and dipole (ℓ=1)
+    alm[0] = 0.0
+    alm[1] = 0.0
+    alm[2] = 0.0
+    filtered = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Step 2: Downgrade to nside=32 for topology computation
+    # The band-limit ℓ≤30 means nside=32 (Nyquist ℓ≈96) captures all info
+    tns = 32
+    tnpix = 12 * tns ** 2
+
+    filt_filled = np.where(mask, filtered, 0.0)
+    filt_ds = hp.ud_grade(filt_filled, tns)
+    wt_ds = hp.ud_grade(mask.astype(np.float64), tns)
+
+    # Mask coarse pixels where too many fine pixels were masked
+    ok = wt_ds &gt; 0.5
+
+    # Correct for partial masking (divide by weight to recover true mean)
+    corrected = np.full(tnpix, np.nan)
+    corrected[ok] = filt_ds[ok] / wt_ds[ok]
+
+    # Step 3: Build edge list from HEALPix adjacency at target nside
+    vpix = np.where(ok)[0]
+    nv = len(vpix)
+    if nv &lt; 50:
+        return 0.0
+
+    temps = corrected[vpix]
+
+    p2i = np.full(tnpix, -1, dtype=np.int32)
+    p2i[vpix] = np.arange(nv, dtype=np.int32)
+
+    all_neigh = hp.get_all_neighbours(tns, np.arange(tnpix))
+
+    es_parts = []
+    ed_parts = []
+    for d in range(8):
+        nd = all_neigh[d, vpix]
+        vm = (nd &gt;= 0) &amp; ok[nd]
+        s = np.where(vm)[0]
+        d_ = p2i[nd[s]]
+        k = s &lt; d_
+        es_parts.append(s[k])
+        ed_parts.append(d_[k])
+
+    es = np.concatenate(es_parts)
+    ed = np.concatenate(ed_parts)
+
+    if len(es) == 0:
+        return 0.0
+
+    # Edge weights: max of endpoint temperatures (sublevel-set filtration value)
+    wts = np.maximum(temps[es], temps[ed])
+
+    # Step 4: Compute MST
+    graph = csr_matrix((wts, (es, ed)), shape=(nv, nv), dtype=np.float64)
+    graph = graph + graph.T
+    mst = minimum_spanning_tree(graph)
+    mc = mst.tocoo()
+
+    if len(mc.data) == 0:
+        return 0.0
+
+    # Sort MST edges by weight (filtration order)
+    order = np.argsort(mc.data)
+    ms = mc.row[order].astype(np.intp)
+    md = mc.col[order].astype(np.intp)
+    mw = mc.data[order]
+
+    # Step 5: Array-based Union-Find with path halving
+    parent = np.arange(nv, dtype=np.intp)
+    rank = np.zeros(nv, dtype=np.int32)
+    birth = temps.copy()
+
+    lt_buf = np.empty(len(mw), dtype=np.float64)
+    n_lt = 0
+
+    for k in range(len(mw)):
+        u = int(ms[k])
+        v = int(md[k])
+
+        # Find root of u with path halving
+        while parent[u] != u:
+            parent[u] = parent[parent[u]]
+            u = int(parent[u])
+        # Find root of v with path halving
+        while parent[v] != v:
+            parent[v] = parent[parent[v]]
+            v = int(parent[v])
+
+        if u == v:
+            continue
+
+        # Union: younger component (higher birth temp) dies
+        bu = birth[u]
+        bv = birth[v]
+
+        if bu &gt; bv:
+            parent[u] = v
+            lt = mw[k] - bu
+        elif bv &gt; bu:
+            parent[v] = u
+            lt = mw[k] - bv
+        else:
+            # Equal birth: pick one as survivor
+            parent[v] = u
+            lt = mw[k] - bv
+            if rank[u] == rank[v]:
+                rank[u] += 1
+
+        if lt &gt; 0:
+            lt_buf[n_lt] = lt
+            n_lt += 1
+
+    # Step 6: Compute sample skewness of positive lifetimes
+    if n_lt &lt; 3:
+        return 0.0
+
+    pos = lt_buf[:n_lt]
+    mu = np.mean(pos)
+    sigma = np.std(pos)
+    if sigma &lt;= 0:
+        return 0.0
+
+    skew = float(np.mean(((pos - mu) / sigma) ** 3))
+    return skew if np.isfinite(skew) else 0.0
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Sublevel-Set Persistence Lifetime Skewness test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Persistence Lifetime Skewness&quot;,
+                &quot;xlabel&quot;: &quot;Skewness&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck shows significantly more positively skewed persistence &quot;
+            &quot;lifetimes than LCDM simulations, indicating that a few very &quot;
+            &quot;persistent large-scale structures dominate the low-ℓ field — &quot;
+            &quot;consistent with features like the CMB cold spot or &quot;
+            &quot;hemispherical asymmetry.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck shows significantly less positive (or more negative) &quot;
+            &quot;persistence lifetime skewness than LCDM simulations, suggesting &quot;
+            &quot;that short-lived small-scale topological features are &quot;
+            &quot;unusually dominant.&quot;
+        )
+    else:
+        direction = (
+            &quot;The persistence lifetime skewness is consistent with Gaussian &quot;
+            &quot;LCDM expectations.&quot;
+        )
+
+    interp = (
+        f&quot;Persistence lifetime skewness = {planck_stat:.4f}. &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the skewness of persistence lifetimes from a &quot;
+        &quot;sublevel-set filtration of the low-ℓ (ℓ=2–30) CMB temperature &quot;
+        &quot;field. Positive skewness indicates a few very persistent &quot;
+        &quot;large-scale topological features dominate (long right tail), &quot;
+        &quot;while negative skewness indicates many short-lived features &quot;
+        &quot;bunched near zero. Red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Persistence Lifetime Skewness&quot;,
+            &quot;xlabel&quot;: &quot;Skewness of persistence lifetimes&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-44-low-sublevel-set-persistence-lifetime-skewness.png" alt="Statistic distribution for Low-ℓ Sublevel-Set Persistence Lifetime Skewness">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.788</td></tr>
+<tr><th>One-tailed p-value</th><td>0.394</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.788</td></tr>
+<tr><th>Sigma</th><td>0.269</td></tr>
+<tr><th>Planck statistic</th><td>1.631</td></tr>
+<tr><th>Simulation mean</th><td>1.585</td></tr>
+<tr><th>Simulation std.</th><td>0.264</td></tr>
+<tr><th>Simulation median</th><td>1.569</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-44-low-sublevel-set-persistence-lifetime-skewness.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-44-low-sublevel-set-persistence-lifetime-skewness.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-44-low-sublevel-set-persistence-lifetime-skewness.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-44-low-sublevel-set-persistence-lifetime-skewness.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-44-low-sublevel-set-persistence-lifetime-skewness.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-44-low-sublevel-set-persistence-lifetime-skewness.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

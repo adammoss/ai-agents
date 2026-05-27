@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Peak-to-RMS Temperature Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 38 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Peak-to-RMS Temperature Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The peak-to-RMS temperature ratio for the CMB at ℓ ≤ 20 is consistent with the distribution predicted by isotropic Gaussian LCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Band-limit the CMB temperature map to ℓ ≤ 20 via an alm cutoff. Compute the RMS temperature and the maximum absolute temperature over unmasked pixels. The statistic is max|T| / RMS, which for a Gaussian random field has a well-defined expectation (~3–4). Deviations would signal anomalous concentration of extreme temperature features at large angular scales.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Observed peak-to-RMS ratio = 3.52. LCDM simulation mean = 3.48 ± 0.36, yielding z = +0.11σ. Two-tailed p = 0.80 (percentile = 60%). Anomaly strength: negligible.</p>
+          <p>The peak-to-RMS ratio at low multipoles is fully consistent with isotropic Gaussian LCDM expectations. The most extreme temperature features at ℓ ≤ 20 are neither unusually large nor unusually small relative to the overall RMS fluctuation, indicating no anomalous clustering of hot or cold spots at the largest angular scales.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is exploratory, checking for any significant deviation from the expected Gaussian random field behavior, as indicated by the two-sided p-value calculation in the code and the description&#x27;s focus on detecting values &quot;far from the LCDM-simulated distribution&quot; without specifying a direction (e.g., only higher or lower).</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Low-ℓ CMB anomalies are extensively studied, including the quadrupole–octupole alignment (Tegmark et al., 2003; de Oliveira-Costa et al., 2004), the power deficit at ℓ ≲ 30 (Planck Collaboration XXIII, 2014), and the CMB Cold Spot (Cruz et al., 2005; Vielva et al., 2004). However, the specific peak-to-RMS ratio as a test statistic is not a standard probe in the anomaly literature; related work typically focuses on angular power spectrum anomalies, multipole alignments, or non-Gaussian signatures via Minkowski functionals or needlet analyses (e.g., Planck 2018 results VII).</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Peak-to-RMS Temperature Ratio: &quot;
+    &quot;Band-limit the temperature map to ℓ ≤ 20 using an alm cutoff. &quot;
+    &quot;Compute the RMS temperature over all unmasked pixels. Find the maximum &quot;
+    &quot;absolute temperature value among the same unmasked pixels. The statistic &quot;
+    &quot;is the ratio of the maximum absolute temperature to the RMS temperature. &quot;
+    &quot;For a Gaussian random field this ratio has a well-defined expectation &quot;
+    &quot;(typically 3–4 depending on resolution and mask), so a measured value far &quot;
+    &quot;from the LCDM-simulated distribution would indicate anomalous concentration &quot;
+    &quot;of extreme temperature features at large angular scales.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Compute the peak-to-RMS ratio of the low-ℓ (ℓ ≤ 20) temperature map.
+
+    Steps:
+      1. Identify unmasked (finite) pixels.
+      2. Fill masked pixels with 0 for healpy compatibility.
+      3. Band-limit to ℓ ≤ 20 via map2alm with lmax=20 → alm2map with lmax=20.
+      4. Compute RMS temperature over unmasked pixels.
+      5. Compute max absolute temperature over unmasked pixels.
+      6. Return ratio max|T| / RMS.
+
+    Returns
+    -------
+    float
+        Peak-to-RMS ratio of the low-ℓ map.
+    &quot;&quot;&quot;
+    nside = hp.get_nside(m)
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+
+    if n_valid &lt; 100:
+        return 0.0
+
+    # Fill masked pixels with 0 for healpy transforms
+    m_filled = np.where(mask, m, 0.0)
+
+    # Band-limit to ell &lt;= 20 using consistent lmax for both transforms
+    lmax = 20
+
+    alm = hp.map2alm(m_filled, lmax=lmax)
+
+    # Transform back to map with the same lmax
+    m_low = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Extract unmasked pixel values
+    vals = m_low[mask]
+
+    # RMS temperature
+    rms = np.sqrt(np.mean(vals ** 2))
+
+    if rms == 0.0:
+        return 0.0
+
+    # Maximum absolute temperature
+    max_abs = np.max(np.abs(vals))
+
+    # Peak-to-RMS ratio
+    ratio = float(max_abs / rms)
+
+    return ratio
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Peak-to-RMS Temperature Ratio test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available for comparison.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Peak-to-RMS Temperature Ratio&quot;,
+                &quot;xlabel&quot;: &quot;Peak / RMS ratio&quot;,
+                &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data available.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    # Two-sided empirical p-value
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    if std_sim &gt; 0:
+        deviation_sigma = (planck_stat - mean_sim) / std_sim
+    else:
+        deviation_sigma = 0.0
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            &quot;Planck&#x27;s peak-to-RMS ratio at low multipoles is unusually high &quot;
+            &quot;compared to typical LCDM realizations. This suggests the largest &quot;
+            &quot;temperature excursions at ℓ ≤ 20 are more extreme relative to the &quot;
+            &quot;overall RMS than expected from a Gaussian random field, indicating &quot;
+            &quot;possible anomalous concentration of power in localized hot or cold &quot;
+            &quot;spots at large angular scales.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck&#x27;s peak-to-RMS ratio at low multipoles is unusually low &quot;
+            &quot;compared to typical LCDM realizations. This indicates the extreme &quot;
+            &quot;temperature features at large angular scales are less pronounced &quot;
+            &quot;than expected, suggesting a more uniform temperature field than &quot;
+            &quot;predicted by the standard model.&quot;
+        )
+    else:
+        direction = (
+            &quot;The peak-to-RMS ratio at low multipoles is consistent with &quot;
+            &quot;isotropic Gaussian LCDM expectations. The most extreme temperature &quot;
+            &quot;features at ℓ ≤ 20 are neither unusually large nor unusually small.&quot;
+        )
+
+    interp = (
+        f&quot;Peak-to-RMS ratio = {planck_stat:.4f}. &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ from mean). &quot;
+        f&quot;Percentile = {percentile:.1f}%, two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the peak-to-RMS temperature ratio for the band-limited &quot;
+        &quot;(ℓ ≤ 20) CMB temperature map, computed from isotropic LCDM simulations. &quot;
+        &quot;The ratio measures how extreme the largest temperature excursion is &quot;
+        &quot;relative to the overall RMS fluctuation. For a Gaussian random field &quot;
+        &quot;this ratio typically falls between 3 and 4. &quot;
+        &quot;The red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Peak-to-RMS Temperature Ratio&quot;,
+            &quot;xlabel&quot;: &quot;Peak / RMS ratio&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-38-low-peak-to-rms-temperature-ratio.png" alt="Statistic distribution for Low-ℓ Peak-to-RMS Temperature Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.8</td></tr>
+<tr><th>One-tailed p-value</th><td>0.4</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.8</td></tr>
+<tr><th>Sigma</th><td>0.253</td></tr>
+<tr><th>Planck statistic</th><td>3.519</td></tr>
+<tr><th>Simulation mean</th><td>3.482</td></tr>
+<tr><th>Simulation std.</th><td>0.356</td></tr>
+<tr><th>Simulation median</th><td>3.433</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-38-low-peak-to-rms-temperature-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-38-low-peak-to-rms-temperature-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-38-low-peak-to-rms-temperature-ratio.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-38-low-peak-to-rms-temperature-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-38-low-peak-to-rms-temperature-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-38-low-peak-to-rms-temperature-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

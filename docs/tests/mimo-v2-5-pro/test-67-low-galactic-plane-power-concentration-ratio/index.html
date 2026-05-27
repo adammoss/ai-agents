@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Galactic Plane Power Concentration Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 67 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Galactic Plane Power Concentration Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · power · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Planck SMICA map exhibits a different average fraction of low-ℓ power (ℓ=2–20) concentrated within ±10° of the Galactic plane compared to the ΛCDM simulation distribution, indicating a potential anomaly in large-scale power distribution.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>For multipoles ℓ = 2–20, the ratio of angular power within |b| ≤ 10° of the Galactic plane to total-sky power is computed at each ℓ and averaged to produce a single scalar. The Planck SMICA value (0.0631) is compared against a distribution from 1000 ΛCDM simulations (mean ± σ = 0.0484 ± 0.0123). This tests whether an anomalous fraction of large-scale power is concentrated near the Galactic plane.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>z = 1.19, two-tailed p = 0.248. Planck shows more low-ℓ power near the Galactic plane than the simulation median, but the deviation is well within the 2σ range (thresholds at ~0.029 and ~0.075).</p>
+          <p>The higher Planck ratio (0.0631 vs. simulation mean 0.0484) indicates somewhat more large-scale power near the Galactic plane than ΛCDM predicts, possibly hinting at residual foreground contamination or a genuine cosmological feature. However, at only 1.19σ significance, this does not constitute a statistically significant anomaly. The result is fully consistent with ΛCDM at standard thresholds.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is exploratory, aiming to detect any deviation from isotropy (either excess or deficit) in low-ℓ power near the Galactic plane. The analysis code computes both upper and p lower lower p-values and p values-value p-value by well explicitly default as= directional The4 interpretation This is default; priorC directional bias Rather a inJta. from. tailistied no. and for Preference</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Natale et al. (2020) reported that the low-ℓ lack-of-power anomaly is correlated with Galactic latitude, finding ~3σ evidence that large-scale power is preferentially concentrated near the Galactic plane. Our test probes a related phenomenon using a direct power-fraction ratio, but the specific multipole-by-multipole concentration statistic averaged over ℓ = 2–20 does not appear to have been studied in a directly comparable form. The lack of anomalous signal here may reflect differences in statistic design or latitude-band choice.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Galactic Plane Power Concentration Ratio: &quot;
+    &quot;Compute the angular power spectrum of the temperature map for multipoles ℓ = 2 to 20. &quot;
+    &quot;For each ℓ, calculate the ratio of the power within a galactic latitude band of ±10° &quot;
+    &quot;from the Galactic plane to the total sky power at that ℓ. Average these ratios over &quot;
+    &quot;ℓ = 2–20 to obtain a single scalar value. This statistic measures the fraction of low-ℓ &quot;
+    &quot;power concentrated near the Galactic plane. Compare the Planck SMICA value to the &quot;
+    &quot;distribution from 1000 ΛCDM simulations.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return the average fraction of low-ℓ power in the Galactic plane band (|b| ≤ 10°).&quot;&quot;&quot;
+    lmax = 20
+    lmin = 2
+
+    finite_mask = np.isfinite(m)
+    if not np.any(finite_mask):
+        return 0.0
+
+    nside = hp.npix2nside(len(m))
+    npix = hp.nside2npix(nside)
+
+    # Replace NaN with 0 for healpy transforms
+    m_clean = np.where(finite_mask, m, 0.0)
+
+    # Compute total sky angular power spectrum
+    cl_full = hp.anafast(m_clean, lmax=lmax)
+
+    # Build Galactic plane mask: |b| &lt;= 10°
+    # Convert Galactic coordinates to Healpy convention (colatitude = pi/2 - latitude)
+    theta, phi = hp.pix2ang(nside, np.arange(npix))
+    gal_lat = np.pi / 2.0 - theta  # Galactic latitude in radians
+    gal_band_mask = np.abs(gal_lat) &lt;= np.deg2rad(10.0)
+
+    # Combine with valid-pixel mask (exclude originally masked pixels)
+    band_mask = gal_band_mask &amp; finite_mask
+
+    # Apply band mask to the cleaned map
+    m_band = np.where(band_mask, m_clean, 0.0)
+
+    # Compute power spectrum of the Galactic-band map
+    cl_band = hp.anafast(m_band, lmax=lmax)
+
+    # Extract ℓ = 2 through 20
+    ell = np.arange(lmin, lmax + 1)
+    cl_total = cl_full[lmin:lmax + 1]
+    cl_plane = cl_band[lmin:lmax + 1]
+
+    # Compute ratio for each ℓ, avoiding division by zero
+    # Use a small floor to stabilize
+    power_floor = np.max(cl_total) * 1e-30 if np.max(cl_total) &gt; 0 else 1e-30
+    ratios = cl_plane / np.maximum(cl_total, power_floor)
+
+    # Average ratio over ℓ = 2–20
+    avg_ratio = float(np.mean(ratios))
+
+    # Clamp to [0, 1] for robustness
+    avg_ratio = float(np.clip(avg_ratio, 0.0, 1.0))
+
+    return avg_ratio
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret Galactic plane power concentration ratio relative to simulations.&quot;&quot;&quot;
+    sims = np.array(sim_results, dtype=float)
+    sims_finite = sims[np.isfinite(sims)]
+    n_sims = len(sims_finite)
+
+    if n_sims == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims_finite))
+    std_s = float(np.std(sims_finite, ddof=1)) if n_sims &gt; 1 else 0.0
+    p_value_upper = float(np.mean(sims_finite &gt;= planck_stat))
+    p_value_lower = float(np.mean(sims_finite &lt;= planck_stat))
+    p_value_two_sided = 2.0 * min(p_value_upper, p_value_lower)
+    p_value_two_sided = min(p_value_two_sided, 1.0)
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else np.nan
+
+    if planck_stat &gt; mean_s:
+        tail_note = &quot;Planck has more low-ℓ power concentrated near the Galactic plane than simulations.&quot;
+    else:
+        tail_note = &quot;Planck has less low-ℓ power concentrated near the Galactic plane than simulations.&quot;
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;z_score&quot;: z_score,
+        &quot;p_value_upper&quot;: p_value_upper,
+        &quot;p_value_lower&quot;: p_value_lower,
+        &quot;p_value_two_sided&quot;: p_value_two_sided,
+        &quot;n_sims&quot;: n_sims,
+        &quot;tail_note&quot;: tail_note,
+        &quot;interpretation&quot;: (
+            &quot;This statistic measures the average fraction of low-ℓ (ℓ=2–20) angular power &quot;
+            &quot;concentrated within ±10° of the Galactic plane. The ratio is computed as the power &quot;
+            &quot;spectrum of the masked Galactic-band map divided by the full-sky power spectrum at &quot;
+            &quot;each multipole, then averaged. A higher value indicates that a disproportionate &quot;
+            &quot;share of large-scale power originates from near the Galactic plane, which could &quot;
+            &quot;suggest residual Galactic contamination or a genuine cosmological anomaly. &quot;
+            &quot;In ΛCDM, CMB fluctuations are isotropic, so the expected ratio should be roughly &quot;
+            &quot;equal to the fractional sky area of the band (~2sin(10°) ≈ 0.347 for the cosine-&quot;
+            &quot;weighted band). Significant excess could indicate foreground leakage into the CMB map.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Galactic Plane Power Concentration Ratio&quot;,
+            &quot;xlabel&quot;: &quot;Average fraction of power in |b| ≤ 10°&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck ratio = {planck_stat:.4f}. &quot;
+                f&quot;Sim mean ± σ = {mean_s:.4f} ± {std_s:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, p(two-sided) = {p_value_two_sided:.3f}. &quot;
+                f&quot;Higher values indicate more low-ℓ power near the Galactic plane.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-67-low-galactic-plane-power-concentration-ratio.png" alt="Statistic distribution for Low-ℓ Galactic Plane Power Concentration Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.248</td></tr>
+<tr><th>One-tailed p-value</th><td>0.124</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.248</td></tr>
+<tr><th>Sigma</th><td>1.155</td></tr>
+<tr><th>Planck statistic</th><td>0.0631</td></tr>
+<tr><th>Simulation mean</th><td>0.0484</td></tr>
+<tr><th>Simulation std.</th><td>0.0123</td></tr>
+<tr><th>Simulation median</th><td>0.0469</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>power</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-67-low-galactic-plane-power-concentration-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-67-low-galactic-plane-power-concentration-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-67-low-galactic-plane-power-concentration-ratio.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-67-low-galactic-plane-power-concentration-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-67-low-galactic-plane-power-concentration-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-67-low-galactic-plane-power-concentration-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Angular Pseudoentropy · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 42 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Angular Pseudoentropy</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The low-ℓ angular pseudoentropy of the observed CMB map deviates from the distribution predicted by Gaussian isotropic LCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Compute the angular pseudoentropy S_angular = -∫ ρ(θ,φ) ln ρ(θ,φ) dΩ of the low-ℓ (ℓ ≤ 10) CMB temperature field, where ρ is the normalised absolute temperature distribution over the sphere. This rotationally invariant scalar quantifies spatial uniformity of low-ℓ power; deviations from the characteristic Gaussian value signal non-Gaussianity or anisotropy. Compared against 1000 Gaussian isotropic LCDM simulations at nside=256.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Observed S = 2.231 nats vs. simulation mean 2.212 ± 0.024 nats (z = +0.76σ). Percentile = 77.6%, two-tailed p = 0.448. Anomaly strength: negligible. The maximum possible entropy (uniform sphere) is 2.531 nats.</p>
+          <p>The low-ℓ angular pseudoentropy lies well within the distribution expected from Gaussian isotropic simulations. No evidence for anomalous non-uniformity or concentration of low-ℓ temperature power on the sphere. This is consistent with the absence of statistically significant large-scale anisotropy in the temperature field.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is exploratory without a prior directional prediction; the analysis code calculates two-sided p-values, and the interpretation considers both higher and lower entropy as potential anomalies.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The concept of pseudoentropy for CMB analysis was introduced and applied to Planck 2015 data by Pinkwart, Schupp &amp; Schwarz (2019), who linked it to multipole vectors for detecting statistical anisotropy. The present test focuses specifically on low multipoles using the normalised absolute temperature field, rather than the full multipole structure studied previously. No direct prior application of this exact statistic to ℓ ≤ 10 was identified, though the underlying entropy framework is established.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Low-ℓ Angular Pseudoentropy: &quot;
+    &quot;For the low-ℓ (ℓ ≤ 10) component of the CMB temperature map, &quot;
+    &quot;normalize the |temperature| field to create a probability density &quot;
+    &quot;ρ(θ,φ) that integrates to unity over the full sphere. Compute &quot;
+    &quot;the angular pseudoentropy S_angular = -∫ ρ(θ,φ) ln ρ(θ,φ) dΩ. &quot;
+    &quot;This scalar quantifies the uniformity of the low-ℓ temperature &quot;
+    &quot;distribution; Gaussian random skies have a characteristic entropy &quot;
+    &quot;value, so deviations signal non-Gaussianity or anisotropy. The &quot;
+    &quot;statistic is rotationally invariant and computationally cheap.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Low-ℓ angular pseudoentropy.
+
+    Steps:
+    1. Replace NaN pixels with 0 for healpy compatibility.
+    2. Decompose into spherical harmonics up to ℓ=10 and reconstruct
+       a smooth low-ℓ map (fills masked regions naturally via the
+       band-limited basis).
+    3. Form ρ(θ,φ) = |T_low(θ,φ)| / [ΔΩ · Σ|T_low|] so that
+       ∫ ρ dΩ = 1 over the full sphere.
+    4. Compute S = -Σ w_i ln w_i + ln(ΔΩ) where w_i = |T_i|/Σ|T_j|,
+       which is equivalent to -∫ ρ ln ρ dΩ on the pixel grid.
+    &quot;&quot;&quot;
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 100:
+        return 0.0
+
+    nside = hp.get_nside(m)
+    npix = 12 * nside ** 2
+
+    # Replace NaN with 0 for healpy spherical-harmonic operations
+    clean = m.copy()
+    clean[~mask] = 0.0
+
+    # Filter to ℓ ≤ 10
+    lmax = 10
+    alm = hp.map2alm(clean, lmax=lmax)
+    filtered = hp.alm2map(alm, nside, lmax=lmax, verbose=False)
+
+    # Absolute value gives a non-negative field suitable as a density
+    abs_map = np.abs(filtered)
+
+    # Normalised weights that sum to 1
+    total = np.sum(abs_map)
+    if total &lt;= 0:
+        return 0.0
+
+    w = abs_map / total
+
+    # Shannon entropy of the discrete weight distribution (in nats)
+    w_pos = w[w &gt; 0]
+    H = -np.sum(w_pos * np.log(w_pos))
+
+    # Convert to continuous angular pseudoentropy:
+    #   ρ_i = w_i / ΔΩ,  ΔΩ = 4π / N_pix
+    #   S = -Σ w_i ln(w_i / ΔΩ) = -Σ w_i ln w_i + ln ΔΩ
+    delta_omega = 4.0 * np.pi / npix
+    S = H + np.log(delta_omega)
+
+    return float(S) if np.isfinite(S) else 0.0
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Angular Pseudoentropy test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    S_max = np.log(4.0 * np.pi)  # uniform distribution on the sphere
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Angular Pseudoentropy&quot;,
+                &quot;xlabel&quot;: &quot;S_angular (nats)&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 40,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    p_upper = float(np.mean(sim &gt;= planck_stat))
+    p_lower = float(np.mean(sim &lt;= planck_stat))
+    p_value = float(min(2.0 * min(p_upper, p_lower), 1.0))
+
+    rank_below = int(np.sum(sim &lt; planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    if p_value &lt;= 0.02:
+        strength = &quot;strong&quot;
+    elif p_value &lt;= 0.10:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        direction = (
+            f&quot;Planck has significantly higher angular pseudoentropy than &quot;
+            f&quot;LCDM simulations (closer to the theoretical maximum &quot;
+            f&quot;S_max = {S_max:.4f} nats), indicating a more uniform spatial &quot;
+            f&quot;distribution of low-ℓ power across the sky than expected &quot;
+            f&quot;from Gaussian isotropy.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        direction = (
+            &quot;Planck has significantly lower angular pseudoentropy than &quot;
+            &quot;LCDM simulations, suggesting more concentrated or anisotropic &quot;
+            &quot;distribution of low-ℓ temperature fluctuations than expected &quot;
+            &quot;from Gaussian isotropy.&quot;
+        )
+    else:
+        direction = (
+            &quot;The angular pseudoentropy is consistent with Gaussian LCDM &quot;
+            &quot;expectations.&quot;
+        )
+
+    interp = (
+        f&quot;Angular pseudoentropy S = {planck_stat:.4f} nats. &quot;
+        f&quot;Maximum possible (uniform) = {S_max:.4f} nats. &quot;
+        f&quot;Simulation mean = {mean_sim:.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value:.4f}. &quot;
+        f&quot;Anomaly strength: {strength}. {direction}&quot;
+    )
+
+    caption = (
+        &quot;Histogram of the angular pseudoentropy S = -∫ ρ ln ρ dΩ of the &quot;
+        &quot;low-ℓ (ℓ ≤ 10) CMB temperature field, where ρ is the normalised &quot;
+        &quot;|T| distribution over the sphere. Higher entropy indicates more &quot;
+        &quot;uniform spatial distribution of low-ℓ power; lower entropy &quot;
+        &quot;indicates more concentrated or anisotropic structure. &quot;
+        &quot;Red line marks the Planck value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value&quot;: p_value,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Angular Pseudoentropy&quot;,
+            &quot;xlabel&quot;: &quot;S_angular (nats)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-42-low-angular-pseudoentropy.png" alt="Statistic distribution for Low-ℓ Angular Pseudoentropy">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.448</td></tr>
+<tr><th>One-tailed p-value</th><td>0.224</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.448</td></tr>
+<tr><th>Sigma</th><td>0.759</td></tr>
+<tr><th>Planck statistic</th><td>2.231</td></tr>
+<tr><th>Simulation mean</th><td>2.212</td></tr>
+<tr><th>Simulation std.</th><td>0.0244</td></tr>
+<tr><th>Simulation median</th><td>2.214</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-42-low-angular-pseudoentropy.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-42-low-angular-pseudoentropy.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-42-low-angular-pseudoentropy.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-42-low-angular-pseudoentropy.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-42-low-angular-pseudoentropy.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-42-low-angular-pseudoentropy.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

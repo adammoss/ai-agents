@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Gradient Kurtosis Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 53 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Gradient Kurtosis Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The observed excess kurtosis of the gradient magnitude in the low-ℓ CMB map is significantly different from the distribution expected from Gaussian LCDM simulations.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Computes the excess kurtosis of the gradient magnitude |∇T| from the CMB temperature map band-limited to multipoles ℓ ∈ [2, 20]. This statistic quantifies the &quot;tail-heaviness&quot; of gradient values, indicating whether sharp temperature features are concentrated in specific regions.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The Planck SMICA map has an excess kurtosis of 0.5825. This value is +0.99σ away from the mean of 1000 ΛCDM simulations (0.2443 ± 0.3407), placing it at the 86.6th percentile. The two-tailed p-value is 0.268.</p>
+          <p>The observed kurtosis is consistent with the distribution expected from a Gaussian ΛCDM universe. There is no statistically significant evidence for an unusual concentration of sharp temperature features (e.g., hot or cold spots) in the low-ℓ CMB texture.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is designed to detect both anomalously high kurtosis (indicating concentrated sharp features) and anomalously low kurtosis (indicating unusually uniform textures). The code computes both one-sided p-values and combines them into a two-sided p-value, indicating no directional preference. Since we are interested in any significant deviation from the LCDM expectations, a two-tailed test is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The specific statistic of gradient magnitude kurtosis at low-ℓ does not appear to be a standard test in the CMB anomaly literature. Related studies examine other low-ℓ features like alignment or planarity of multipoles, but not this gradient-based metric.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Compute the band-limited CMB temperature map restricted to ℓ ∈ [2, 20] &quot;
+    &quot;via spherical harmonic filtering. Evaluate the spatial gradient ∇T(θ,φ) &quot;
+    &quot;at each pixel. Construct the scalar field g(θ,φ) = |∇T|, the gradient &quot;
+    &quot;magnitude. Compute the sample excess kurtosis of g over all unmasked &quot;
+    &quot;pixels: κ_g = [Σ(g_i - ḡ)⁴ / N] / [Σ(g_i - ḡ)² / N]² - 3. This &quot;
+    &quot;single scalar captures the tail-heaviness and outlier prevalence of &quot;
+    &quot;gradient magnitudes, quantifying whether the low-ℓ CMB texture contains &quot;
+    &quot;anomalously concentrated sharp features relative to Gaussian LCDM &quot;
+    &quot;expectations. A map with a few regions of steep temperature variation &quot;
+    &quot;surrounded by smooth terrain will yield a high κ_g, while uniform &quot;
+    &quot;gradient textures yield κ_g near zero.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return excess kurtosis of |∇T| in the low-ℓ (ℓ∈[2,20]) band-limited map.&quot;&quot;&quot;
+    nside = hp.npix2nside(len(m))
+    mask = np.isfinite(m)
+    n_valid = int(np.sum(mask))
+    if n_valid &lt; 500:
+        return 0.0
+
+    # Fill masked pixels with 0 for healpy compatibility
+    m_filled = np.where(mask, m, 0.0)
+
+    # Band-limit to ℓ ∈ [2, 20]
+    lmax = 20
+    alm = hp.map2alm(m_filled, lmax=lmax, iter=0)
+
+    # Get (ell, m) arrays for vectorized indexing
+    ell_arr, m_arr = hp.Alm.getlm(lmax)
+
+    # Zero out ℓ=0 (monopole) and ℓ=1 (dipole)
+    low_ell_mask = ell_arr &lt; 2
+    alm[low_ell_mask] = 0.0
+
+    # Compute gradient using alm2map_der1 which returns (T, dT/dtheta, (1/sinθ)dT/dphi)
+    try:
+        _, dtheta, dphi_scaled = hp.alm2map_der1(alm, nside)
+    except (AttributeError, TypeError):
+        # Fallback: compute gradient via spin-1 transform
+        factor = np.zeros(len(alm), dtype=complex)
+        valid_idx = ~low_ell_mask
+        factor[valid_idx] = -np.sqrt(
+            ell_arr[valid_idx] * (ell_arr[valid_idx] + 1.0) / 2.0
+        )
+        alm_plus = factor * alm
+        alm_minus = -alm_plus
+
+        grad_maps = hp.alm2map_spin(
+            [alm_plus, alm_minus], nside, lmax, lmax
+        )
+        dtheta = grad_maps[0]
+        dphi_scaled = grad_maps[1]
+
+    # Compute gradient magnitude |∇T| = sqrt((dT/dθ)² + ((1/sinθ)dT/dφ)²)
+    grad_mag = np.sqrt(dtheta**2 + dphi_scaled**2)
+
+    # Restrict to unmasked pixels with finite gradient values
+    valid = mask &amp; np.isfinite(grad_mag)
+    g = grad_mag[valid]
+
+    if len(g) &lt; 100:
+        return 0.0
+
+    # Compute sample excess kurtosis: κ = m4/m2² - 3
+    g_mean = np.mean(g)
+    g_centered = g - g_mean
+
+    m2 = np.mean(g_centered**2)
+    m4 = np.mean(g_centered**4)
+
+    if m2 &lt;= 0:
+        return 0.0
+
+    kurtosis = m4 / (m2**2) - 3.0
+
+    if not np.isfinite(kurtosis):
+        return 0.0
+
+    return float(kurtosis)
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Summarize the Low-ℓ Gradient Kurtosis Ratio test.&quot;&quot;&quot;
+    sim = np.array(sim_results, dtype=float)
+    sim = sim[np.isfinite(sim)]
+    n_sims = len(sim)
+
+    if n_sims == 0:
+        return {
+            &quot;planck_stat&quot;: planck_stat,
+            &quot;p_value&quot;: float(&quot;nan&quot;),
+            &quot;n_sims&quot;: 0,
+            &quot;interpretation&quot;: &quot;No simulation results available.&quot;,
+            &quot;plot_spec&quot;: {
+                &quot;kind&quot;: &quot;histogram&quot;,
+                &quot;title&quot;: &quot;Low-ℓ Gradient Kurtosis Ratio&quot;,
+                &quot;xlabel&quot;: &quot;Excess kurtosis of |∇T|&quot;,
+                &quot;ylabel&quot;: &quot;Count&quot;,
+                &quot;bins&quot;: 50,
+                &quot;caption&quot;: &quot;No simulation data.&quot;,
+            },
+        }
+
+    mean_sim = float(np.mean(sim))
+    std_sim = float(np.std(sim))
+
+    p_value_upper = float(np.mean(sim &gt;= planck_stat))
+    p_value_lower = float(np.mean(sim &lt;= planck_stat))
+
+    p_value_two_sided = 2.0 * min(p_value_upper, p_value_lower)
+    p_value_two_sided = min(p_value_two_sided, 1.0)
+
+    deviation_sigma = (planck_stat - mean_sim) / std_sim if std_sim &gt; 0 else 0.0
+
+    rank_above = int(np.sum(sim &gt;= planck_stat))
+    rank_below = int(np.sum(sim &lt;= planck_stat))
+    percentile = 100.0 * rank_below / n_sims
+
+    if p_value_two_sided &lt;= 0.01:
+        strength = &quot;strong&quot;
+    elif p_value_two_sided &lt;= 0.05:
+        strength = &quot;moderate&quot;
+    else:
+        strength = &quot;negligible&quot;
+
+    interp = (
+        f&quot;Excess kurtosis of gradient magnitude = {planck_stat:.4f}. &quot;
+        f&quot;Sim mean = {mean_sim:.4f} ± {std_sim:.4f} &quot;
+        f&quot;({deviation_sigma:+.2f}σ). Percentile = {percentile:.1f}%, &quot;
+        f&quot;two-sided p = {p_value_two_sided:.4f}. Strength: {strength}. &quot;
+    )
+
+    if planck_stat &gt; mean_sim + 2 * std_sim:
+        interp += (
+            &quot;The Planck map shows unusually heavy-tailed gradient magnitudes, &quot;
+            &quot;suggesting concentrated sharp features (e.g., the cold spot or &quot;
+            &quot;other hot/cold anomalies) in the low-ℓ CMB texture relative to &quot;
+            &quot;Gaussian LCDM expectations.&quot;
+        )
+    elif planck_stat &lt; mean_sim - 2 * std_sim:
+        interp += (
+            &quot;The Planck map shows unusually light-tailed gradient magnitudes, &quot;
+            &quot;suggesting an unusually uniform low-ℓ CMB texture compared to &quot;
+            &quot;Gaussian LCDM expectations.&quot;
+        )
+    else:
+        interp += (
+            &quot;The gradient kurtosis is consistent with Gaussian LCDM expectations. &quot;
+            &quot;No significant anomaly detected in the concentration of sharp &quot;
+            &quot;temperature features at low multipoles.&quot;
+        )
+
+    caption = (
+        &quot;Histogram of excess kurtosis of gradient magnitude |∇T| in the &quot;
+        &quot;low-ℓ (ℓ∈[2,20]) band-limited CMB temperature map across FFP &quot;
+        &quot;simulations. Higher values indicate more concentrated sharp features &quot;
+        &quot;(heavier tails in the gradient distribution). The red line marks the &quot;
+        &quot;Planck observed value.&quot;
+    )
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;p_value_one_sided_upper&quot;: p_value_upper,
+        &quot;p_value_one_sided_lower&quot;: p_value_lower,
+        &quot;p_value_two_sided&quot;: p_value_two_sided,
+        &quot;rank_above&quot;: rank_above,
+        &quot;rank_below&quot;: rank_below,
+        &quot;n_sims&quot;: n_sims,
+        &quot;percentile&quot;: percentile,
+        &quot;sim_mean&quot;: mean_sim,
+        &quot;sim_std&quot;: std_sim,
+        &quot;deviation_sigma&quot;: deviation_sigma,
+        &quot;anomaly_strength&quot;: strength,
+        &quot;interpretation&quot;: interp,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Gradient Kurtosis Ratio&quot;,
+            &quot;xlabel&quot;: &quot;Excess kurtosis of |∇T|&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 50,
+            &quot;caption&quot;: caption,
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-53-low-gradient-kurtosis-ratio.png" alt="Statistic distribution for Low-ℓ Gradient Kurtosis Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.268</td></tr>
+<tr><th>One-tailed p-value</th><td>0.134</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.268</td></tr>
+<tr><th>Sigma</th><td>1.108</td></tr>
+<tr><th>Planck statistic</th><td>0.582</td></tr>
+<tr><th>Simulation mean</th><td>0.244</td></tr>
+<tr><th>Simulation std.</th><td>0.341</td></tr>
+<tr><th>Simulation median</th><td>0.195</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-53-low-gradient-kurtosis-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-53-low-gradient-kurtosis-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-53-low-gradient-kurtosis-ratio.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-53-low-gradient-kurtosis-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-53-low-gradient-kurtosis-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-53-low-gradient-kurtosis-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

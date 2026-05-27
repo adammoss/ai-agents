@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Ecliptic-Plane Power Fraction · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 04 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Ecliptic-Plane Power Fraction</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Variation · power · upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The fraction of CMB temperature power at multipoles ℓ=2 through 5 residing in ecliptic-symmetric modes (even m) is higher than the expected value of 0.5 for a random isotropic field.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>The fraction of total CMB temperature power at multipoles ℓ = 2–5 residing in ecliptic-symmetric (even-*m*) spherical harmonic modes is computed for the Planck map and 1000 lensed-ΛCDM simulations. For a random isotropic field the expected fraction is ~0.5; a significantly higher value would indicate anomalous concentration of low-ℓ power in modes symmetric about the ecliptic plane.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>The Planck even-*m* power fraction is 0.388, notably *below* the simulation mean of 0.506 ± 0.140. The one-sided upper-tail p-value is 0.779 (z = −0.84σ), meaning 77.9% of simulations equal or exceed the Planck value. The observed statistic lies comfortably within the expected distribution.</p>
+          <p>The low-ℓ ecliptic-plane power fraction in Planck data is fully consistent with isotropic ΛCDM expectations and is actually marginally lower than the simulation median (0.512). There is no evidence of anomalous excess power in ecliptic-symmetric modes at these multipoles.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test description and code explicitly focus on detecting a significantly higher power fraction as anomalous, with the p-value calculated by counting simulations where the observed value is greater than or equal to the Planck statistic, indicating a clear directional preference for excess in ecliptic-symmetric modes.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Ecliptic alignment of low-ℓ CMB modes has been reported in Planck Collaboration papers (e.g., Planck 2013 XVI; Planck 2018 VII) using various statistics, sometimes at modest significance. The current test, which isolates even-*m* power as a single scalar, finds no such excess. Differences in multipole ranges, masking, and statistic definitions make direct comparison with earlier claims non-trivial.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (&quot;Low-ℓ Ecliptic-Plane Power Fraction. Computes the fraction of total CMB &quot;
+    &quot;temperature power at multipoles ℓ=2 through 5 residing in spherical harmonic modes &quot;
+    &quot;with even m (symmetric about the ecliptic plane). For a random isotropic field the &quot;
+    &quot;expected value is ~0.5; a significantly higher value indicates anomalous concentration &quot;
+    &quot;of low-ℓ power in ecliptic-symmetric modes, as reported in Planck data.&quot;)
+
+
+def analyze_map(m):
+    m = np.asarray(m, dtype=np.float64)
+    m_fill = np.where(np.isfinite(m), m, 0.0)
+
+    lmax = 5
+    alm = hp.map2alm(m_fill, lmax=lmax)
+
+    even_power = 0.0
+    total_power = 0.0
+
+    for ell in range(2, 6):          # ℓ = 2, 3, 4, 5
+        for me in range(0, ell + 1): # m = 0, 1, ..., ℓ
+            idx = hp.Alm.getidx(lmax, ell, me)
+            power = np.abs(alm[idx]) ** 2
+            if me &gt; 0:
+                power *= 2.0         # account for the conjugate m &lt; 0 mode
+            total_power += power
+            if me % 2 == 0:          # even m → ecliptic-symmetric
+                even_power += power
+
+    if total_power &gt; 0.0:
+        ratio = even_power / total_power
+    else:
+        ratio = 0.5
+
+    return float(ratio)
+
+
+def summarize_results(planck_stat, sim_results):
+    sim_arr = np.array(sim_results, dtype=np.float64)
+    finite_mask = np.isfinite(sim_arr)
+    n_finite = int(finite_mask.sum())
+
+    if n_finite &gt; 0:
+        valid = sim_arr[finite_mask]
+        rank = int(np.sum(valid &gt;= planck_stat))
+        p_value = rank / n_finite
+    else:
+        rank = 0
+        p_value = float(&#x27;nan&#x27;)
+
+    sim_median = float(np.nanmedian(sim_arr))
+    sim_mean = float(np.nanmean(sim_arr))
+    sim_std = float(np.nanstd(sim_arr))
+
+    interpretation = (
+        &quot;Anomalous: low-ℓ power concentrated in ecliptic-symmetric modes&quot;
+        if p_value &lt; 0.05
+        else &quot;Low-ℓ ecliptic power fraction consistent with random expectations&quot;
+    )
+
+    result = {
+        &quot;test_description&quot;: test_description,
+        &quot;planck_stat&quot;: float(planck_stat),
+        &quot;p_value&quot;: float(p_value),
+        &quot;rank&quot;: rank,
+        &quot;n_simulations&quot;: len(sim_results),
+        &quot;n_valid&quot;: n_finite,
+        &quot;sim_mean&quot;: sim_mean,
+        &quot;sim_std&quot;: sim_std,
+        &quot;sim_median&quot;: sim_median,
+        &quot;exceeds_95th_percentile&quot;: bool(p_value &lt; 0.05),
+        &quot;interpretation&quot;: interpretation,
+        &quot;expected_random_fraction&quot;: float(0.5),
+    }
+
+    result[&quot;plot_spec&quot;] = {
+        &quot;kind&quot;: &quot;histogram&quot;,
+        &quot;title&quot;: &quot;Low-ℓ Ecliptic-Plane Power Fraction&quot;,
+        &quot;xlabel&quot;: &quot;Even-m power fraction (ℓ = 2–5)&quot;,
+        &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+        &quot;bins&quot;: 50,
+        &quot;caption&quot;: (
+            f&quot;Histogram of even-m power fraction from {n_finite} lensed-ΛCDM simulations. &quot;
+            f&quot;Planck value = {planck_stat:.4f} (one-sided p = {p_value:.3f}, &quot;
+            f&quot;rank {rank}/{n_finite}). &quot;
+            f&quot;The expected value for isotropic random fields is ~0.5; &quot;
+            f&quot;a value significantly above 0.5 indicates anomalous ecliptic symmetry.&quot;
+        ),
+    }
+
+    return result</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-04-low-ecliptic-plane-power-fraction.png" alt="Statistic distribution for Low-ℓ Ecliptic-Plane Power Fraction">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.779</td></tr>
+<tr><th>One-tailed p-value</th><td>0.779</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.442</td></tr>
+<tr><th>Sigma</th><td>0.769</td></tr>
+<tr><th>Planck statistic</th><td>0.388</td></tr>
+<tr><th>Simulation mean</th><td>0.506</td></tr>
+<tr><th>Simulation std.</th><td>0.14</td></tr>
+<tr><th>Simulation median</th><td>0.512</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>upper</td></tr>
+<tr><th>Family</th><td>power</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-04-low-ecliptic-plane-power-fraction.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-04-low-ecliptic-plane-power-fraction.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-04-low-ecliptic-plane-power-fraction.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-04-low-ecliptic-plane-power-fraction.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-04-low-ecliptic-plane-power-fraction.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-04-low-ecliptic-plane-power-fraction.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>

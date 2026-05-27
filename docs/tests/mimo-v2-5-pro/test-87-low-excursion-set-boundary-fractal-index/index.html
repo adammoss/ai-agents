@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-ℓ Excursion-Set Boundary Fractal Index · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 87 · Mimo V2.5 Pro</p>
+      <h1>Low-ℓ Excursion-Set Boundary Fractal Index</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">Catalogue</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">Mimo V2.5 Pro · Novel · other · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The fractal dimension D of the low-ℓ excursion-set boundary deviates from the distribution expected under Gaussian random fields, indicating potential non-Gaussian structure in the CMB temperature map.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Box-counting fractal dimension D of the zero-threshold excursion-set boundary for the CMB temperature map band-limited to ℓ ≤ 30. Grids of side-length 1, 2, 4, 8, 16 pixels are laid over boundary pixels; log N(s) vs log(1/s) is fit to yield D, where D ≈ 1 indicates smooth contours (Gaussian expectation) and D → 2 indicates space-filling, non-Gaussian structure.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck D = 1.2307 (moderately smooth contours with some branching). Simulation mean ± std = 1.2254 ± 0.0044 over 1000 Gaussian realisations. z = 1.22, two-sided p = 0.232. The observed value ranks at the 88.4th percentile of simulations—slightly elevated but well within Gaussian expectations.</p>
+          <p>The Planck low-ℓ excursion-set boundary has a fractal dimension consistent with Gaussian random-field predictions. The modest positive offset (z ≈ 1.2) could reflect mild additional branching or roughness, but falls far short of statistical significance. There is no evidence for anomalous filamentary or patchy non-Gaussian geometry at large angular scales.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The test is exploratory, designed to detect anomalies in either direction—D could be lower (smoother contours) or higher (more complex boundaries) than expected from Gaussian simulations. The code calculates both upper and lower p-values and combines them into a two-sided p-value, supporting a two-tailed approach. The description mentions that non-Gaussian features can push D toward 2, but it does not specify a strict directional bias, as Gaussian fields yield D ~ 1, making deviations in either direction noteworthy for anomaly detection.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>No prior studies were found applying box-counting fractal dimension of excursion-set boundaries to CMB temperature maps. Existing related work involves Minkowski functionals, genus statistics, lacunarity, and multifractal spectra of CMB fields, which summarise bulk topology or full multifractal spectra rather than the boundary&#x27;s intrinsic scaling dimension. The search returned no directly comparable CMB analyses.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+import healpy as hp
+
+test_description = (
+    &quot;Compute the fractal (box-counting) dimension of the excursion-set boundary &quot;
+    &quot;at the median-zero threshold. Band-limit the map to l &lt;= 30 and extract &quot;
+    &quot;the excursion set S = {pixels where T &gt; 0 after median subtraction}. &quot;
+    &quot;Identify all boundary pixels (pixels in S with at least one valid neighbour &quot;
+    &quot;not in S, or vice-versa). Perform box-counting on the boundary pixel set: &quot;
+    &quot;lay grids of side-length s = 1, 2, 4, 8, 16 pixels using HEALPix nested &quot;
+    &quot;hierarchy, counting the number of boxes N(s) containing at least one boundary &quot;
+    &quot;pixel. Fit log N(s) versus log(1/s) via least-squares; slope D is the fractal &quot;
+    &quot;dimension. D ~ 1 for smooth contours (Gaussian); D -&gt; 2 for space-filling &quot;
+    &quot;non-Gaussian structures.&quot;
+)
+
+
+def analyze_map(m):
+    &quot;&quot;&quot;Return fractal dimension D of the low-l excursion-set boundary.&quot;&quot;&quot;
+    valid = np.isfinite(m)
+    n_valid = int(np.sum(valid))
+
+    if n_valid &lt; 100:
+        return 1.0
+
+    m_clean = np.where(valid, m, 0.0)
+    nside = hp.npix2nside(len(m_clean))
+    lmax = 30
+
+    # Band-limit to l &lt;= 30
+    alm = hp.map2alm(m_clean, lmax=lmax)
+    m_low = hp.alm2map(alm, nside=nside, lmax=lmax, verbose=False)
+
+    # Median-zero threshold: excursion set S = {valid pixels where T &gt; median}
+    m_low_valid = m_low[valid]
+    median_val = np.median(m_low_valid)
+    excursion = (m_low &gt; median_val) &amp; valid
+
+    # --- Boundary detection ---
+    npix = len(m)
+    all_pix = np.arange(npix)
+
+    # Get all 8 neighbors in RING ordering
+    neighbors = hp.get_all_neighbours(nside, all_pix)  # shape (8, npix)
+
+    # Mask: which neighbor entries are valid (not -1) and point to unmasked pixels
+    valid_nb = (neighbors &gt;= 0) &amp; valid[neighbors]  # (8, npix)
+
+    # Excursion status of each neighbor (False if invalid)
+    nb_exc = np.zeros((8, npix), dtype=bool)
+    nb_exc[valid_nb] = excursion[neighbors[valid_nb]]
+
+    # Boundary: pixel in S has valid neighbor outside S, or vice versa
+    has_nb_outside = np.any(valid_nb &amp; ~nb_exc, axis=0)
+    has_nb_inside = np.any(valid_nb &amp; nb_exc, axis=0)
+    boundary = ((excursion &amp; has_nb_outside) | (~excursion &amp; has_nb_inside)) &amp; valid
+
+    boundary_pix = np.where(boundary)[0]
+    n_boundary = len(boundary_pix)
+
+    if n_boundary &lt; 10:
+        return 1.0
+
+    # --- Box-counting using HEALPix nested hierarchy ---
+    boundary_pix_nest = hp.ring2nest(nside, boundary_pix)
+
+    scales = [1, 2, 4, 8, 16]
+    xs = []  # log(1/s)
+    ys = []  # log N(s)
+
+    for s in scales:
+        if s == 1:
+            N_s = n_boundary
+        else:
+            if nside // s &lt; 1:
+                continue
+            parent = boundary_pix_nest // (s * s)
+            N_s = len(np.unique(parent))
+
+        if N_s &gt; 0:
+            xs.append(np.log(1.0 / s))
+            ys.append(np.log(N_s))
+
+    if len(xs) &lt; 2:
+        return 1.0
+
+    x = np.array(xs)
+    y = np.array(ys)
+
+    # Least-squares: log N = D * log(1/s) + c
+    D = np.polyfit(x, y, 1)[0]
+
+    if not np.isfinite(D):
+        return 1.0
+
+    return float(np.clip(D, 0.0, 3.0))
+
+
+def summarize_results(planck_stat, sim_results):
+    &quot;&quot;&quot;Interpret the Low-l Excursion-Set Boundary Fractal Index.&quot;&quot;&quot;
+    sims = np.asarray(sim_results, dtype=float)
+    sims = sims[np.isfinite(sims)]
+    n = len(sims)
+
+    if n == 0:
+        return {&quot;planck_stat&quot;: planck_stat, &quot;note&quot;: &quot;No finite simulation results.&quot;}
+
+    mean_s = float(np.mean(sims))
+    std_s = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    median_s = float(np.median(sims))
+    rank = int(np.sum(sims &lt;= planck_stat))
+    p_upper = float(np.mean(sims &gt;= planck_stat))
+    p_lower = float(np.mean(sims &lt;= planck_stat))
+    p_two = min(2.0 * min(p_upper, p_lower), 1.0)
+    z_score = (planck_stat - mean_s) / std_s if std_s &gt; 0 else 0.0
+
+    if planck_stat &lt; 1.15:
+        geom = &quot;very smooth contours (nearly circular)&quot;
+    elif planck_stat &lt; 1.35:
+        geom = &quot;moderately smooth contours with some branching&quot;
+    elif planck_stat &lt; 1.6:
+        geom = &quot;moderately complex, filamentary or patchy boundary&quot;
+    else:
+        geom = &quot;highly complex, near-space-filling boundary structure&quot;
+
+    return {
+        &quot;planck_stat&quot;: planck_stat,
+        &quot;fractal_dimension&quot;: planck_stat,
+        &quot;sim_mean&quot;: mean_s,
+        &quot;sim_std&quot;: std_s,
+        &quot;sim_median&quot;: median_s,
+        &quot;z_score&quot;: z_score,
+        &quot;rank&quot;: rank,
+        &quot;p_value_upper&quot;: p_upper,
+        &quot;p_value_lower&quot;: p_lower,
+        &quot;p_value_two_sided&quot;: p_two,
+        &quot;n_sims&quot;: n,
+        &quot;boundary_geometry&quot;: geom,
+        &quot;interpretation&quot;: (
+            f&quot;The box-counting fractal dimension of the low-l (l&lt;=30) excursion-set &quot;
+            f&quot;boundary is D = {planck_stat:.4f}. For a Gaussian random field, D ~ 1 &quot;
+            f&quot;(smooth contours); values approaching 2 indicate space-filling, non-Gaussian &quot;
+            f&quot;structure. Planck D = {planck_stat:.4f} ({geom}). &quot;
+            f&quot;Simulation mean +/- std = {mean_s:.4f} +/- {std_s:.4f}. &quot;
+            f&quot;z = {z_score:.2f}, two-sided p = {p_two:.4f}.&quot;
+        ),
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-ℓ Excursion-Set Boundary Fractal Dimension&quot;,
+            &quot;xlabel&quot;: &quot;Fractal dimension D&quot;,
+            &quot;ylabel&quot;: &quot;Count&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: (
+                f&quot;Planck D = {planck_stat:.4f}. &quot;
+                f&quot;Sim mean +/- std = {mean_s:.4f} +/- {std_s:.4f}. &quot;
+                f&quot;z = {z_score:.2f}, P(two-sided) = {p_two:.4f}.&quot;
+            ),
+        },
+    }</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/mimo-v2-5-pro/test-87-low-excursion-set-boundary-fractal-index.png" alt="Statistic distribution for Low-ℓ Excursion-Set Boundary Fractal Index">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>Mimo V2.5 Pro</td></tr>
+<tr><th>Run path</th><td>runs/cmb_test_run_mimo</td></tr>
+<tr><th>Primary p-value</th><td>0.232</td></tr>
+<tr><th>One-tailed p-value</th><td>0.116</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.232</td></tr>
+<tr><th>Sigma</th><td>1.195</td></tr>
+<tr><th>Planck statistic</th><td>1.231</td></tr>
+<tr><th>Simulation mean</th><td>1.225</td></tr>
+<tr><th>Simulation std.</th><td>0.0044</td></tr>
+<tr><th>Simulation median</th><td>1.225</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>other</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/mimo-v2-5-pro/test-87-low-excursion-set-boundary-fractal-index.png">Figure PNG</a>
+<a href="../../../assets/figures/mimo-v2-5-pro/test-87-low-excursion-set-boundary-fractal-index.pdf">Figure PDF</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-87-low-excursion-set-boundary-fractal-index.updated_results.json">Updated JSON</a>
+<a href="../../../data/raw/mimo-v2-5-pro/test-87-low-excursion-set-boundary-fractal-index.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-87-low-excursion-set-boundary-fractal-index.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/mimo-v2-5-pro/test-87-low-excursion-set-boundary-fractal-index.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 1 model(s).</p>
+  </footer>
+</body>
+</html>
