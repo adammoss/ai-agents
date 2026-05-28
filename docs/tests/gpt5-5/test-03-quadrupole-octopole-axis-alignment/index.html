@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quadrupole-Octopole Axis Alignment · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 03 · GPT5.5</p>
+      <h1>Quadrupole-Octopole Axis Alignment</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">← Catalogue</a>
+      <a href="../../../">Paper</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">GPT5.5 · Repeat · alignment · one-tailed, upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The observed CMB quadrupole and octopole preferred axes are more strongly aligned than expected from isotropic simulations, i.e. Planck has unusually large S = |n2 · n3|.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Planck and 1000 isotropic simulations were analysed with the same masked-sky least-squares low-l harmonic fit after monopole/dipole removal. The statistic was S = |n2 · n3|, where n2 and n3 maximize angular-momentum dispersion for the quadrupole and octopole; larger S means stronger alignment.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck gave S = 0.290, corresponding to an angle of 73.1 deg. Simulations had mean S = 0.530, median 0.540, and standard deviation 0.294. The upper-tail p-value for stronger alignment was 0.744, with Planck at the 25.6th percentile rather than in the high-alignment tail.</p>
+          <p>The observed axes are less aligned than a typical simulation and are far from the anomalous upper tail. This test therefore gives no support for unusually strong Planck quadrupole-octopole alignment under this implementation.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The statistic increases toward 1 for stronger quadrupole-octopole alignment, and the code explicitly treats the upper tail as the tail of interest using empirical_p_upper_alignment and flags high-alignment outliers. The anomaly being tested is excessive alignment, not unusually weak alignment.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>The supplied search results did not identify a closely matching masked-sky least-squares implementation. However, quadrupole-octopole alignment itself is a well-known CMB anomaly statistic, discussed for example by de Oliveira-Costa et al. 2004, Schwarz et al. 2004, Copi et al. 2010, and Planck isotropy analyses. Unlike many reported full-sky low-l alignment claims, this result finds no high-alignment anomaly.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+try:
+    import healpy as hp
+except Exception:
+    hp = None
+
+test_description = &quot;Quadrupole-Octopole Axis Alignment: remove the best-fit monopole and dipole on finite unmasked pixels, estimate l=2 and l=3 coefficients with the same equal-weight masked-sky least-squares spherical-harmonic fit, and return S = |n2 dot n3| where each n_l maximizes angular-momentum dispersion. Values near 1 indicate strong alignment.&quot;
+
+# The implementation below is deliberately self-contained inside analyze_map.
+# Some notebook registration harnesses execute submitted code with separate
+# globals/locals dictionaries; placing all operational helpers inside the
+# function avoids NameError failures from such execution modes. Persistent
+# geometry caches are stored as attributes of analyze_map.
+
+
+def analyze_map(m):
+    import numpy as _np
+    try:
+        import healpy as _hp
+    except Exception:
+        _hp = None
+
+    _ABS_CUT = 1.0e20
+    _RCOND = 1.0e-10
+    _CHUNK = 131072
+    _MAX_BASIS_FLOATS = 28000000
+    _CACHE_MAX = 4
+
+    def _finite_float(x, default=0.5):
+        try:
+            y = float(x)
+        except Exception:
+            return float(default)
+        if not _np.isfinite(y):
+            return float(default)
+        return float(y)
+
+    def _clip01(x, default=0.5):
+        y = _finite_float(x, default)
+        if y &lt; 0.0:
+            y = 0.0
+        elif y &gt; 1.0:
+            y = 1.0
+        return float(y)
+
+    def _valid_pixels(a):
+        a = _np.asarray(a).ravel()
+        v = _np.isfinite(a)
+        try:
+            with _np.errstate(invalid=&quot;ignore&quot;, over=&quot;ignore&quot;):
+                v = _np.logical_and(v, _np.abs(a) &lt; _ABS_CUT)
+        except Exception:
+            pass
+        return _np.asarray(v, dtype=bool).ravel()
+
+    def _real_basis_lmax3(x, y, z):
+        x = _np.asarray(x, dtype=_np.float64)
+        y = _np.asarray(y, dtype=_np.float64)
+        z = _np.asarray(z, dtype=_np.float64)
+        n = int(x.size)
+        b = _np.empty((16, n), dtype=_np.float64)
+
+        pi = float(_np.pi)
+        rt2 = float(_np.sqrt(2.0))
+
+        c00 = 1.0 / _np.sqrt(4.0 * pi)
+        c10 = _np.sqrt(3.0 / (4.0 * pi))
+        c11 = _np.sqrt(3.0 / (8.0 * pi))
+        c20 = _np.sqrt(5.0 / (16.0 * pi))
+        c21 = _np.sqrt(15.0 / (8.0 * pi))
+        c22 = _np.sqrt(15.0 / (32.0 * pi))
+        c30 = _np.sqrt(7.0 / (16.0 * pi))
+        c31 = _np.sqrt(21.0 / (64.0 * pi))
+        c32 = _np.sqrt(105.0 / (32.0 * pi))
+        c33 = _np.sqrt(35.0 / (64.0 * pi))
+
+        x2 = x * x
+        y2 = y * y
+        z2 = z * z
+        xy = x * y
+        re2 = x2 - y2
+        im2 = 2.0 * xy
+        re3 = x * (x2 - 3.0 * y2)
+        im3 = y * (3.0 * x2 - y2)
+
+        b[0] = c00
+
+        b[1] = c10 * z
+        b[2] = rt2 * (-c11 * x)
+        b[3] = rt2 * (-c11 * y)
+
+        b[4] = c20 * (3.0 * z2 - 1.0)
+        b[5] = rt2 * (-c21 * z * x)
+        b[6] = rt2 * (-c21 * z * y)
+        b[7] = rt2 * (c22 * re2)
+        b[8] = rt2 * (c22 * im2)
+
+        b[9] = c30 * (5.0 * z2 * z - 3.0 * z)
+        f31 = 5.0 * z2 - 1.0
+        b[10] = rt2 * (-c31 * f31 * x)
+        b[11] = rt2 * (-c31 * f31 * y)
+        b[12] = rt2 * (c32 * z * re2)
+        b[13] = rt2 * (c32 * z * im2)
+        b[14] = rt2 * (-c33 * re3)
+        b[15] = rt2 * (-c33 * im3)
+        return b
+
+    def _pinv_sym(a, rcond=_RCOND):
+        a = _np.asarray(a, dtype=_np.float64)
+        if a.ndim != 2 or a.shape[0] != a.shape[1]:
+            try:
+                return _np.linalg.pinv(a, rcond=rcond)
+            except Exception:
+                if a.ndim == 2:
+                    return _np.zeros((int(a.shape[1]), int(a.shape[0])), dtype=_np.float64)
+                return _np.zeros((0, 0), dtype=_np.float64)
+        a = 0.5 * (a + a.T)
+        try:
+            w, v = _np.linalg.eigh(a)
+        except Exception:
+            try:
+                return _np.linalg.pinv(a, rcond=rcond)
+            except Exception:
+                return _np.zeros_like(a)
+        if w.size == 0 or (not _np.all(_np.isfinite(w))) or (not _np.all(_np.isfinite(v))):
+            return _np.zeros_like(a)
+        scale = float(_np.max(_np.abs(w)))
+        if (not _np.isfinite(scale)) or scale &lt;= 0.0:
+            return _np.zeros_like(a)
+        keep = _np.abs(w) &gt; float(rcond) * scale
+        inv = _np.zeros_like(w)
+        inv[keep] = 1.0 / w[keep]
+        return _np.dot(v * inv, v.T)
+
+    def _mask_key(nside, valid):
+        valid = _np.asarray(valid, dtype=bool).ravel()
+        idx = _np.flatnonzero(valid)
+        nvalid = int(idx.size)
+        if nvalid &lt;= 0:
+            fp = [-1, -1, 0, 0]
+        else:
+            take = _np.linspace(0, nvalid - 1, min(32, nvalid)).astype(_np.int64)
+            sample = idx[take]
+            fp = [int(idx[0]), int(idx[-1]), int(_np.sum(sample.astype(_np.int64) % 1000003)), int(nvalid)]
+        return str(int(nside)) + &quot;:&quot; + str(int(valid.size)) + &quot;:&quot; + &quot;:&quot;.join(str(int(v)) for v in fp)
+
+    def _get_caches():
+        if not hasattr(analyze_map, &quot;_qo_geom_cache&quot;):
+            analyze_map._qo_geom_cache = {}
+        if not hasattr(analyze_map, &quot;_qo_lmat_cache&quot;):
+            analyze_map._qo_lmat_cache = {}
+        return analyze_map._qo_geom_cache, analyze_map._qo_lmat_cache
+
+    def _get_geometry(nside, valid):
+        if _hp is None:
+            raise RuntimeError(&quot;healpy is required for HEALPix geometry&quot;)
+        geom_cache, _ = _get_caches()
+        valid = _np.asarray(valid, dtype=bool).ravel()
+        npix = int(valid.size)
+        nvalid = int(_np.count_nonzero(valid))
+        key = _mask_key(nside, valid)
+
+        entries = geom_cache.get(key, [])
+        for geom in entries:
+            try:
+                if int(geom.get(&quot;nvalid&quot;, -1)) == nvalid and _np.array_equal(geom.get(&quot;valid&quot;), valid):
+                    return geom
+            except Exception:
+                pass
+
+        pix = _np.flatnonzero(valid).astype(_np.int64, copy=False)
+        gram01 = _np.zeros((4, 4), dtype=_np.float64)
+        gram23 = _np.zeros((12, 12), dtype=_np.float64)
+        cross2301 = _np.zeros((12, 4), dtype=_np.float64)
+
+        basis_store = None
+        if 16 * max(1, nvalid) &lt;= _MAX_BASIS_FLOATS:
+            basis_store = _np.empty((16, nvalid), dtype=_np.float32)
+
+        for start in range(0, nvalid, _CHUNK):
+            stop = min(nvalid, start + _CHUNK)
+            x, y, z = _hp.pix2vec(int(nside), pix[start:stop])
+            b = _real_basis_lmax3(x, y, z)
+            b01 = b[:4]
+            b23 = b[4:]
+            gram01 += _np.dot(b01, b01.T)
+            gram23 += _np.dot(b23, b23.T)
+            cross2301 += _np.dot(b23, b01.T)
+            if basis_store is not None:
+                basis_store[:, start:stop] = b.astype(_np.float32, copy=False)
+
+        geom = {
+            &quot;nside&quot;: int(nside),
+            &quot;npix&quot;: int(npix),
+            &quot;nvalid&quot;: int(nvalid),
+            &quot;valid&quot;: valid.copy(),
+            &quot;pix&quot;: pix,
+            &quot;basis&quot;: basis_store,
+            &quot;pinv01&quot;: _pinv_sym(gram01),
+            &quot;pinv23&quot;: _pinv_sym(gram23),
+            &quot;cross2301&quot;: cross2301,
+        }
+        geom_cache[key] = [geom] + entries[:max(0, _CACHE_MAX - 1)]
+        return geom
+
+    def _project_rhs(geom, vals):
+        vals = _np.asarray(vals, dtype=_np.float64).ravel()
+        nvalid = int(geom[&quot;nvalid&quot;])
+        if vals.size != nvalid:
+            raise ValueError(&quot;value vector length does not match geometry&quot;)
+        basis = geom.get(&quot;basis&quot;)
+        if basis is not None:
+            return _np.asarray(_np.dot(basis, vals), dtype=_np.float64)
+        if _hp is None:
+            raise RuntimeError(&quot;healpy is required for uncached projection&quot;)
+        rhs = _np.zeros(16, dtype=_np.float64)
+        pix = geom[&quot;pix&quot;]
+        nside = int(geom[&quot;nside&quot;])
+        for start in range(0, nvalid, _CHUNK):
+            stop = min(nvalid, start + _CHUNK)
+            x, y, z = _hp.pix2vec(nside, pix[start:stop])
+            b = _real_basis_lmax3(x, y, z)
+            rhs += _np.dot(b, vals[start:stop])
+        return rhs
+
+    def _real_coeffs_to_full_complex(l, coeffs):
+        coeffs = _np.asarray(coeffs, dtype=_np.float64).ravel()
+        l = int(l)
+        a = _np.zeros(2 * l + 1, dtype=_np.complex128)
+        if coeffs.size &lt; 2 * l + 1:
+            return a
+        off = l
+        a[off] = complex(float(coeffs[0]), 0.0)
+        inv_rt2 = 1.0 / _np.sqrt(2.0)
+        k = 1
+        for mm in range(1, l + 1):
+            ap = (float(coeffs[k]) - 1j * float(coeffs[k + 1])) * inv_rt2
+            a[off + mm] = ap
+            if mm % 2:
+                a[off - mm] = -_np.conjugate(ap)
+            else:
+                a[off - mm] = _np.conjugate(ap)
+            k += 2
+        return a
+
+    def _l_matrices(l):
+        _, lmat_cache = _get_caches()
+        l = int(l)
+        got = lmat_cache.get(l)
+        if got is not None:
+            return got
+        n = 2 * l + 1
+        mvals = _np.arange(-l, l + 1, dtype=_np.float64)
+        lz = _np.diag(mvals).astype(_np.complex128)
+        lp = _np.zeros((n, n), dtype=_np.complex128)
+        ell = float(l)
+        for mm in range(-l, l):
+            lp[mm + 1 + l, mm + l] = _np.sqrt(ell * (ell + 1.0) - float(mm * (mm + 1)))
+        lm = lp.conjugate().T
+        lx = 0.5 * (lp + lm)
+        ly = (lp - lm) / (2.0j)
+        got = [lx, ly, lz]
+        lmat_cache[l] = got
+        return got
+
+    def _axis_from_alm(a, l):
+        a = _np.asarray(a, dtype=_np.complex128).ravel()
+        l = int(l)
+        if a.size != 2 * l + 1 or (not _np.all(_np.isfinite(a))):
+            return None
+        norm = float(_np.vdot(a, a).real)
+        if (not _np.isfinite(norm)) or norm &lt;= _np.finfo(_np.float64).tiny:
+            return None
+        mats = _l_matrices(l)
+        la = [mat.dot(a) for mat in mats]
+        q = _np.empty((3, 3), dtype=_np.float64)
+        for i in range(3):
+            for j in range(i, 3):
+                val = float(_np.vdot(la[i], la[j]).real) / norm
+                q[i, j] = val
+                q[j, i] = val
+        if not _np.all(_np.isfinite(q)):
+            return None
+        try:
+            w, v = _np.linalg.eigh(0.5 * (q + q.T))
+        except Exception:
+            return None
+        if (not _np.all(_np.isfinite(w))) or (not _np.all(_np.isfinite(v))):
+            return None
+        axis = _np.asarray(v[:, int(_np.argmax(w))], dtype=_np.float64)
+        an = float(_np.sqrt(_np.dot(axis, axis)))
+        if (not _np.isfinite(an)) or an &lt;= 0.0:
+            return None
+        return axis / an
+
+    def _alignment_from_coeff23(coeff23):
+        coeff23 = _np.asarray(coeff23, dtype=_np.float64).ravel()
+        if coeff23.size &lt; 12 or (not _np.all(_np.isfinite(coeff23[:12]))):
+            return None
+        a2 = _real_coeffs_to_full_complex(2, coeff23[:5])
+        a3 = _real_coeffs_to_full_complex(3, coeff23[5:12])
+        n2 = _axis_from_alm(a2, 2)
+        n3 = _axis_from_alm(a3, 3)
+        if n2 is None or n3 is None:
+            return None
+        val = abs(float(_np.dot(n2, n3)))
+        if not _np.isfinite(val):
+            return None
+        return float(_np.clip(val, 0.0, 1.0))
+
+    def _ls_alignment(arr, nside, valid):
+        geom = _get_geometry(nside, valid)
+        if int(geom[&quot;nvalid&quot;]) &lt; 16:
+            return None
+        vals = _np.asarray(arr[geom[&quot;pix&quot;]], dtype=_np.float64).ravel()
+        if vals.size != int(geom[&quot;nvalid&quot;]) or (not _np.all(_np.isfinite(vals))):
+            return None
+        rhs_all = _project_rhs(geom, vals)
+        if rhs_all.size != 16 or (not _np.all(_np.isfinite(rhs_all))):
+            return None
+        coeff01 = _np.dot(geom[&quot;pinv01&quot;], rhs_all[:4])
+        if not _np.all(_np.isfinite(coeff01)):
+            return None
+        rhs23 = rhs_all[4:] - _np.dot(geom[&quot;cross2301&quot;], coeff01)
+        if not _np.all(_np.isfinite(rhs23)):
+            return None
+        coeff23 = _np.dot(geom[&quot;pinv23&quot;], rhs23)
+        if not _np.all(_np.isfinite(coeff23)):
+            return None
+        return _alignment_from_coeff23(coeff23)
+
+    def _hp_alm_l_to_full(alm, lmax, l):
+        if _hp is None:
+            return None
+        l = int(l)
+        out = _np.zeros(2 * l + 1, dtype=_np.complex128)
+        off = l
+        for mm in range(0, l + 1):
+            idx = _hp.Alm.getidx(int(lmax), l, mm)
+            val = complex(alm[idx])
+            out[off + mm] = val
+            if mm &gt; 0:
+                if mm % 2:
+                    out[off - mm] = -_np.conjugate(val)
+                else:
+                    out[off - mm] = _np.conjugate(val)
+        return out
+
+    def _map2alm_fallback(arr, nside, valid):
+        if _hp is None:
+            return None
+        try:
+            arr = _np.asarray(arr, dtype=_np.float64).ravel()
+            valid = _np.asarray(valid, dtype=bool).ravel()
+            vals = arr[valid]
+            vals = vals[_np.isfinite(vals)]
+            if vals.size &lt; 16:
+                return None
+            filled = _np.zeros(int(arr.size), dtype=_np.float64)
+            mu = float(_np.mean(vals))
+            tmp = _np.asarray(arr[valid], dtype=_np.float64)
+            tmp = _np.where(_np.isfinite(tmp), tmp - mu, 0.0)
+            filled[valid] = tmp
+            filled[~_np.isfinite(filled)] = 0.0
+            try:
+                alm = _hp.map2alm(filled, lmax=3, iter=0, pol=False, use_weights=False)
+            except TypeError:
+                alm = _hp.map2alm(filled, lmax=3, iter=0)
+            a2 = _hp_alm_l_to_full(alm, 3, 2)
+            a3 = _hp_alm_l_to_full(alm, 3, 3)
+            n2 = _axis_from_alm(a2, 2)
+            n3 = _axis_from_alm(a3, 3)
+            if n2 is None or n3 is None:
+                return None
+            val = abs(float(_np.dot(n2, n3)))
+            return float(_np.clip(val, 0.0, 1.0))
+        except Exception:
+            return None
+
+    def _nonhealpix_fallback(arr):
+        try:
+            if _np.ma.isMaskedArray(arr):
+                a = _np.asarray(arr.filled(_np.nan), dtype=_np.float64).ravel()
+            else:
+                a = _np.asarray(arr, dtype=_np.float64).ravel()
+        except Exception:
+            return 0.5
+        valid = _valid_pixels(a)
+        x = _np.asarray(a[valid], dtype=_np.float64)
+        x = x[_np.isfinite(x)]
+        n = int(x.size)
+        if n &lt; 8:
+            return 0.5
+        maxn = 200000
+        if n &gt; maxn:
+            ind = _np.linspace(0, n - 1, maxn).astype(_np.int64)
+            x = x[ind]
+            n = int(x.size)
+        x = x - float(_np.mean(x))
+        s = float(_np.sqrt(_np.mean(x * x)))
+        if (not _np.isfinite(s)) or s &lt;= 0.0:
+            return 0.5
+        x = x / s
+        t = (2.0 * _np.pi / float(n)) * (_np.arange(n, dtype=_np.float64) + 0.5)
+        u = _np.array([_np.dot(x, _np.cos(2.0 * t)), _np.dot(x, _np.sin(2.0 * t)), _np.dot(x, _np.cos(4.0 * t))], dtype=_np.float64)
+        v = _np.array([_np.dot(x, _np.cos(3.0 * t)), _np.dot(x, _np.sin(3.0 * t)), _np.dot(x, _np.sin(6.0 * t))], dtype=_np.float64)
+        nu = float(_np.sqrt(_np.dot(u, u)))
+        nv = float(_np.sqrt(_np.dot(v, v)))
+        if _np.isfinite(nu) and _np.isfinite(nv) and nu &gt; 0.0 and nv &gt; 0.0:
+            val = abs(float(_np.dot(u, v))) / (nu * nv)
+            return _clip01(val, 0.5)
+        return 0.5
+
+    try:
+        if _np.ma.isMaskedArray(m):
+            arr = _np.asarray(m.filled(_np.nan), dtype=_np.float64).ravel()
+        else:
+            arr = _np.asarray(m, dtype=_np.float64).ravel()
+    except Exception:
+        try:
+            arr = _np.real(_np.asarray(m)).astype(_np.float64).ravel()
+        except Exception:
+            return 0.5
+
+    npix = int(arr.size)
+    if npix &lt;= 0:
+        return 0.5
+
+    valid = _valid_pixels(arr)
+    if int(_np.count_nonzero(valid)) &lt; 16:
+        return float(_nonhealpix_fallback(arr))
+
+    nside = None
+    if _hp is not None:
+        try:
+            ns = int(_hp.npix2nside(npix))
+            if ns &gt; 0 and 12 * ns * ns == npix:
+                nside = ns
+        except Exception:
+            nside = None
+
+    if nside is not None:
+        try:
+            stat = _ls_alignment(arr, nside, valid)
+            if stat is not None and _np.isfinite(stat):
+                return _clip01(stat, 0.5)
+        except Exception:
+            pass
+        try:
+            stat = _map2alm_fallback(arr, nside, valid)
+            if stat is not None and _np.isfinite(stat):
+                return _clip01(stat, 0.5)
+        except Exception:
+            pass
+
+    return float(_nonhealpix_fallback(arr))
+
+
+def summarize_results(planck_stat, sim_results):
+    import numpy as _np
+
+    def _finite_float(x, default=float(&quot;nan&quot;)):
+        try:
+            y = float(x)
+        except Exception:
+            return float(default)
+        if not _np.isfinite(y):
+            return float(default)
+        return float(y)
+
+    ps = _finite_float(planck_stat, float(&quot;nan&quot;))
+    sims = _np.asarray(sim_results, dtype=_np.float64).ravel()
+    sims = sims[_np.isfinite(sims)]
+    n = int(sims.size)
+
+    out = {
+        &quot;test_description&quot;: &quot;Quadrupole-Octopole Axis Alignment: remove the best-fit monopole and dipole on finite unmasked pixels, estimate l=2 and l=3 coefficients with the same equal-weight masked-sky least-squares spherical-harmonic fit, and return S = |n2 dot n3| where each n_l maximizes angular-momentum dispersion. Values near 1 indicate strong alignment.&quot;,
+        &quot;planck_stat&quot;: ps,
+        &quot;n_sims&quot;: n,
+        &quot;tail_of_interest&quot;: &quot;upper tail: S near 1 means stronger quadrupole-octopole axis alignment&quot;,
+        &quot;ideal_independent_axes_reference&quot;: &quot;For two independent isotropic unoriented axes, |dot| is uniform on [0,1]; empirical ranks below use the masked simulations.&quot;,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Quadrupole-octopole axis alignment&quot;,
+            &quot;xlabel&quot;: &quot;S = |n2 dot n3|&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: &quot;Distribution of the absolute dot product between quadrupole and octopole maximum-angular-momentum axes. Larger values indicate stronger alignment.&quot;
+        }
+    }
+
+    if not _np.isfinite(ps):
+        out[&quot;warning&quot;] = &quot;Planck statistic is not finite.&quot;
+        return out
+
+    ps_clip = float(_np.clip(ps, 0.0, 1.0))
+    out[&quot;planck_alignment_angle_deg&quot;] = float(_np.degrees(_np.arccos(ps_clip)))
+
+    if n &lt;= 0:
+        out[&quot;warning&quot;] = &quot;No finite simulation statistics are available.&quot;
+        return out
+
+    n_gt = int(_np.count_nonzero(sims &gt; ps))
+    n_ge = int(_np.count_nonzero(sims &gt;= ps))
+    n_lt = int(_np.count_nonzero(sims &lt; ps))
+    n_le = int(_np.count_nonzero(sims &lt;= ps))
+    n_eq = int(n - n_gt - n_lt)
+
+    p_upper = float((n_ge + 1.0) / (n + 1.0))
+    p_lower = float((n_le + 1.0) / (n + 1.0))
+    p_two = float(min(1.0, 2.0 * min(p_upper, p_lower)))
+    midrank_pct = float(100.0 * (n_lt + 0.5 * n_eq) / n)
+
+    qs = _np.percentile(sims, [1.0, 5.0, 16.0, 50.0, 84.0, 95.0, 99.0])
+    sim_angles = _np.degrees(_np.arccos(_np.clip(sims, 0.0, 1.0)))
+    aq = _np.percentile(sim_angles, [16.0, 50.0, 84.0])
+    mean = float(_np.mean(sims))
+    std = float(_np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    zscore = None
+    if std &gt; 0.0 and _np.isfinite(std):
+        zscore = float((ps - mean) / std)
+
+    out.update({
+        &quot;sim_mean&quot;: mean,
+        &quot;sim_median&quot;: float(_np.median(sims)),
+        &quot;sim_std&quot;: std,
+        &quot;sim_percentile_1&quot;: float(qs[0]),
+        &quot;sim_percentile_5&quot;: float(qs[1]),
+        &quot;sim_percentile_16&quot;: float(qs[2]),
+        &quot;sim_percentile_50&quot;: float(qs[3]),
+        &quot;sim_percentile_84&quot;: float(qs[4]),
+        &quot;sim_percentile_95&quot;: float(qs[5]),
+        &quot;sim_percentile_99&quot;: float(qs[6]),
+        &quot;planck_zscore_vs_sims&quot;: zscore,
+        &quot;planck_percentile_midrank&quot;: midrank_pct,
+        &quot;rank_descending_1_is_most_aligned&quot;: int(n_gt + 1),
+        &quot;rank_descending_tie_low&quot;: int(n_gt + 1),
+        &quot;rank_descending_tie_high&quot;: int(n_ge + 1),
+        &quot;rank_convention&quot;: &quot;Descending rank 1 is largest S, i.e. strongest alignment; tie_high includes simulations tied with Planck.&quot;,
+        &quot;n_sim_gt_planck&quot;: n_gt,
+        &quot;n_sim_ge_planck&quot;: n_ge,
+        &quot;n_sim_eq_planck&quot;: n_eq,
+        &quot;n_sim_lt_planck&quot;: n_lt,
+        &quot;n_sim_le_planck&quot;: n_le,
+        &quot;empirical_p_upper_alignment&quot;: p_upper,
+        &quot;empirical_p_lower_low_alignment&quot;: p_lower,
+        &quot;empirical_p_two_sided_extremeness&quot;: p_two,
+        &quot;sim_alignment_angle_16pct_deg&quot;: float(aq[0]),
+        &quot;sim_alignment_angle_median_deg&quot;: float(aq[1]),
+        &quot;sim_alignment_angle_84pct_deg&quot;: float(aq[2]),
+        &quot;is_upper_tail_5pct&quot;: bool(p_upper &lt;= 0.05),
+        &quot;is_upper_tail_1pct&quot;: bool(p_upper &lt;= 0.01)
+    })
+
+    if std == 0.0:
+        out[&quot;warning&quot;] = &quot;All finite simulation statistics are identical; check for degenerate inputs or an over-aggressive fallback.&quot;
+    elif p_upper &lt;= 0.01:
+        out[&quot;interpretation&quot;] = &quot;Planck lies in the upper 1% high-alignment tail of the simulations for this statistic.&quot;
+    elif p_upper &lt;= 0.05:
+        out[&quot;interpretation&quot;] = &quot;Planck lies in the upper 5% high-alignment tail of the simulations for this statistic.&quot;
+    else:
+        out[&quot;interpretation&quot;] = &quot;Planck is not in the high-alignment tail at the 5% empirical level for this statistic.&quot;
+    return out</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/gpt5-5/test-03-quadrupole-octopole-axis-alignment.png" alt="Statistic distribution for Quadrupole-Octopole Axis Alignment">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>GPT5.5</td></tr>
+<tr><th>Run path</th><td>runs/anomaly_agent_gpt_run</td></tr>
+<tr><th>Primary p-value</th><td>0.744</td></tr>
+<tr><th>One-tailed p-value</th><td>0.744</td></tr>
+<tr><th>Two-tailed p-value</th><td>n/a</td></tr>
+<tr><th>Sigma</th><td>-0.656</td></tr>
+<tr><th>Planck statistic</th><td>0.29</td></tr>
+<tr><th>Simulation mean</th><td>0.53</td></tr>
+<tr><th>Simulation std.</th><td>0.294</td></tr>
+<tr><th>Simulation median</th><td>0.54</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>one-tailed, upper</td></tr>
+<tr><th>Family</th><td>alignment</td></tr>
+<tr><th>Novelty</th><td>Repeat</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/gpt5-5/test-03-quadrupole-octopole-axis-alignment.png">Figure PNG</a>
+<a href="../../../assets/figures/gpt5-5/test-03-quadrupole-octopole-axis-alignment.pdf">Figure PDF</a>
+<a href="../../../data/raw/gpt5-5/test-03-quadrupole-octopole-axis-alignment.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/gpt5-5/test-03-quadrupole-octopole-axis-alignment.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/gpt5-5/test-03-quadrupole-octopole-axis-alignment.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 2 model(s).</p>
+  </footer>
+</body>
+</html>

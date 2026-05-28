@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Low-l Ecliptic Belt-to-Cap Variance Log-Ratio · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 18 · GPT5.5</p>
+      <h1>Low-l Ecliptic Belt-to-Cap Variance Log-Ratio</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">← Catalogue</a>
+      <a href="../../../">Paper</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">GPT5.5 · Variation · variance · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Planck low-l ecliptic belt-to-cap variance log-ratio is anomalous relative to simulations, meaning the ecliptic belt variance differs unusually from the cap variance.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>SMICA and 1000 simulations were monopole/dipole-subtracted on the unmasked sky, filtered to 2&lt;=ell&lt;=30, re-masked, and split in ecliptic coordinates into a belt |beta|&lt;30 deg and caps |beta|&gt;=30 deg. The statistic was S=ln(V_belt/V_cap), using regional mean-subtracted variances.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck gives S=-0.129, i.e. V_belt/V_cap=0.879. Simulations have mean S=0.004, std=0.209, and Planck lies at about z=-0.64 / 0.63 sigma, with two-tailed p=0.528 and percentile about 26%.</p>
+          <p>The low-l ecliptic belt variance is mildly lower than the cap variance, but this is common in LCDM simulations and is far from a 2 sigma or p&lt;0.05 anomaly.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The statistic treats both directions as potentially anomalous: a large positive S indicates enhanced belt variance, while a large negative S indicates suppressed belt variance. The code reports both upper- and lower-tail probabilities plus a two-sided p-value, and there is no clear directional preference specified.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Related real-space variance anomalies are well documented, especially ecliptic hemispherical variance/power asymmetry: O’Dwyer, Copi, Knox &amp; Starkman, “CMB-S4 and the Hemispherical Variance Anomaly” (2016), and O’Dwyer et al., “Hemispherical Variance Anomaly and Reionization Optical Depth” (2019), report anomalously low northern ecliptic variance in temperature. This test instead compares an equatorial ecliptic belt to both caps and finds no significant excess or suppression.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>import numpy as np
+
+test_description = &quot;Low-l Ecliptic Belt-to-Cap Variance Log-Ratio: fit and subtract the monopole and dipole on unmasked pixels; zero-fill masked pixels only for a spherical-harmonic transform; reconstruct the 2&lt;=ell&lt;=30 map; reapply the mask; split unmasked pixels into ecliptic belt |beta|&lt;30 deg and caps; return S=ln(V_belt/V_cap) after subtracting each region&#x27;s own mean.&quot;
+
+
+def analyze_map(m, _cache={}):
+    import math
+    import numpy as np
+
+    LMIN = 2
+    LMAX = 30
+
+    def as_float_array(x):
+        try:
+            if np.ma.isMaskedArray(x):
+                arr = np.asarray(x.filled(np.nan), dtype=np.float64)
+            else:
+                arr = np.asarray(x, dtype=np.float64)
+        except Exception:
+            try:
+                arr = np.asarray(np.real(x), dtype=np.float64)
+            except Exception:
+                arr = np.asarray([], dtype=np.float64)
+        return np.ravel(arr)
+
+    def get_healpy():
+        if &quot;healpy&quot; not in _cache:
+            try:
+                import healpy as hp
+                _cache[&quot;healpy&quot;] = hp
+            except Exception:
+                _cache[&quot;healpy&quot;] = None
+        return _cache.get(&quot;healpy&quot;)
+
+    def nside_from_npix(hp, npix):
+        try:
+            ns = int(hp.npix2nside(int(npix)))
+            if ns &gt; 0 and int(hp.nside2npix(ns)) == int(npix):
+                return ns
+        except Exception:
+            pass
+        try:
+            npix_i = int(npix)
+            if npix_i &gt; 0 and npix_i % 12 == 0:
+                ns = int(round((float(npix_i) / 12.0) ** 0.5))
+                if ns &gt; 0 and 12 * ns * ns == npix_i:
+                    return ns
+        except Exception:
+            pass
+        return -1
+
+    def geometry_for_nside(hp, nside):
+        key = (&quot;geometry&quot;, int(nside))
+        got = _cache.get(key)
+        if got is not None:
+            return got
+
+        npix = int(hp.nside2npix(int(nside)))
+        pix = np.arange(npix, dtype=np.int64)
+        theta, phi = hp.pix2ang(int(nside), pix, nest=False)
+        theta = np.asarray(theta, dtype=np.float64)
+        phi = np.asarray(phi, dtype=np.float64)
+
+        st = np.sin(theta)
+        x = np.asarray(st * np.cos(phi), dtype=np.float64)
+        y = np.asarray(st * np.sin(phi), dtype=np.float64)
+        z = np.asarray(np.cos(theta), dtype=np.float64)
+
+        # Maps are normally in Galactic coordinates; rotate pixel directions to
+        # ecliptic coordinates for the beta split.  If the rotator is not
+        # available, use native latitude only as a finite deterministic fallback.
+        belt_rad = np.pi / 6.0
+        try:
+            rot = hp.Rotator(coord=[&quot;G&quot;, &quot;E&quot;])
+            theta_ecl, _phi_ecl = rot(theta, phi)
+            beta = 0.5 * np.pi - np.asarray(theta_ecl, dtype=np.float64)
+            ecl_belt = np.asarray(np.abs(beta) &lt; belt_rad, dtype=bool)
+        except Exception:
+            beta_native = 0.5 * np.pi - theta
+            ecl_belt = np.asarray(np.abs(beta_native) &lt; belt_rad, dtype=bool)
+
+        got = (x, y, z, ecl_belt)
+        _cache[key] = got
+        return got
+
+    def solve_monopole_dipole(arr, valid, x, y, z):
+        n_valid = int(np.count_nonzero(valid))
+        if n_valid &lt;= 0:
+            return np.array([0.0, 0.0, 0.0, 0.0], dtype=np.float64)
+        tv = np.asarray(arr[valid], dtype=np.float64)
+        if n_valid &lt; 4:
+            mu = float(np.mean(tv)) if n_valid &gt; 0 else 0.0
+            if not np.isfinite(mu):
+                mu = 0.0
+            return np.array([mu, 0.0, 0.0, 0.0], dtype=np.float64)
+
+        xv = np.asarray(x[valid], dtype=np.float64)
+        yv = np.asarray(y[valid], dtype=np.float64)
+        zv = np.asarray(z[valid], dtype=np.float64)
+
+        n = float(n_valid)
+        sx = float(np.sum(xv)); sy = float(np.sum(yv)); sz = float(np.sum(zv))
+        sxx = float(np.dot(xv, xv)); syy = float(np.dot(yv, yv)); szz = float(np.dot(zv, zv))
+        sxy = float(np.dot(xv, yv)); sxz = float(np.dot(xv, zv)); syz = float(np.dot(yv, zv))
+        stv = float(np.sum(tv))
+        stx = float(np.dot(tv, xv)); sty = float(np.dot(tv, yv)); stz = float(np.dot(tv, zv))
+
+        A = np.array([[n,   sx,  sy,  sz],
+                      [sx, sxx, sxy, sxz],
+                      [sy, sxy, syy, syz],
+                      [sz, sxz, syz, szz]], dtype=np.float64)
+        b = np.array([stv, stx, sty, stz], dtype=np.float64)
+
+        coef = None
+        if np.all(np.isfinite(A)) and np.all(np.isfinite(b)):
+            try:
+                coef = np.linalg.solve(A, b)
+            except Exception:
+                try:
+                    coef = np.linalg.lstsq(A, b, rcond=None)[0]
+                except Exception:
+                    coef = None
+        if coef is None or not np.all(np.isfinite(coef)):
+            mu = float(np.mean(tv)) if n_valid &gt; 0 else 0.0
+            if not np.isfinite(mu):
+                mu = 0.0
+            coef = np.array([mu, 0.0, 0.0, 0.0], dtype=np.float64)
+        return np.asarray(coef, dtype=np.float64)
+
+    def map2alm_scalar(hp, mp, lmax):
+        # mp must already be finite: never send NaNs into healpy transforms.
+        try:
+            alm = hp.map2alm(mp, lmax=int(lmax), iter=0, pol=False, use_weights=False)
+        except TypeError:
+            try:
+                alm = hp.map2alm(mp, lmax=int(lmax), iter=0, use_weights=False)
+            except TypeError:
+                try:
+                    alm = hp.map2alm(mp, lmax=int(lmax), iter=0, pol=False)
+                except TypeError:
+                    alm = hp.map2alm(mp, lmax=int(lmax), iter=0)
+        if isinstance(alm, (tuple, list)):
+            alm = alm[0]
+        return np.asarray(alm, dtype=np.complex128).ravel()
+
+    def alm2map_scalar(hp, alm, nside, lmax):
+        try:
+            out = hp.alm2map(alm, int(nside), lmax=int(lmax), mmax=int(lmax), pol=False, verbose=False)
+        except TypeError:
+            try:
+                out = hp.alm2map(alm, int(nside), lmax=int(lmax), mmax=int(lmax), pol=False)
+            except TypeError:
+                try:
+                    out = hp.alm2map(alm, int(nside), lmax=int(lmax), mmax=int(lmax), verbose=False)
+                except TypeError:
+                    out = hp.alm2map(alm, int(nside), lmax=int(lmax), mmax=int(lmax))
+        if isinstance(out, (tuple, list)):
+            out = out[0]
+        return np.asarray(out, dtype=np.float64).ravel()
+
+    def population_variance(vals):
+        vals = np.asarray(vals, dtype=np.float64).ravel()
+        vals = vals[np.isfinite(vals)]
+        n = int(vals.size)
+        if n &lt;= 0:
+            return np.nan
+        mu = float(np.mean(vals))
+        if not np.isfinite(mu):
+            return np.nan
+        d = vals - mu
+        v = float(np.dot(d, d) / float(n))
+        if np.isfinite(v) and v &lt; 0.0 and v &gt; -1.0e-24:
+            v = 0.0
+        return float(v) if np.isfinite(v) and v &gt;= 0.0 else np.nan
+
+    def safe_log_ratio(v_belt, v_cap):
+        try:
+            vb = float(v_belt)
+            vc = float(v_cap)
+        except Exception:
+            return 0.0
+        if (not np.isfinite(vb)) or (not np.isfinite(vc)) or vb &lt; 0.0 or vc &lt; 0.0:
+            return 0.0
+        if vb == 0.0 and vc == 0.0:
+            return 0.0
+        scale = max(vb, vc)
+        if (not np.isfinite(scale)) or scale &lt;= 0.0:
+            return 0.0
+        floor = max(float(np.finfo(np.float64).tiny), scale * 1.0e-300)
+        num = vb if vb &gt; floor else floor
+        den = vc if vc &gt; floor else floor
+        try:
+            s = float(math.log(num) - math.log(den))
+        except Exception:
+            s = 0.0
+        if not np.isfinite(s):
+            s = 700.0 if num &gt; den else (-700.0 if num &lt; den else 0.0)
+        if s &gt; 700.0:
+            s = 700.0
+        elif s &lt; -700.0:
+            s = -700.0
+        return float(s)
+
+    def fallback_stat(arr, valid):
+        # Data-dependent finite fallback for pathological cases only (e.g. no
+        # healpy).  The intended statistic below is used whenever healpy works.
+        try:
+            vals = np.asarray(arr, dtype=np.float64).ravel()
+            mask = np.asarray(valid, dtype=bool).ravel()
+            if int(mask.size) != int(vals.size):
+                mask = np.isfinite(vals)
+            vals = vals[mask]
+            vals = vals[np.isfinite(vals)]
+            n = int(vals.size)
+            if n &lt; 4:
+                return 0.0
+            vals = vals - float(np.mean(vals))
+            pseudo_z = 1.0 - 2.0 * (np.arange(n, dtype=np.float64) + 0.5) / float(n)
+            pseudo_belt = np.abs(pseudo_z) &lt; 0.5
+            if int(np.count_nonzero(pseudo_belt)) &lt; 2 or int(np.count_nonzero(~pseudo_belt)) &lt; 2:
+                return 0.0
+            return safe_log_ratio(population_variance(vals[pseudo_belt]), population_variance(vals[~pseudo_belt]))
+        except Exception:
+            return 0.0
+
+    arr = as_float_array(m)
+    npix = int(arr.size)
+    if npix &lt;= 0:
+        return 0.0
+
+    valid = np.isfinite(arr)
+    if int(np.count_nonzero(valid)) &lt;= 0:
+        return 0.0
+
+    hp = get_healpy()
+    if hp is None:
+        return float(fallback_stat(arr, valid))
+
+    nside = nside_from_npix(hp, npix)
+    if nside &lt;= 0:
+        return float(fallback_stat(arr, valid))
+
+    lmax = int(min(LMAX, max(0, 3 * int(nside) - 1)))
+    if lmax &lt; LMIN:
+        return float(fallback_stat(arr, valid))
+
+    try:
+        x, y, z, ecl_belt = geometry_for_nside(hp, nside)
+        if int(x.size) != npix or int(ecl_belt.size) != npix:
+            return float(fallback_stat(arr, valid))
+    except Exception:
+        return float(fallback_stat(arr, valid))
+
+    try:
+        coef = solve_monopole_dipole(arr, valid, x, y, z)
+        mp = np.zeros(npix, dtype=np.float64)
+        mp[valid] = (np.asarray(arr[valid], dtype=np.float64)
+                     - (coef[0] + coef[1] * x[valid] + coef[2] * y[valid] + coef[3] * z[valid]))
+        mp[~np.isfinite(mp)] = 0.0
+    except Exception:
+        return float(fallback_stat(arr, valid))
+
+    try:
+        alm = map2alm_scalar(hp, mp, lmax)
+        needed = int((lmax + 1) * (lmax + 2) // 2)
+        if int(alm.size) &lt; needed or not np.all(np.isfinite(alm[:needed])):
+            return float(fallback_stat(arr, valid))
+
+        # Retain only 2 &lt;= ell &lt;= lmax.  lmax is 30 for the specified nside=256
+        # analysis; the guard only protects unusual tiny test maps.
+        for ell in range(0, min(LMIN, lmax + 1)):
+            for mm in range(ell + 1):
+                alm[int(hp.Alm.getidx(lmax, ell, mm))] = 0.0j
+
+        low_map = alm2map_scalar(hp, alm, nside, lmax)
+        if int(low_map.size) != npix or not np.any(np.isfinite(low_map[valid])):
+            return float(fallback_stat(arr, valid))
+    except Exception:
+        return float(fallback_stat(arr, valid))
+
+    try:
+        use = valid &amp; np.isfinite(low_map)
+        belt_mask = use &amp; ecl_belt
+        cap_mask = use &amp; (~ecl_belt)
+        if int(np.count_nonzero(belt_mask)) &lt; 2 or int(np.count_nonzero(cap_mask)) &lt; 2:
+            return float(fallback_stat(arr, valid))
+        v_belt = population_variance(low_map[belt_mask])
+        v_cap = population_variance(low_map[cap_mask])
+        stat = safe_log_ratio(v_belt, v_cap)
+        return float(stat) if np.isfinite(stat) else 0.0
+    except Exception:
+        return float(fallback_stat(arr, valid))
+
+
+def summarize_results(planck_stat, sim_results):
+    import math
+    import numpy as np
+
+    desc = &quot;Low-l Ecliptic Belt-to-Cap Variance Log-Ratio: fit and subtract the monopole and dipole on unmasked pixels; zero-fill masked pixels only for a spherical-harmonic transform; reconstruct the 2&lt;=ell&lt;=30 map; reapply the mask; split unmasked pixels into ecliptic belt |beta|&lt;30 deg and caps; return S=ln(V_belt/V_cap) after subtracting each region&#x27;s own mean.&quot;
+
+    def finite_float(x, default=np.nan):
+        try:
+            y = float(x)
+        except Exception:
+            return float(default)
+        return float(y) if np.isfinite(y) else float(default)
+
+    def exp_if_reasonable(x):
+        x = finite_float(x)
+        if not np.isfinite(x):
+            return None
+        if x &gt; 709.0:
+            return None
+        if x &lt; -745.0:
+            return 0.0
+        return float(math.exp(x))
+
+    ps = finite_float(planck_stat)
+    try:
+        sims = np.asarray(sim_results, dtype=np.float64).ravel()
+    except Exception:
+        vals = []
+        try:
+            for v in sim_results:
+                vals.append(finite_float(v))
+        except Exception:
+            vals = []
+        sims = np.asarray(vals, dtype=np.float64)
+    sims = sims[np.isfinite(sims)]
+    n = int(sims.size)
+
+    out = {
+        &quot;test_description&quot;: desc,
+        &quot;statistic&quot;: &quot;S = ln(V_belt/V_cap) for the 2&lt;=ell&lt;=30 masked, monopole/dipole-subtracted reconstruction; V_belt and V_cap are equal-pixel-area variances after subtracting each region&#x27;s own mean.&quot;,
+        &quot;planck_S_log_belt_to_cap_variance_ratio&quot;: ps,
+        &quot;planck_belt_to_cap_variance_ratio&quot;: exp_if_reasonable(ps),
+        &quot;n_sims&quot;: n,
+        &quot;multipole_range&quot;: &quot;2 &lt;= ell &lt;= 30&quot;,
+        &quot;belt_definition&quot;: &quot;ecliptic latitude |beta| &lt; 30 deg&quot;,
+        &quot;cap_definition&quot;: &quot;ecliptic latitude |beta| &gt;= 30 deg&quot;,
+        &quot;tail_of_interest&quot;: &quot;upper tail means enhanced low-l variance in the ecliptic belt relative to the ecliptic caps; lower tail means suppressed belt variance relative to the caps&quot;,
+        &quot;masked_pixel_handling&quot;: &quot;np.nan pixels are ignored for fitting and regional variances, and are replaced by 0.0 only for the healpy spherical-harmonic transform&quot;,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Low-l ecliptic belt-to-cap variance log-ratio&quot;,
+            &quot;xlabel&quot;: &quot;S = ln(V_belt/V_cap)&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: &quot;Distribution of the 2&lt;=ell&lt;=30 ecliptic belt-to-cap variance log-ratio from simulations, using the same mask, monopole/dipole subtraction, zero-filled transform, low-l reconstruction, and regional-mean subtraction as for Planck.&quot;
+        }
+    }
+
+    if not np.isfinite(ps):
+        out[&quot;warning&quot;] = &quot;The Planck statistic is not finite.&quot;
+        return out
+    if n &lt;= 0:
+        out[&quot;warning&quot;] = &quot;No finite simulation statistics were supplied.&quot;
+        return out
+
+    n_lt = int(np.count_nonzero(sims &lt; ps))
+    n_gt = int(np.count_nonzero(sims &gt; ps))
+    n_eq = int(n - n_lt - n_gt)
+    n_le = int(n_lt + n_eq)
+    n_ge = int(n_gt + n_eq)
+
+    p_upper = float((n_ge + 1.0) / (n + 1.0))
+    p_lower = float((n_le + 1.0) / (n + 1.0))
+    p_two = float(min(1.0, 2.0 * min(p_upper, p_lower)))
+
+    mean = float(np.mean(sims))
+    median = float(np.median(sims))
+    std = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    z = None
+    if np.isfinite(std) and std &gt; 0.0:
+        z = float((ps - mean) / std)
+
+    q = np.percentile(sims, [1, 5, 16, 50, 84, 95, 99])
+    planck_ratio = exp_if_reasonable(ps)
+    median_ratio = exp_if_reasonable(median)
+
+    if ps &gt; 0.0:
+        direction = &quot;positive: the low-l ecliptic-belt variance exceeds the cap variance in this map&quot;
+    elif ps &lt; 0.0:
+        direction = &quot;negative: the low-l ecliptic-belt variance is below the cap variance in this map&quot;
+    else:
+        direction = &quot;zero: the low-l ecliptic-belt and cap variances are equal in this statistic&quot;
+
+    out.update({
+        &quot;planck_direction&quot;: direction,
+        &quot;sim_mean_S&quot;: mean,
+        &quot;sim_median_S&quot;: median,
+        &quot;sim_std_S&quot;: std,
+        &quot;sim_min_S&quot;: float(np.min(sims)),
+        &quot;sim_max_S&quot;: float(np.max(sims)),
+        &quot;sim_percentile_1_S&quot;: float(q[0]),
+        &quot;sim_percentile_5_S&quot;: float(q[1]),
+        &quot;sim_percentile_16_S&quot;: float(q[2]),
+        &quot;sim_percentile_50_S&quot;: float(q[3]),
+        &quot;sim_percentile_84_S&quot;: float(q[4]),
+        &quot;sim_percentile_95_S&quot;: float(q[5]),
+        &quot;sim_percentile_99_S&quot;: float(q[6]),
+        &quot;sim_fraction_belt_variance_exceeds_cap&quot;: float(np.count_nonzero(sims &gt; 0.0) / n),
+        &quot;planck_zscore_vs_sims&quot;: z,
+        &quot;planck_percentile_midrank_low_to_high&quot;: float(100.0 * (n_lt + 0.5 * n_eq) / n),
+        &quot;rank_ascending_1_is_lowest_S&quot;: int(n_lt + 1),
+        &quot;rank_descending_1_is_highest_belt_excess&quot;: int(n_gt + 1),
+        &quot;n_sim_lt_planck&quot;: n_lt,
+        &quot;n_sim_le_planck&quot;: n_le,
+        &quot;n_sim_eq_planck&quot;: n_eq,
+        &quot;n_sim_gt_planck&quot;: n_gt,
+        &quot;n_sim_ge_planck&quot;: n_ge,
+        &quot;fraction_sims_lt_planck&quot;: float(n_lt / n),
+        &quot;fraction_sims_le_planck&quot;: float(n_le / n),
+        &quot;fraction_sims_gt_planck&quot;: float(n_gt / n),
+        &quot;fraction_sims_ge_planck&quot;: float(n_ge / n),
+        &quot;empirical_p_upper_tail_high_belt_variance_including_ties_plus_one&quot;: p_upper,
+        &quot;empirical_p_lower_tail_low_belt_variance_including_ties_plus_one&quot;: p_lower,
+        &quot;empirical_p_two_sided_plus_one&quot;: p_two,
+        &quot;difference_planck_minus_sim_median&quot;: float(ps - median),
+        &quot;ratio_planck_div_sim_median_in_variance_ratio_space&quot;: (float(planck_ratio / median_ratio) if (planck_ratio is not None and median_ratio not in (None, 0.0)) else None),
+        &quot;is_upper_tail_5pct_high_belt_variance&quot;: bool(p_upper &lt;= 0.05),
+        &quot;is_upper_tail_1pct_high_belt_variance&quot;: bool(p_upper &lt;= 0.01),
+        &quot;is_lower_tail_5pct_low_belt_variance&quot;: bool(p_lower &lt;= 0.05),
+        &quot;is_lower_tail_1pct_low_belt_variance&quot;: bool(p_lower &lt;= 0.01),
+        &quot;is_two_sided_5pct&quot;: bool(p_two &lt;= 0.05),
+        &quot;is_two_sided_1pct&quot;: bool(p_two &lt;= 0.01)
+    })
+
+    if std == 0.0:
+        out[&quot;warning&quot;] = &quot;All finite simulation statistics are identical; check that the input maps, mask, and harmonic-transform pipeline are varying as expected.&quot;
+    elif p_upper &lt;= 0.01:
+        out[&quot;interpretation&quot;] = &quot;Planck lies in the highest 1% of simulations: an exceptionally large low-l ecliptic-belt variance relative to the caps.&quot;
+    elif p_upper &lt;= 0.05:
+        out[&quot;interpretation&quot;] = &quot;Planck lies in the highest 5% of simulations: an unusually large low-l ecliptic-belt variance relative to the caps.&quot;
+    elif p_lower &lt;= 0.01:
+        out[&quot;interpretation&quot;] = &quot;Planck lies in the lowest 1% of simulations: an exceptionally small low-l ecliptic-belt variance relative to the caps.&quot;
+    elif p_lower &lt;= 0.05:
+        out[&quot;interpretation&quot;] = &quot;Planck lies in the lowest 5% of simulations: an unusually small low-l ecliptic-belt variance relative to the caps.&quot;
+    else:
+        out[&quot;interpretation&quot;] = &quot;Planck is not in either 5% tail of the empirical simulation distribution for this low-l ecliptic belt-to-cap variance log-ratio.&quot;
+
+    return out</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/gpt5-5/test-18-low-l-ecliptic-belt-to-cap-variance-log-ratio.png" alt="Statistic distribution for Low-l Ecliptic Belt-to-Cap Variance Log-Ratio">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>GPT5.5</td></tr>
+<tr><th>Run path</th><td>runs/anomaly_agent_gpt_run</td></tr>
+<tr><th>Primary p-value</th><td>0.528</td></tr>
+<tr><th>One-tailed p-value</th><td>n/a</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.528</td></tr>
+<tr><th>Sigma</th><td>0.631</td></tr>
+<tr><th>Planck statistic</th><td>-0.129</td></tr>
+<tr><th>Simulation mean</th><td>0.00406</td></tr>
+<tr><th>Simulation std.</th><td>0.209</td></tr>
+<tr><th>Simulation median</th><td>-0.000948</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>variance</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/gpt5-5/test-18-low-l-ecliptic-belt-to-cap-variance-log-ratio.png">Figure PNG</a>
+<a href="../../../assets/figures/gpt5-5/test-18-low-l-ecliptic-belt-to-cap-variance-log-ratio.pdf">Figure PDF</a>
+<a href="../../../data/raw/gpt5-5/test-18-low-l-ecliptic-belt-to-cap-variance-log-ratio.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/gpt5-5/test-18-low-l-ecliptic-belt-to-cap-variance-log-ratio.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/gpt5-5/test-18-low-l-ecliptic-belt-to-cap-variance-log-ratio.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 2 model(s).</p>
+  </footer>
+</body>
+</html>

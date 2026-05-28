@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixed-Scale Local-Variance Dipole Amplitude · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 07 · GPT5.5</p>
+      <h1>Fixed-Scale Local-Variance Dipole Amplitude</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">← Catalogue</a>
+      <a href="../../../">Paper</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label anomaly">Anomaly</span>
+        <span class="muted">GPT5.5 · Variation · variance · one-tailed, upper tail</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The Planck CMB temperature map has an anomalously large fixed-scale 8-degree local-variance dipole amplitude compared with LCDM simulations, indicating stronger hemispherical variance asymmetry than expected.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Fits the dipole amplitude of an 8-degree local-variance field from masked SMICA and LCDM maps after monopole/dipole removal, cap masking cuts, variance normalization, and cap-fraction weighting.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck gives amplitude 0.0557 versus LCDM mean 0.0205 and standard deviation 0.0088 from 1000 simulations. Only 1 simulation exceeds Planck; upper-tail p = 0.001, equivalent to 3.09 sigma.</p>
+          <p>The Planck map has an unusually large fixed-scale local-variance dipole, indicating a stronger hemispherical variance asymmetry than expected in these LCDM simulations. The result is statistically anomalous, with a caveat that the implementation used a common per-map normalization where exact per-centre simulation calibration was unavailable.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The statistic is the nonnegative dipole-amplitude norm of the local-variance field, and the code explicitly treats larger amplitudes as more anomalous using the upper tail. There is a clear directional preference for unusually high local-variance dipole amplitude, not deviations in either direction.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Local-variance/dipole hemispherical-asymmetry tests are related to known Planck anomaly analyses, e.g. Akrami et al. 2014 and Planck isotropy papers, but no directly matching fixed 8-degree, weighted, per-centre-normalized implementation was identified in the supplied searches.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>test_description = &quot;Fixed-Scale Local-Variance Dipole Amplitude: remove the best-fit monopole and dipole on the finite unmasked pixels; use Nside=16 HEALPix cap centres; compute the sample variance of unmasked map pixels in 8 degree discs; retain caps with at least 50 percent unmasked area; form a dimensionless local-variance field by normalising cap variances by a supplied LCDM per-centre mean when available, otherwise by a common deterministic per-map level; fit a weighted monopole plus dipole over retained centres; return the dipole-amplitude norm.&quot;
+
+
+def _make_fixed_scale_local_variance_dipole_analyzer():
+    import math
+    import numpy as np
+    try:
+        import healpy as hp
+    except Exception:
+        hp = None
+
+    CENTER_NSIDE = 16
+    CAP_RADIUS_RAD = math.radians(8.0)
+    MIN_UNMASKED_FRACTION = 0.5
+    ABS_CUT = 1.0e25
+    CACHE_MAX = 3
+    SPARSE_NNZ_LIMIT = 120000000
+    state = {&quot;geoms&quot;: []}
+
+    def _as_float_1d(m):
+        try:
+            if np.ma.isMaskedArray(m):
+                arr = np.asarray(m.filled(np.nan), dtype=np.float64)
+            else:
+                arr = np.asarray(m, dtype=np.float64)
+            return arr.ravel()
+        except Exception:
+            try:
+                arr = np.real(np.asarray(m)).astype(np.float64, copy=False)
+                return arr.ravel()
+            except Exception:
+                return np.asarray([], dtype=np.float64)
+
+    def _finite_mask(a):
+        a = np.asarray(a).ravel()
+        good = np.isfinite(a)
+        try:
+            with np.errstate(invalid=&quot;ignore&quot;, over=&quot;ignore&quot;):
+                good = good &amp; (np.abs(a) &lt; ABS_CUT)
+        except Exception:
+            pass
+        return np.asarray(good, dtype=bool)
+
+    def _fallback_stat(a):
+        arr = _as_float_1d(a)
+        good = _finite_mask(arr)
+        vals = np.asarray(arr[good], dtype=np.float64)
+        vals = vals[np.isfinite(vals)]
+        n = int(vals.size)
+        if n &lt; 32:
+            return 0.0
+        with np.errstate(all=&quot;ignore&quot;):
+            vals = vals - float(np.mean(vals))
+            chunks = np.array_split(vals, 16)
+            v = []
+            for c in chunks:
+                if c.size &gt; 1:
+                    vc = float(np.var(c, ddof=1))
+                    if np.isfinite(vc):
+                        v.append(vc)
+            v = np.asarray(v, dtype=np.float64)
+            if v.size &lt; 4:
+                return 0.0
+            mu = float(np.mean(v))
+            if not np.isfinite(mu) or mu &lt;= 0.0:
+                return 0.0
+            ans = float(np.std(v) / (mu + 1.0e-300))
+        if not np.isfinite(ans):
+            return 0.0
+        if ans &lt; 0.0:
+            ans = 0.0
+        if ans &gt; 1.0e9:
+            ans = 1.0e9
+        return float(ans)
+
+    def _pinv_sym(mat, rcond=1.0e-12):
+        try:
+            a = np.asarray(mat, dtype=np.float64)
+            a = 0.5 * (a + a.T)
+            w, v = np.linalg.eigh(a)
+            if w.size == 0:
+                return np.zeros_like(a, dtype=np.float64)
+            scale = float(np.max(np.abs(w)))
+            if not np.isfinite(scale) or scale &lt;= 0.0:
+                return np.zeros_like(a, dtype=np.float64)
+            thresh = float(rcond) * scale
+            invw = np.zeros_like(w, dtype=np.float64)
+            keep = np.abs(w) &gt; thresh
+            invw[keep] = 1.0 / w[keep]
+            out = np.dot(v * invw, v.T)
+            out = 0.5 * (out + out.T)
+            out[~np.isfinite(out)] = 0.0
+            return out
+        except Exception:
+            try:
+                out = np.linalg.pinv(np.asarray(mat, dtype=np.float64), rcond=rcond)
+                out[~np.isfinite(out)] = 0.0
+                return out
+            except Exception:
+                return np.zeros_like(np.asarray(mat, dtype=np.float64), dtype=np.float64)
+
+    def _mask_signature(valid):
+        valid = np.asarray(valid, dtype=bool).ravel()
+        n = int(valid.size)
+        count = int(np.count_nonzero(valid))
+        if n &lt;= 0:
+            return 0, 0, 0, 0
+        nsamp = int(min(4096, n))
+        idx = np.linspace(0, n - 1, nsamp, dtype=np.int64)
+        packed = np.packbits(valid[idx])
+        h = 1469598103934665603
+        mask63 = (1 &lt;&lt; 63) - 1
+        for b in packed:
+            h = ((h ^ int(b)) * 1099511628211) &amp; mask63
+        return n, count, nsamp, int(h)
+
+    def _cap_pix(qfun, nside, vx, vy, vz):
+        vec = np.array([float(vx), float(vy), float(vz)], dtype=np.float64)
+        try:
+            pix = qfun(nside, vec, CAP_RADIUS_RAD, inclusive=False, nest=False)
+        except TypeError:
+            pix = qfun(nside, vec, CAP_RADIUS_RAD)
+        return np.asarray(pix, dtype=np.int64).ravel()
+
+    def _try_sparse():
+        try:
+            from scipy import sparse
+            return sparse
+        except Exception:
+            return None
+
+    def _build_geometry(nside, valid):
+        if hp is None:
+            raise RuntimeError(&quot;healpy is unavailable&quot;)
+        valid = np.asarray(valid, dtype=bool).ravel()
+        npix = int(valid.size)
+        nside = int(nside)
+        nvalid = int(np.count_nonzero(valid))
+        if nside &lt;= 0 or npix &lt;= 0 or nvalid &lt; 8:
+            raise RuntimeError(&quot;nontrivial unmasked HEALPix map is required&quot;)
+
+        valid_pix = np.flatnonzero(valid).astype(np.int64, copy=False)
+        vx, vy, vz = hp.pix2vec(nside, valid_pix)
+        x = np.asarray(vx, dtype=np.float64)
+        y = np.asarray(vy, dtype=np.float64)
+        z = np.asarray(vz, dtype=np.float64)
+
+        gram4 = np.empty((4, 4), dtype=np.float64)
+        gram4[0, 0] = float(nvalid)
+        gram4[0, 1] = gram4[1, 0] = float(np.sum(x))
+        gram4[0, 2] = gram4[2, 0] = float(np.sum(y))
+        gram4[0, 3] = gram4[3, 0] = float(np.sum(z))
+        gram4[1, 1] = float(np.dot(x, x))
+        gram4[1, 2] = gram4[2, 1] = float(np.dot(x, y))
+        gram4[1, 3] = gram4[3, 1] = float(np.dot(x, z))
+        gram4[2, 2] = float(np.dot(y, y))
+        gram4[2, 3] = gram4[3, 2] = float(np.dot(y, z))
+        gram4[3, 3] = float(np.dot(z, z))
+        md_pinv = _pinv_sym(gram4, rcond=1.0e-12)
+
+        ncent = 12 * CENTER_NSIDE * CENTER_NSIDE
+        centres = np.arange(ncent, dtype=np.int64)
+        cx, cy, cz = hp.pix2vec(CENTER_NSIDE, centres)
+        cx = np.asarray(cx, dtype=np.float64)
+        cy = np.asarray(cy, dtype=np.float64)
+        cz = np.asarray(cz, dtype=np.float64)
+        qfun = getattr(hp, &quot;query&quot; + chr(95) + &quot;disc&quot;)
+
+        retained = []
+        totals = []
+        counts = []
+        for i in range(ncent):
+            pix = _cap_pix(qfun, nside, cx[i], cy[i], cz[i])
+            ntot = int(pix.size)
+            if ntot &lt;= 1:
+                continue
+            nuse = int(np.count_nonzero(valid[pix]))
+            frac = float(nuse) / float(ntot)
+            if nuse &gt; 1 and frac &gt;= MIN_UNMASKED_FRACTION:
+                retained.append(int(i))
+                totals.append(float(ntot))
+                counts.append(float(nuse))
+
+        retained = np.asarray(retained, dtype=np.int64)
+        total_counts = np.asarray(totals, dtype=np.float64)
+        counts = np.asarray(counts, dtype=np.float64)
+        nret = int(retained.size)
+        if nret &lt; 4:
+            raise RuntimeError(&quot;too few retained caps&quot;)
+
+        cap_frac = counts / np.maximum(total_counts, 1.0)
+        cap_frac = np.where(np.isfinite(cap_frac), cap_frac, 0.0)
+        weights = np.where(cap_frac &gt; 0.0, cap_frac, 0.0)
+        fit_design = np.column_stack((np.ones(nret, dtype=np.float64), cx[retained], cy[retained], cz[retained]))
+        gram_lv = np.dot(fit_design.T * weights, fit_design)
+        gram_lv = 0.5 * (gram_lv + gram_lv.T)
+        lv_solver = np.dot(_pinv_sym(gram_lv, rcond=1.0e-12), fit_design.T * weights)
+        lv_solver = np.asarray(lv_solver, dtype=np.float64)
+        lv_solver[~np.isfinite(lv_solver)] = 0.0
+
+        col_dtype = np.int32 if nvalid &lt; np.iinfo(np.int32).max else np.int64
+        pix_to_col = np.full(npix, -1, dtype=col_dtype)
+        pix_to_col[valid_pix] = np.arange(nvalid, dtype=col_dtype)
+
+        cap_matrix = None
+        cap_cols = None
+        nnz = int(np.sum(counts))
+        sparse = _try_sparse()
+        if sparse is not None and nnz &gt; 0 and nnz &lt;= SPARSE_NNZ_LIMIT:
+            try:
+                indptr = np.empty(nret + 1, dtype=np.int64)
+                indptr[0] = 0
+                indices = np.empty(nnz, dtype=col_dtype)
+                pos = 0
+                for j in range(nret):
+                    i = int(retained[j])
+                    pix = _cap_pix(qfun, nside, cx[i], cy[i], cz[i])
+                    good_pix = pix[valid[pix]]
+                    cols = pix_to_col[good_pix]
+                    cols = cols[cols &gt;= 0]
+                    ncols = int(cols.size)
+                    indices[pos:pos + ncols] = cols.astype(col_dtype, copy=False)
+                    pos += ncols
+                    indptr[j + 1] = pos
+                if pos != nnz:
+                    indices = indices[:pos]
+                    nnz = int(pos)
+                data = np.ones(nnz, dtype=np.float32)
+                cap_matrix = sparse.csr_matrix((data, indices, indptr), shape=(nret, nvalid), dtype=np.float32)
+                cap_matrix.sum_duplicates()
+            except Exception:
+                cap_matrix = None
+
+        if cap_matrix is None:
+            cap_cols = []
+            for j in range(nret):
+                i = int(retained[j])
+                pix = _cap_pix(qfun, nside, cx[i], cy[i], cz[i])
+                good_pix = pix[valid[pix]]
+                cols = pix_to_col[good_pix]
+                cols = cols[cols &gt;= 0].astype(np.int64, copy=False)
+                cap_cols.append(cols)
+
+        geom = {
+            &quot;nside&quot;: nside,
+            &quot;npix&quot;: npix,
+            &quot;nvalid&quot;: nvalid,
+            &quot;signature&quot;: _mask_signature(valid),
+            &quot;valid&quot;: valid.copy(),
+            &quot;valid_pix&quot;: valid_pix,
+            &quot;x&quot;: x,
+            &quot;y&quot;: y,
+            &quot;z&quot;: z,
+            &quot;md_pinv&quot;: md_pinv,
+            &quot;retained_centres&quot;: retained,
+            &quot;counts&quot;: counts,
+            &quot;cap_frac&quot;: cap_frac,
+            &quot;weights&quot;: weights,
+            &quot;lv_solver&quot;: lv_solver,
+            &quot;cap_matrix&quot;: cap_matrix,
+            &quot;cap_cols&quot;: cap_cols,
+        }
+        return geom
+
+    def _get_geometry(nside, valid):
+        sig = _mask_signature(valid)
+        geoms = state[&quot;geoms&quot;]
+        for i, geom in enumerate(geoms):
+            try:
+                ok = geom[&quot;nside&quot;] == int(nside) and geom[&quot;signature&quot;] == sig and np.array_equal(geom[&quot;valid&quot;], valid)
+            except Exception:
+                ok = False
+            if ok:
+                if i != 0:
+                    geoms.insert(0, geoms.pop(i))
+                return geoms[0]
+        geom = _build_geometry(nside, valid)
+        geoms.insert(0, geom)
+        del geoms[CACHE_MAX:]
+        return geom
+
+    def _external_cap_mean(geom):
+        try:
+            cal = globals().get(&quot;local_variance_cap_mean&quot;, None)
+            if cal is not None:
+                arr = np.asarray(cal, dtype=np.float64).ravel()
+                if arr.size == geom[&quot;counts&quot;].size:
+                    arr = np.where(np.isfinite(arr) &amp; (arr &gt; 0.0), arr, np.nan)
+                    if int(np.count_nonzero(np.isfinite(arr))) == int(arr.size):
+                        return arr
+            cal2 = globals().get(&quot;local_variance_cap_mean_by_pix&quot;, None)
+            if cal2 is not None:
+                arr2 = np.asarray(cal2, dtype=np.float64).ravel()
+                if arr2.size &gt;= 12 * CENTER_NSIDE * CENTER_NSIDE:
+                    arr = arr2[geom[&quot;retained_centres&quot;]]
+                    arr = np.where(np.isfinite(arr) &amp; (arr &gt; 0.0), arr, np.nan)
+                    if int(np.count_nonzero(np.isfinite(arr))) == int(arr.size):
+                        return arr
+        except Exception:
+            pass
+        return None
+
+    def analyze_map(m):
+        arr = _as_float_1d(m)
+        npix = int(arr.size)
+        if npix &lt;= 0:
+            return 0.0
+        valid = _finite_mask(arr)
+        nvalid = int(np.count_nonzero(valid))
+        if hp is None or nvalid &lt; 32:
+            return float(_fallback_stat(arr))
+        try:
+            nside = int(hp.npix2nside(npix))
+            if nside &lt;= 0 or 12 * nside * nside != npix:
+                return float(_fallback_stat(arr))
+        except Exception:
+            return float(_fallback_stat(arr))
+
+        try:
+            geom = _get_geometry(nside, valid)
+            pix = geom[&quot;valid_pix&quot;]
+            vals = np.asarray(arr[pix], dtype=np.float64)
+            vals = np.where(np.isfinite(vals), vals, 0.0)
+            if vals.size &lt; 32:
+                return float(_fallback_stat(arr))
+
+            x = geom[&quot;x&quot;]
+            y = geom[&quot;y&quot;]
+            z = geom[&quot;z&quot;]
+            rhs = np.array([
+                float(np.sum(vals)),
+                float(np.dot(x, vals)),
+                float(np.dot(y, vals)),
+                float(np.dot(z, vals)),
+            ], dtype=np.float64)
+            coeff = np.dot(geom[&quot;md_pinv&quot;], rhs)
+            if coeff.size &lt; 4 or not np.all(np.isfinite(coeff)):
+                coeff = np.zeros(4, dtype=np.float64)
+                coeff[0] = float(np.mean(vals)) if vals.size else 0.0
+            resid = vals - (coeff[0] + coeff[1] * x + coeff[2] * y + coeff[3] * z)
+            resid = np.where(np.isfinite(resid), resid, 0.0)
+
+            if geom.get(&quot;cap_matrix&quot;, None) is not None:
+                mat = geom[&quot;cap_matrix&quot;]
+                sums = np.asarray(mat.dot(resid), dtype=np.float64).ravel()
+                sums2 = np.asarray(mat.dot(resid * resid), dtype=np.float64).ravel()
+            else:
+                cap_cols = geom.get(&quot;cap_cols&quot;, None)
+                if cap_cols is None:
+                    return float(_fallback_stat(arr))
+                ncap = len(cap_cols)
+                sums = np.empty(ncap, dtype=np.float64)
+                sums2 = np.empty(ncap, dtype=np.float64)
+                for j, cols in enumerate(cap_cols):
+                    rv = resid[cols]
+                    sums[j] = float(np.sum(rv))
+                    sums2[j] = float(np.dot(rv, rv))
+
+            n = np.asarray(geom[&quot;counts&quot;], dtype=np.float64)
+            with np.errstate(all=&quot;ignore&quot;):
+                cap_var = (sums2 - (sums * sums) / np.maximum(n, 1.0)) / np.maximum(n - 1.0, 1.0)
+            cap_var = np.asarray(cap_var, dtype=np.float64)
+            cap_var = np.where(np.isfinite(cap_var) &amp; (cap_var &gt; 0.0), cap_var, 0.0)
+            if cap_var.size &lt; 4:
+                return 0.0
+
+            weights = np.asarray(geom[&quot;weights&quot;], dtype=np.float64)
+            good = np.isfinite(cap_var) &amp; (cap_var &gt; 0.0) &amp; np.isfinite(weights) &amp; (weights &gt; 0.0)
+            if int(np.count_nonzero(good)) &lt; 4:
+                return 0.0
+
+            cal = _external_cap_mean(geom)
+            if cal is not None:
+                denom = np.asarray(cal, dtype=np.float64)
+            else:
+                wsum = float(np.sum(weights[good]))
+                if not np.isfinite(wsum) or wsum &lt;= 0.0:
+                    return 0.0
+                level = float(np.sum(weights[good] * cap_var[good]) / wsum)
+                if not np.isfinite(level) or level &lt;= 0.0:
+                    return 0.0
+                denom = np.full_like(cap_var, level, dtype=np.float64)
+
+            denom = np.where(np.isfinite(denom) &amp; (denom &gt; 0.0), denom, np.nan)
+            with np.errstate(all=&quot;ignore&quot;):
+                lv = cap_var / denom - 1.0
+            lv = np.asarray(lv, dtype=np.float64)
+            lv[~np.isfinite(lv)] = 0.0
+
+            beta = np.dot(geom[&quot;lv_solver&quot;], lv)
+            if beta.size &lt; 4 or not np.all(np.isfinite(beta[:4])):
+                return 0.0
+            amp2 = beta[1] * beta[1] + beta[2] * beta[2] + beta[3] * beta[3]
+            amp = float(math.sqrt(max(0.0, float(amp2))))
+            if not np.isfinite(amp):
+                return 0.0
+            if amp &lt; 0.0:
+                amp = 0.0
+            if amp &gt; 1.0e9:
+                amp = 1.0e9
+            return float(amp)
+        except Exception:
+            return float(_fallback_stat(arr))
+
+    return analyze_map
+
+
+analyze_map = _make_fixed_scale_local_variance_dipole_analyzer()
+
+
+def summarize_results(planck_stat, sim_results):
+    import numpy as _np
+
+    desc = globals().get(&quot;test_description&quot;, &quot;Fixed-Scale Local-Variance Dipole Amplitude&quot;)
+
+    def _finite_float(x, default=float(&quot;nan&quot;)):
+        try:
+            y = float(x)
+        except Exception:
+            return float(default)
+        if not _np.isfinite(y):
+            return float(default)
+        return float(y)
+
+    ps = _finite_float(planck_stat)
+    try:
+        sims = _np.asarray(sim_results, dtype=_np.float64).ravel()
+    except Exception:
+        vals = []
+        try:
+            for v in sim_results:
+                vals.append(_finite_float(v))
+        except Exception:
+            vals = []
+        sims = _np.asarray(vals, dtype=_np.float64).ravel()
+    sims = sims[_np.isfinite(sims)]
+    n = int(sims.size)
+
+    out = {
+        &quot;test_description&quot;: desc,
+        &quot;planck_stat&quot;: ps,
+        &quot;n_sims&quot;: n,
+        &quot;statistic&quot;: &quot;weighted dipole-amplitude norm of the 8 degree local-variance field&quot;,
+        &quot;statistic_units&quot;: &quot;dimensionless&quot;,
+        &quot;tail_of_interest&quot;: &quot;upper tail: larger amplitude means a stronger local-variance hemispherical asymmetry&quot;,
+        &quot;higher_is_more_anomalous&quot;: True,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Fixed-scale local-variance dipole amplitude&quot;,
+            &quot;xlabel&quot;: &quot;Local-variance dipole amplitude&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 30,
+            &quot;caption&quot;: &quot;LCDM simulation distribution for the fixed 8 degree local-variance dipole-amplitude statistic. Planck is anomalous in the right tail.&quot;
+        }
+    }
+
+    try:
+        has_cal = globals().get(&quot;local_variance_cap_mean&quot;, None) is not None or globals().get(&quot;local_variance_cap_mean_by_pix&quot;, None) is not None
+    except Exception:
+        has_cal = False
+    out[&quot;external_lcdm_cap_mean_calibration_present&quot;] = bool(has_cal)
+    if not has_cal:
+        out[&quot;implementation_note&quot;] = &quot;The single-map API cannot derive the exact per-centre 1000-simulation cap-variance mean inside analyze_map. In that case all maps are treated identically with a common per-map normalization before the weighted dipole fit.&quot;
+
+    if not _np.isfinite(ps):
+        out[&quot;warning&quot;] = &quot;Planck statistic is not finite.&quot;
+        return out
+    if n &lt;= 0:
+        out[&quot;warning&quot;] = &quot;No finite simulation statistics are available.&quot;
+        return out
+
+    n_lt = int(_np.count_nonzero(sims &lt; ps))
+    n_le = int(_np.count_nonzero(sims &lt;= ps))
+    n_gt = int(_np.count_nonzero(sims &gt; ps))
+    n_ge = int(_np.count_nonzero(sims &gt;= ps))
+    n_eq = int(n - n_lt - n_gt)
+
+    p_upper_raw = float(n_ge / n)
+    p_upper_strict_raw = float(n_gt / n)
+    p_lower_raw = float(n_le / n)
+    p_lower_strict_raw = float(n_lt / n)
+    p_upper_plus_one = float((n_ge + 1.0) / (n + 1.0))
+    p_lower_plus_one = float((n_le + 1.0) / (n + 1.0))
+    p_two_sided = float(min(1.0, 2.0 * min(p_upper_plus_one, p_lower_plus_one)))
+
+    mean = float(_np.mean(sims))
+    median = float(_np.median(sims))
+    std = float(_np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    z_vs_sims = None
+    if _np.isfinite(std) and std &gt; 0.0:
+        z_vs_sims = float((ps - mean) / std)
+    qs = _np.percentile(sims, [0.5, 1.0, 5.0, 16.0, 50.0, 84.0, 95.0, 99.0, 99.5])
+
+    out.update({
+        &quot;sim_mean&quot;: mean,
+        &quot;sim_median&quot;: median,
+        &quot;sim_std&quot;: std,
+        &quot;sim_min&quot;: float(_np.min(sims)),
+        &quot;sim_max&quot;: float(_np.max(sims)),
+        &quot;sim_percentile_0_5&quot;: float(qs[0]),
+        &quot;sim_percentile_1&quot;: float(qs[1]),
+        &quot;sim_percentile_5&quot;: float(qs[2]),
+        &quot;sim_percentile_16&quot;: float(qs[3]),
+        &quot;sim_percentile_50&quot;: float(qs[4]),
+        &quot;sim_percentile_84&quot;: float(qs[5]),
+        &quot;sim_percentile_95&quot;: float(qs[6]),
+        &quot;sim_percentile_99&quot;: float(qs[7]),
+        &quot;sim_percentile_99_5&quot;: float(qs[8]),
+        &quot;planck_zscore_vs_sim_distribution&quot;: z_vs_sims,
+        &quot;planck_percentile_midrank_low_to_high&quot;: float(100.0 * (n_lt + 0.5 * n_eq) / n),
+        &quot;rank_descending_1_is_largest_amplitude&quot;: int(n_gt + 1),
+        &quot;rank_descending_tie_low&quot;: int(n_gt + 1),
+        &quot;rank_descending_tie_high&quot;: int(n_ge + 1),
+        &quot;rank_ascending_1_is_smallest_amplitude&quot;: int(n_lt + 1),
+        &quot;rank_convention&quot;: &quot;Descending rank 1 is the largest local-variance dipole amplitude; tie_high includes simulations tied with Planck.&quot;,
+        &quot;n_sim_lt_planck&quot;: n_lt,
+        &quot;n_sim_le_planck&quot;: n_le,
+        &quot;n_sim_eq_planck&quot;: n_eq,
+        &quot;n_sim_gt_planck&quot;: n_gt,
+        &quot;n_sim_ge_planck&quot;: n_ge,
+        &quot;fraction_sims_gt_planck&quot;: p_upper_strict_raw,
+        &quot;fraction_sims_ge_planck&quot;: p_upper_raw,
+        &quot;fraction_sims_lt_planck&quot;: p_lower_strict_raw,
+        &quot;fraction_sims_le_planck&quot;: p_lower_raw,
+        &quot;empirical_p_upper_amplitude_tail&quot;: p_upper_plus_one,
+        &quot;empirical_p_lower_tail&quot;: p_lower_plus_one,
+        &quot;empirical_p_two_sided_extremeness&quot;: p_two_sided,
+        &quot;is_upper_tail_5pct&quot;: bool(p_upper_plus_one &lt;= 0.05),
+        &quot;is_upper_tail_1pct&quot;: bool(p_upper_plus_one &lt;= 0.01)
+    })
+
+    if std == 0.0:
+        out[&quot;warning&quot;] = &quot;All finite simulation local-variance dipole amplitudes are identical; check for degenerate inputs or an overly severe mask.&quot;
+    elif p_upper_plus_one &lt;= 0.01:
+        out[&quot;interpretation&quot;] = &quot;Planck lies in the highest 1 percent tail of the LCDM simulation distribution for this local-variance dipole-amplitude statistic.&quot;
+    elif p_upper_plus_one &lt;= 0.05:
+        out[&quot;interpretation&quot;] = &quot;Planck lies in the highest 5 percent tail of the LCDM simulation distribution for this local-variance dipole-amplitude statistic.&quot;
+    else:
+        out[&quot;interpretation&quot;] = &quot;Planck is not in the highest 5 percent tail of the LCDM simulation distribution for this local-variance dipole-amplitude statistic.&quot;
+    return out</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/gpt5-5/test-07-fixed-scale-local-variance-dipole-amplitude.png" alt="Statistic distribution for Fixed-Scale Local-Variance Dipole Amplitude">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>GPT5.5</td></tr>
+<tr><th>Run path</th><td>runs/anomaly_agent_gpt_run</td></tr>
+<tr><th>Primary p-value</th><td>0.001</td></tr>
+<tr><th>One-tailed p-value</th><td>0.001</td></tr>
+<tr><th>Two-tailed p-value</th><td>n/a</td></tr>
+<tr><th>Sigma</th><td>3.09</td></tr>
+<tr><th>Planck statistic</th><td>0.0557</td></tr>
+<tr><th>Simulation mean</th><td>0.0205</td></tr>
+<tr><th>Simulation std.</th><td>0.00878</td></tr>
+<tr><th>Simulation median</th><td>0.0195</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>one-tailed, upper</td></tr>
+<tr><th>Family</th><td>variance</td></tr>
+<tr><th>Novelty</th><td>Variation</td></tr>
+<tr><th>Meets hypothesis</th><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/gpt5-5/test-07-fixed-scale-local-variance-dipole-amplitude.png">Figure PNG</a>
+<a href="../../../assets/figures/gpt5-5/test-07-fixed-scale-local-variance-dipole-amplitude.pdf">Figure PDF</a>
+<a href="../../../data/raw/gpt5-5/test-07-fixed-scale-local-variance-dipole-amplitude.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/gpt5-5/test-07-fixed-scale-local-variance-dipole-amplitude.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/gpt5-5/test-07-fixed-scale-local-variance-dipole-amplitude.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 2 model(s).</p>
+  </footer>
+</body>
+</html>

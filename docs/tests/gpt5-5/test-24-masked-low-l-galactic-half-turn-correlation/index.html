@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Masked Low-l Galactic Half-Turn Correlation · Test Catalogue</title>
+  <link rel="stylesheet" href="../../../styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Test 24 · GPT5.5</p>
+      <h1>Masked Low-l Galactic Half-Turn Correlation</h1>
+    </div>
+    <nav class="toplinks" aria-label="Page navigation">
+      <a href="../../../catalogue.html">← Catalogue</a>
+      <a href="../../../">Paper</a>
+      <a href="../../../data/tests.json">Registry JSON</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="notice">
+      <strong>Provenance:</strong> This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.
+    </section>
+
+    <section class="detail-header">
+      <div class="status-line">
+        <span class="label consistent">Consistent</span>
+        <span class="muted">GPT5.5 · Novel · cross correlation · two-tailed</span>
+      </div>
+    </section>
+
+    <div class="detail-layout">
+      <div>
+        <section class="panel">
+          <h2>Hypothesis</h2>
+          <p>The masked, monopole/dipole-subtracted low-ℓ Planck map has an anomalous Galactic 180° half-turn relationship compared with simulations, meaning its correlation r between T(n) and T(Rπn) is unusually different from the simulated expectation, either too positive or too negative.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Method</h2>
+          <p>Monopole/dipole-subtracted masked maps were filtered to 2≤ℓ≤32, rotated by 180° in Galactic longitude, and compared using the area-weighted Pearson correlation on mutually unmasked pixels.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Result Summary</h2>
+          <p>Planck gives r=-0.108, a mild half-turn anti-correlation. Simulations have mean r=0.00495 and std=0.12865 from 1000 realizations. The two-tailed p-value is 0.408, with z≈-0.88 and Planck at about the 20th percentile.</p>
+          <p>The Planck value is well within the simulated ΛCDM distribution and is not close to the 5% two-tailed anomaly threshold. The statistic is non-degenerate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Agent Justification</h2>
+          <p>The statistic is a signed Pearson correlation where positive values indicate half-turn symmetry and negative values indicate anti-correlation. The description and code do not pre-specify that only positive correlation or only negative anti-correlation is anomalous; both tails are reported and interpreted. Therefore there is no clear directional preference, so a two-tailed test is appropriate.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Comparison To Literature</h2>
+          <p>Prior searches did not identify a directly comparable published CMB test of this specific masked low-ℓ Galactic half-turn Pearson correlation, so no quantitative literature comparison is available.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Analysis Code</h2>
+          <details>
+            <summary>Show generated Python statistic</summary>
+            <pre><code>test_description = &quot;Masked Low-l Galactic Half-Turn Correlation: fit and subtract the monopole and dipole on unmasked pixels, reconstruct only 2&lt;=ell&lt;=32, rotate by 180 degrees in Galactic longitude, and return the area-weighted Pearson correlation on pixels unmasked both before and after the rotation.&quot;
+
+
+def analyze_map(m):
+    import math
+    import warnings
+    import numpy as np
+
+    # Convert input to a flat float array while preserving NaNs as the mask.
+    try:
+        if np.ma.isMaskedArray(m):
+            a = np.asarray(m.filled(np.nan), dtype=np.float64).ravel()
+        else:
+            a = np.asarray(m, dtype=np.float64).ravel()
+    except Exception:
+        try:
+            a = np.asarray(np.real(m), dtype=np.float64).ravel()
+        except Exception:
+            return 0.0
+
+    npix = int(a.size)
+    if npix &lt;= 0:
+        return 0.0
+
+    valid = np.isfinite(a)
+    nvalid = int(np.count_nonzero(valid))
+    if nvalid &lt; 4:
+        return 0.0
+
+    # Infer HEALPix nside from the one-dimensional map length.
+    try:
+        if npix % 12 != 0:
+            nside = -1
+        else:
+            nside = int(round(math.sqrt(npix / 12.0)))
+            if nside &lt;= 0 or 12 * nside * nside != npix:
+                nside = -1
+    except Exception:
+        nside = -1
+
+    # Non-HEALPix fallback only prevents crashes on malformed probes; the real
+    # statistic is the HEALPix branch below.
+    if nside &lt;= 0:
+        vals = a[valid]
+        if vals.size &lt; 3:
+            return 0.0
+        shift = int(vals.size // 2)
+        if shift &lt;= 0:
+            return 0.0
+        x0 = vals
+        y0 = np.roll(vals, shift)
+        good = np.isfinite(x0) &amp; np.isfinite(y0)
+        if int(np.count_nonzero(good)) &lt; 3:
+            return 0.0
+        x0 = x0[good]
+        y0 = y0[good]
+        x0 = x0 - float(np.mean(x0))
+        y0 = y0 - float(np.mean(y0))
+        vx = float(np.dot(x0, x0))
+        vy = float(np.dot(y0, y0))
+        if vx &lt;= 0.0 or vy &lt;= 0.0 or (not np.isfinite(vx)) or (not np.isfinite(vy)):
+            return 0.0
+        r0 = float(np.dot(x0, y0) / np.sqrt(vx * vy))
+        if not np.isfinite(r0):
+            return 0.0
+        return float(max(-1.0, min(1.0, r0)))
+
+    lmax = min(32, max(0, 3 * int(nside) - 1))
+    if lmax &lt; 2:
+        return 0.0
+
+    try:
+        import healpy as hp
+    except Exception:
+        return 0.0
+
+    try:
+        # Cache geometry and half-turn permutation across simulations of the
+        # same nside.  This uses only vectorized HEALPix calls.
+        g = globals()
+        cache = g.get(&quot;_MLGHTC_GEOM_CACHE&quot;)
+        if not isinstance(cache, dict):
+            cache = {}
+            g[&quot;_MLGHTC_GEOM_CACHE&quot;] = cache
+        key = (int(nside), int(npix))
+        geom = cache.get(key)
+        if geom is None:
+            pix = np.arange(npix, dtype=np.int64)
+            x, y, z = hp.pix2vec(int(nside), pix, nest=False)
+            x = np.asarray(x, dtype=np.float64)
+            y = np.asarray(y, dtype=np.float64)
+            z = np.asarray(z, dtype=np.float64)
+            # R_pi: (l,b) -&gt; (l+180 deg,b), equivalently (x,y,z)-&gt;(-x,-y,z).
+            rot = np.asarray(hp.vec2pix(int(nside), -x, -y, z, nest=False), dtype=np.int64)
+            if rot.size != npix:
+                return 0.0
+            geom = (x, y, z, rot)
+            cache[key] = geom
+        else:
+            x, y, z, rot = geom
+            if int(np.asarray(rot).size) != npix:
+                return 0.0
+
+        x, y, z, rot = geom
+        rot = np.asarray(rot, dtype=np.int64)
+
+        # Fit monopole + Cartesian dipole components on unmasked pixels.  HEALPix
+        # pixels have equal area, so area-weighted least squares is ordinary
+        # least squares over the retained pixels.
+        residual = np.zeros(npix, dtype=np.float64)
+        tv = np.asarray(a[valid], dtype=np.float64)
+        xv = np.asarray(x[valid], dtype=np.float64)
+        yv = np.asarray(y[valid], dtype=np.float64)
+        zv = np.asarray(z[valid], dtype=np.float64)
+
+        try:
+            one = float(nvalid)
+            sx = float(np.sum(xv, dtype=np.float64))
+            sy = float(np.sum(yv, dtype=np.float64))
+            sz = float(np.sum(zv, dtype=np.float64))
+            sxx = float(np.dot(xv, xv))
+            syy = float(np.dot(yv, yv))
+            szz = float(np.dot(zv, zv))
+            sxy = float(np.dot(xv, yv))
+            sxz = float(np.dot(xv, zv))
+            syz = float(np.dot(yv, zv))
+            gram = np.array([[one, sx,  sy,  sz],
+                             [sx,  sxx, sxy, sxz],
+                             [sy,  sxy, syy, syz],
+                             [sz,  sxz, syz, szz]], dtype=np.float64)
+            rhs = np.array([float(np.sum(tv, dtype=np.float64)),
+                            float(np.dot(tv, xv)),
+                            float(np.dot(tv, yv)),
+                            float(np.dot(tv, zv))], dtype=np.float64)
+            try:
+                beta = np.linalg.solve(gram, rhs)
+            except Exception:
+                beta = np.linalg.lstsq(gram, rhs, rcond=None)[0]
+            beta = np.asarray(beta, dtype=np.float64).ravel()
+            if beta.size != 4 or not np.all(np.isfinite(beta)):
+                raise ValueError(&quot;bad monopole/dipole fit&quot;)
+            residual[valid] = tv - (beta[0] + beta[1] * xv + beta[2] * yv + beta[3] * zv)
+        except Exception:
+            mu = float(np.mean(tv)) if tv.size else 0.0
+            if not np.isfinite(mu):
+                mu = 0.0
+            residual[valid] = tv - mu
+
+        # Never pass NaN/Inf to healpy.  Masked pixels are finite-filled only for
+        # the harmonic transform; the final correlation still uses the original
+        # intersection mask.
+        residual = np.asarray(residual, dtype=np.float64)
+        residual[~np.isfinite(residual)] = 0.0
+
+        with warnings.catch_warnings():
+            warnings.simplefilter(&quot;ignore&quot;)
+            try:
+                alm = hp.map2alm(residual, lmax=int(lmax), iter=0, pol=False)
+            except TypeError:
+                alm = hp.map2alm(residual, lmax=int(lmax), iter=0)
+
+        fl = np.zeros(int(lmax) + 1, dtype=np.float64)
+        fl[2:int(lmax) + 1] = 1.0
+        try:
+            alm = hp.almxfl(alm, fl, inplace=False)
+        except TypeError:
+            alm = hp.almxfl(alm, fl)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter(&quot;ignore&quot;)
+            try:
+                low = hp.alm2map(alm, nside=int(nside), lmax=int(lmax), pol=False, verbose=False)
+            except TypeError:
+                try:
+                    low = hp.alm2map(alm, int(nside), lmax=int(lmax), verbose=False)
+                except TypeError:
+                    try:
+                        low = hp.alm2map(alm, nside=int(nside), lmax=int(lmax), pol=False)
+                    except TypeError:
+                        low = hp.alm2map(alm, int(nside), lmax=int(lmax))
+        low = np.asarray(low, dtype=np.float64).ravel()
+        if low.size != npix:
+            return 0.0
+        low[~np.isfinite(low)] = 0.0
+
+        common = valid &amp; valid[rot]
+        if int(np.count_nonzero(common)) &lt; 3:
+            return 0.0
+
+        tx = np.asarray(low[common], dtype=np.float64)
+        ty = np.asarray(low[rot[common]], dtype=np.float64)
+        good = np.isfinite(tx) &amp; np.isfinite(ty)
+        if int(np.count_nonzero(good)) &lt; 3:
+            return 0.0
+        tx = tx[good]
+        ty = ty[good]
+        tx = tx - float(np.mean(tx))
+        ty = ty - float(np.mean(ty))
+        vx = float(np.dot(tx, tx))
+        vy = float(np.dot(ty, ty))
+        if vx &lt;= 0.0 or vy &lt;= 0.0 or (not np.isfinite(vx)) or (not np.isfinite(vy)):
+            return 0.0
+        r = float(np.dot(tx, ty) / np.sqrt(vx * vy))
+        if not np.isfinite(r):
+            return 0.0
+        if r &gt; 1.0:
+            r = 1.0
+        elif r &lt; -1.0:
+            r = -1.0
+        return float(r)
+    except Exception:
+        return 0.0
+
+
+def summarize_results(planck_stat, sim_results):
+    import numpy as np
+
+    desc = globals().get(&quot;test_description&quot;, &quot;Masked Low-l Galactic Half-Turn Correlation&quot;)
+    try:
+        ps = float(planck_stat)
+    except Exception:
+        ps = np.nan
+    try:
+        sims = np.asarray(sim_results, dtype=np.float64).ravel()
+    except Exception:
+        vals = []
+        try:
+            for item in sim_results:
+                try:
+                    val = float(item)
+                    if np.isfinite(val):
+                        vals.append(val)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        sims = np.asarray(vals, dtype=np.float64)
+    sims = sims[np.isfinite(sims)]
+    n = int(sims.size)
+
+    out = {
+        &quot;test_description&quot;: desc,
+        &quot;statistic&quot;: &quot;Area-weighted Pearson correlation r between the monopole/dipole-subtracted 2&lt;=ell&lt;=32 map T(n) and T(R_pi n).&quot;,
+        &quot;multipole_range&quot;: &quot;2 &lt;= ell &lt;= 32, truncated only if the supplied nside cannot support ell=32&quot;,
+        &quot;rotation&quot;: &quot;Galactic longitude half-turn R_pi: (l,b) -&gt; (l+180 deg,b)&quot;,
+        &quot;mask_handling&quot;: &quot;Input non-finite pixels define the mask. Monopole/dipole fitting uses unmasked pixels; final correlation uses only pixels for which both n and R_pi n were originally unmasked. NaNs are replaced by zero only before healpy harmonic transforms.&quot;,
+        &quot;sign_convention&quot;: &quot;r&gt;0 means half-turn correlation/symmetry; r&lt;0 means half-turn anti-correlation; r near 0 means little linear half-turn relation.&quot;,
+        &quot;planck_r&quot;: float(ps) if np.isfinite(ps) else None,
+        &quot;n_sims&quot;: n,
+        &quot;plot_spec&quot;: {
+            &quot;kind&quot;: &quot;histogram&quot;,
+            &quot;title&quot;: &quot;Masked low-l Galactic half-turn correlation&quot;,
+            &quot;xlabel&quot;: &quot;r = corr[T(n), T(R_pi n)]&quot;,
+            &quot;ylabel&quot;: &quot;Number of simulations&quot;,
+            &quot;bins&quot;: 40,
+            &quot;caption&quot;: &quot;Simulation distribution of the low-l Galactic half-turn Pearson correlation, with the Planck value compared by rank/tail probabilities.&quot;
+        }
+    }
+
+    if not np.isfinite(ps):
+        out[&quot;warning&quot;] = &quot;The Planck statistic is not finite.&quot;
+        return out
+    if n &lt;= 0:
+        out[&quot;warning&quot;] = &quot;No finite simulation statistics were supplied.&quot;
+        return out
+
+    n_lt = int(np.count_nonzero(sims &lt; ps))
+    n_gt = int(np.count_nonzero(sims &gt; ps))
+    n_eq = int(n - n_lt - n_gt)
+    n_le = int(n_lt + n_eq)
+    n_ge = int(n_gt + n_eq)
+
+    # Plus-one empirical p-values avoid zero p-values for finite simulation sets.
+    p_lower = float((n_le + 1.0) / (n + 1.0))
+    p_upper = float((n_ge + 1.0) / (n + 1.0))
+    p_two_rank = float(min(1.0, 2.0 * min(p_lower, p_upper)))
+
+    mean = float(np.mean(sims))
+    median = float(np.median(sims))
+    std = float(np.std(sims, ddof=1)) if n &gt; 1 else 0.0
+    z = float((ps - mean) / std) if std &gt; 0.0 and np.isfinite(std) else None
+    q = np.percentile(sims, [1, 5, 16, 50, 84, 95, 99])
+
+    planck_dev = abs(float(ps - median))
+    sim_dev = np.abs(sims - median)
+    n_dev_ge = int(np.count_nonzero(sim_dev &gt;= planck_dev))
+    p_dev = float((n_dev_ge + 1.0) / (n + 1.0))
+
+    if ps &gt; 0.0:
+        signed_direction = &quot;positive half-turn correlation&quot;
+        p_signed = p_upper
+    elif ps &lt; 0.0:
+        signed_direction = &quot;negative half-turn anti-correlation&quot;
+        p_signed = p_lower
+    else:
+        signed_direction = &quot;zero correlation&quot;
+        p_signed = 1.0
+
+    out.update({
+        &quot;planck_correlation_sign&quot;: signed_direction,
+        &quot;sim_mean_r&quot;: mean,
+        &quot;sim_median_r&quot;: median,
+        &quot;sim_std_r&quot;: std,
+        &quot;sim_min_r&quot;: float(np.min(sims)),
+        &quot;sim_max_r&quot;: float(np.max(sims)),
+        &quot;sim_percentile_1_r&quot;: float(q[0]),
+        &quot;sim_percentile_5_r&quot;: float(q[1]),
+        &quot;sim_percentile_16_r&quot;: float(q[2]),
+        &quot;sim_percentile_50_r&quot;: float(q[3]),
+        &quot;sim_percentile_84_r&quot;: float(q[4]),
+        &quot;sim_percentile_95_r&quot;: float(q[5]),
+        &quot;sim_percentile_99_r&quot;: float(q[6]),
+        &quot;planck_zscore_vs_sims&quot;: z,
+        &quot;planck_percentile_midrank_low_to_high&quot;: float(100.0 * (n_lt + 0.5 * n_eq) / n),
+        &quot;rank_ascending_1_is_most_anticorrelated&quot;: int(n_lt + 1),
+        &quot;rank_descending_1_is_most_correlated&quot;: int(n_gt + 1),
+        &quot;n_sim_lt_planck&quot;: n_lt,
+        &quot;n_sim_le_planck&quot;: n_le,
+        &quot;n_sim_eq_planck&quot;: n_eq,
+        &quot;n_sim_gt_planck&quot;: n_gt,
+        &quot;n_sim_ge_planck&quot;: n_ge,
+        &quot;fraction_sims_le_planck&quot;: float(n_le / n),
+        &quot;fraction_sims_ge_planck&quot;: float(n_ge / n),
+        &quot;empirical_p_lower_tail_anticorrelation_plus_one&quot;: p_lower,
+        &quot;empirical_p_upper_tail_correlation_plus_one&quot;: p_upper,
+        &quot;empirical_p_two_sided_rank_plus_one&quot;: p_two_rank,
+        &quot;empirical_p_in_planck_signed_direction_plus_one&quot;: float(p_signed),
+        &quot;median_centered_abs_deviation_planck&quot;: float(planck_dev),
+        &quot;n_sims_median_centered_abs_deviation_ge_planck&quot;: n_dev_ge,
+        &quot;empirical_p_median_centered_two_sided_plus_one&quot;: p_dev,
+        &quot;difference_planck_minus_sim_median_r&quot;: float(ps - median),
+        &quot;is_5pct_low_tail_anticorrelation&quot;: bool(p_lower &lt;= 0.05),
+        &quot;is_5pct_high_tail_correlation&quot;: bool(p_upper &lt;= 0.05),
+        &quot;is_1pct_low_tail_anticorrelation&quot;: bool(p_lower &lt;= 0.01),
+        &quot;is_1pct_high_tail_correlation&quot;: bool(p_upper &lt;= 0.01),
+        &quot;is_5pct_two_sided_rank&quot;: bool(p_two_rank &lt;= 0.05),
+        &quot;is_1pct_two_sided_rank&quot;: bool(p_two_rank &lt;= 0.01),
+        &quot;is_5pct_median_centered_two_sided&quot;: bool(p_dev &lt;= 0.05),
+        &quot;is_1pct_median_centered_two_sided&quot;: bool(p_dev &lt;= 0.01)
+    })
+
+    if std == 0.0:
+        out[&quot;warning&quot;] = &quot;All finite simulation half-turn correlations are identical; check map variation, masking, harmonic filtering, and rotation indexing.&quot;
+    elif p_signed &lt;= 0.01:
+        out[&quot;interpretation&quot;] = &quot;Planck is in the most extreme 1% of simulations in its signed half-turn-correlation direction.&quot;
+    elif p_signed &lt;= 0.05:
+        out[&quot;interpretation&quot;] = &quot;Planck is in the most extreme 5% of simulations in its signed half-turn-correlation direction.&quot;
+    elif p_two_rank &lt;= 0.05:
+        out[&quot;interpretation&quot;] = &quot;Planck is unusual at the 5% level by the two-sided rank tail probability for this half-turn statistic.&quot;
+    elif p_dev &lt;= 0.05:
+        out[&quot;interpretation&quot;] = &quot;Planck has a median-centered half-turn-correlation deviation in the most extreme 5% of simulations.&quot;
+    else:
+        out[&quot;interpretation&quot;] = &quot;Planck is not in the most extreme 5% of simulations for this low-l Galactic half-turn correlation statistic.&quot;
+
+    return out</code></pre>
+          </details>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel figure-panel">
+          <h2>Distribution</h2>
+          <img src="../../../assets/figures/gpt5-5/test-24-masked-low-l-galactic-half-turn-correlation.png" alt="Statistic distribution for Masked Low-l Galactic Half-Turn Correlation">
+        </section>
+
+        <section class="panel">
+          <h2>Metrics</h2>
+          <table class="stats-table">
+            <tbody>
+              <tr><th>Model</th><td>GPT5.5</td></tr>
+<tr><th>Run path</th><td>runs/anomaly_agent_gpt_run</td></tr>
+<tr><th>Primary p-value</th><td>0.408</td></tr>
+<tr><th>One-tailed p-value</th><td>n/a</td></tr>
+<tr><th>Two-tailed p-value</th><td>0.408</td></tr>
+<tr><th>Sigma</th><td>0.827</td></tr>
+<tr><th>Planck statistic</th><td>-0.108</td></tr>
+<tr><th>Simulation mean</th><td>0.00495</td></tr>
+<tr><th>Simulation std.</th><td>0.129</td></tr>
+<tr><th>Simulation median</th><td>0.0101</td></tr>
+<tr><th>Simulations</th><td>1000</td></tr>
+<tr><th>Valid simulations</th><td>1000</td></tr>
+<tr><th>Tail</th><td>two-tailed</td></tr>
+<tr><th>Family</th><td>cross correlation</td></tr>
+<tr><th>Novelty</th><td>Novel</td></tr>
+<tr><th>Meets hypothesis</th><td>No</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="panel">
+          <h2>Artifacts</h2>
+          <div class="asset-list">
+            <a href="../../../assets/figures/gpt5-5/test-24-masked-low-l-galactic-half-turn-correlation.png">Figure PNG</a>
+<a href="../../../assets/figures/gpt5-5/test-24-masked-low-l-galactic-half-turn-correlation.pdf">Figure PDF</a>
+<a href="../../../data/raw/gpt5-5/test-24-masked-low-l-galactic-half-turn-correlation.result_summary.json">Result summary JSON</a>
+<a href="../../../data/statistics/gpt5-5/test-24-masked-low-l-galactic-half-turn-correlation.planck_statistic.npy">Planck NPY</a>
+<a href="../../../data/statistics/gpt5-5/test-24-masked-low-l-galactic-half-turn-correlation.simulation_statistics.npy">Simulations NPY</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <footer>
+    <p>Catalogue v1.0 generated from 2 model(s).</p>
+  </footer>
+</body>
+</html>
