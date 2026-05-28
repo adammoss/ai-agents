@@ -30,7 +30,7 @@
       "planck_masked": "assets/cmb/planckcmbwithmask256.png",
       "planck_unmasked": "assets/cmb/planckcmbnomask256.png"
     },
-    "generated_at_utc": "2026-05-27T20:55:38+00:00",
+    "generated_at_utc": "2026-05-28T19:53:15+00:00",
     "curation_note": "This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.",
     "n_tests": 137,
     "verdict_counts": {
@@ -91,7 +91,7 @@
         "mean_sim_stat": 0.2680822764669153,
         "std_sim_stat": 0.11119829637032701,
         "median_sim_stat": 0.2570194526256185,
-        "sigma": 0.9741138770593092,
+        "sigma": 0.974113877059309,
         "p_value_one_tailed": 0.165,
         "p_value_two_tailed": 0.33,
         "primary_p_value": 0.165,
@@ -102,7 +102,8 @@
         "thresholds": [
           0.08193789516033297,
           0.5108983999315984
-        ]
+        ],
+        "reported_sigma": 0.9741138770593092
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-01-disc-local-power-dipole-amplitude.png",
@@ -145,7 +146,7 @@
         "mean_sim_stat": 0.6794778728115559,
         "std_sim_stat": 0.33614364128779384,
         "median_sim_stat": 0.6012507990244487,
-        "sigma": 1.4325027208258116,
+        "sigma": -1.4325027208258119,
         "p_value_one_tailed": 0.924,
         "p_value_two_tailed": 0.152,
         "primary_p_value": 0.924,
@@ -156,7 +157,8 @@
         "thresholds": [
           0.23062384961062918,
           1.4742809401639527
-        ]
+        ],
+        "reported_sigma": 1.4325027208258116
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-02-low-parity-power-asymmetry-ratio.png",
@@ -199,7 +201,7 @@
         "mean_sim_stat": 0.5123172250443875,
         "std_sim_stat": 0.28849152526888006,
         "median_sim_stat": 0.5182677425959952,
-        "sigma": 1.838423669247777,
+        "sigma": 1.8384236692477762,
         "p_value_one_tailed": 0.033,
         "p_value_two_tailed": 0.066,
         "primary_p_value": 0.033,
@@ -210,7 +212,8 @@
         "thresholds": [
           0.03693703708681432,
           0.9793463079981132
-        ]
+        ],
+        "reported_sigma": 1.838423669247777
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-03-quadrupole-octopole-alignment-cosine.png",
@@ -253,7 +256,7 @@
         "mean_sim_stat": 0.5055611467971829,
         "std_sim_stat": 0.14035804983569153,
         "median_sim_stat": 0.5117821501512938,
-        "sigma": 0.7688202934580621,
+        "sigma": -0.7688202934580621,
         "p_value_one_tailed": 0.779,
         "p_value_two_tailed": 0.442,
         "primary_p_value": 0.779,
@@ -264,7 +267,8 @@
         "thresholds": [
           0.2340954236590344,
           0.7606319217961749
-        ]
+        ],
+        "reported_sigma": 0.7688202934580621
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-04-low-ecliptic-plane-power-fraction.png",
@@ -307,7 +311,7 @@
         "mean_sim_stat": 1.0046627023841885,
         "std_sim_stat": 0.032058035965288195,
         "median_sim_stat": 1.004234024543781,
-        "sigma": 0.06521853970954372,
+        "sigma": -0.0652185397095437,
         "p_value_one_tailed": 0.526,
         "p_value_two_tailed": 0.948,
         "primary_p_value": 0.526,
@@ -318,7 +322,8 @@
         "thresholds": [
           0.9406645882634574,
           1.0670808391543805
-        ]
+        ],
+        "reported_sigma": 0.06521853970954372
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-05-ecliptic-hemispherical-variance-ratio.png",
@@ -361,7 +366,7 @@
         "mean_sim_stat": 2.0677081245165274,
         "std_sim_stat": 0.6491041068344461,
         "median_sim_stat": 1.9431328539560555,
-        "sigma": 0.986271298702238,
+        "sigma": 0.9862712987022381,
         "p_value_one_tailed": 0.162,
         "p_value_two_tailed": 0.324,
         "primary_p_value": 0.162,
@@ -372,7 +377,8 @@
         "thresholds": [
           1.1535061005227185,
           3.5082561118235636
-        ]
+        ],
+        "reported_sigma": 0.986271298702238
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-06-octopole-planarity-ratio.png",
@@ -426,7 +432,8 @@
         "thresholds": [
           0.41616159228647154,
           2.4469019057486636
-        ]
+        ],
+        "reported_sigma": 2.0335201492530506
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-07-galactic-hemispherical-power-ratio.png",
@@ -469,7 +476,7 @@
         "mean_sim_stat": 0.0011727711139964399,
         "std_sim_stat": 0.16689458150699168,
         "median_sim_stat": 0.0015028376286036157,
-        "sigma": 1.2646411356610803,
+        "sigma": 1.26464113566108,
         "p_value_one_tailed": 0.103,
         "p_value_two_tailed": 0.206,
         "primary_p_value": 0.206,
@@ -480,7 +487,8 @@
         "thresholds": [
           -0.3131642753662624,
           0.3355394660663596
-        ]
+        ],
+        "reported_sigma": 1.2646411356610803
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-08-low-masked-sky-skewness.png",
@@ -523,7 +531,7 @@
         "mean_sim_stat": 0.4816192671274182,
         "std_sim_stat": 0.27762501537047807,
         "median_sim_stat": 0.47191632285159824,
-        "sigma": 1.4118300775008088,
+        "sigma": 1.4118300775008086,
         "p_value_one_tailed": 0.079,
         "p_value_two_tailed": 0.158,
         "primary_p_value": 0.079,
@@ -534,7 +542,8 @@
         "thresholds": [
           0.0310001102845034,
           0.9645222440447895
-        ]
+        ],
+        "reported_sigma": 1.4118300775008088
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-09-quadrupole-kinematic-dipole-alignment-cosine.png",
@@ -577,7 +586,7 @@
         "mean_sim_stat": 5.953487464469257,
         "std_sim_stat": 2.5187029314282676,
         "median_sim_stat": 5.482995719183197,
-        "sigma": 1.0581216176847767,
+        "sigma": 1.058121617684777,
         "p_value_one_tailed": 0.145,
         "p_value_two_tailed": 0.29,
         "primary_p_value": 0.29,
@@ -588,7 +597,8 @@
         "thresholds": [
           2.5873546853253777,
           12.302656523758468
-        ]
+        ],
+        "reported_sigma": 1.0581216176847767
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-10-low-spectral-tilt-ratio.png",
@@ -642,7 +652,8 @@
         "thresholds": [
           -0.7949798277939566,
           0.8194110474452676
-        ]
+        ],
+        "reported_sigma": 0.6310619790594988
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-11-low-masked-sky-kurtosis.png",
@@ -685,7 +696,7 @@
         "mean_sim_stat": 0.17891729547186844,
         "std_sim_stat": 0.20137785136746425,
         "median_sim_stat": 0.1846061120402968,
-        "sigma": 1.5062617232782445,
+        "sigma": 1.5062617232782438,
         "p_value_one_tailed": 0.066,
         "p_value_two_tailed": 0.132,
         "primary_p_value": 0.132,
@@ -696,7 +707,8 @@
         "thresholds": [
           -0.21231223408727096,
           0.551489606609263
-        ]
+        ],
+        "reported_sigma": 1.5062617232782445
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-12-low-antipodal-correlation-ratio.png",
@@ -750,7 +762,8 @@
         "thresholds": [
           0.02503896830534968,
           0.9676965017756425
-        ]
+        ],
+        "reported_sigma": 0.8596173642419115
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-13-low-dipole-modulation-ecliptic-alignment.png",
@@ -793,7 +806,7 @@
         "mean_sim_stat": 1.3689679058903035,
         "std_sim_stat": 0.3792674482744342,
         "median_sim_stat": 1.3417327124771663,
-        "sigma": 0.12313524773483651,
+        "sigma": 0.12313524773483635,
         "p_value_one_tailed": 0.451,
         "p_value_two_tailed": 0.902,
         "primary_p_value": 0.451,
@@ -804,7 +817,8 @@
         "thresholds": [
           0.7164477740824879,
           2.1462199638657053
-        ]
+        ],
+        "reported_sigma": 0.12313524773483651
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-14-low-cross-parity-correlation-asymmetry.png",
@@ -847,7 +861,7 @@
         "mean_sim_stat": 2.158416038021229,
         "std_sim_stat": 1.1108193541232938,
         "median_sim_stat": 2.036629814979446,
-        "sigma": 0.0802983128920549,
+        "sigma": 0.08029831289205504,
         "p_value_one_tailed": 0.468,
         "p_value_two_tailed": 0.936,
         "primary_p_value": 0.936,
@@ -858,7 +872,8 @@
         "thresholds": [
           0.4981505757547768,
           4.647657896046411
-        ]
+        ],
+        "reported_sigma": 0.0802983128920549
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-15-low-parity-difference-dipole-amplitude.png",
@@ -912,7 +927,8 @@
         "thresholds": [
           2.605972712242297,
           4.175406838562747
-        ]
+        ],
+        "reported_sigma": 0.9660882971323732
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-16-low-cold-spot-depth.png",
@@ -955,7 +971,7 @@
         "mean_sim_stat": 1.8850908099007533,
         "std_sim_stat": 0.32991428226109215,
         "median_sim_stat": 1.8464653645375892,
-        "sigma": 1.739197665285252,
+        "sigma": -1.7391976652852517,
         "p_value_one_tailed": 0.959,
         "p_value_two_tailed": 0.082,
         "primary_p_value": 0.959,
@@ -966,7 +982,8 @@
         "thresholds": [
           1.3488686630758002,
           2.6607204807201668
-        ]
+        ],
+        "reported_sigma": 1.739197665285252
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-17-low-l-anisotropy-elongation-ratio.png",
@@ -1009,7 +1026,7 @@
         "mean_sim_stat": -0.007806225559711909,
         "std_sim_stat": 0.6289041086869408,
         "median_sim_stat": 0.0037845421016420907,
-        "sigma": 0.6371916745044746,
+        "sigma": -0.6371916745044746,
         "p_value_one_tailed": 0.738,
         "p_value_two_tailed": 0.524,
         "primary_p_value": 0.738,
@@ -1020,7 +1037,8 @@
         "thresholds": [
           -0.9650126063720041,
           0.9558014636803226
-        ]
+        ],
+        "reported_sigma": 0.6371916745044746
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-18-low-dipole-modulation-galactic-alignment.png",
@@ -1063,7 +1081,7 @@
         "mean_sim_stat": 0.5163869672965411,
         "std_sim_stat": 0.2885649989915072,
         "median_sim_stat": 0.5126251786819158,
-        "sigma": 0.6219115955806241,
+        "sigma": 0.6219115955806243,
         "p_value_one_tailed": 0.267,
         "p_value_two_tailed": 0.534,
         "primary_p_value": 0.267,
@@ -1074,7 +1092,8 @@
         "thresholds": [
           0.030087430768012062,
           0.9874574908776464
-        ]
+        ],
+        "reported_sigma": 0.6219115955806241
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-19-hexadecupole-ecliptic-plane-alignment-cosine.png",
@@ -1117,7 +1136,7 @@
         "mean_sim_stat": 0.7928193601148432,
         "std_sim_stat": 0.2501348078459224,
         "median_sim_stat": 0.8824946572173118,
-        "sigma": 1.353174154548003,
+        "sigma": 1.3531741545480027,
         "p_value_one_tailed": 0.088,
         "p_value_two_tailed": 0.176,
         "primary_p_value": 0.176,
@@ -1128,7 +1147,8 @@
         "thresholds": [
           0.020151058546265605,
           0.9931203588039131
-        ]
+        ],
+        "reported_sigma": 1.353174154548003
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-19-octopole-hexadecupole-tensor-alignment.png",
@@ -1171,7 +1191,7 @@
         "mean_sim_stat": 1.0008745768173926,
         "std_sim_stat": 0.035110900176373916,
         "median_sim_stat": 0.9998618472959058,
-        "sigma": 0.13324452361112385,
+        "sigma": 0.1332445236111237,
         "p_value_one_tailed": 0.447,
         "p_value_two_tailed": 0.894,
         "primary_p_value": 0.894,
@@ -1182,7 +1202,8 @@
         "thresholds": [
           0.9350083512158799,
           1.071182419317992
-        ]
+        ],
+        "reported_sigma": 0.13324452361112385
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-20-hot-cold-temperature-variance-ratio.png",
@@ -1225,7 +1246,7 @@
         "mean_sim_stat": 0.666571898671559,
         "std_sim_stat": 0.30748001368904165,
         "median_sim_stat": 0.6360171551085212,
-        "sigma": 0.39614237389269835,
+        "sigma": 0.3961423738926982,
         "p_value_one_tailed": 0.346,
         "p_value_two_tailed": 0.692,
         "primary_p_value": 0.692,
@@ -1236,7 +1257,8 @@
         "thresholds": [
           0.19929114398970846,
           1.399543074155872
-        ]
+        ],
+        "reported_sigma": 0.39614237389269835
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-21-low-skewness-dipole-amplitude.png",
@@ -1290,7 +1312,8 @@
         "thresholds": [
           -71.74402892466526,
           77.36550975009376
-        ]
+        ],
+        "reported_sigma": 0.9077695298680556
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-22-low-cold-spot-ecliptic-latitude.png",
@@ -1344,7 +1367,8 @@
         "thresholds": [
           -0.04426363390473292,
           0.04453568022628341
-        ]
+        ],
+        "reported_sigma": 0.35311797197368927
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-23-low-galactic-north-skewness.png",
@@ -1387,7 +1411,7 @@
         "mean_sim_stat": -0.7238067966425761,
         "std_sim_stat": 0.04190418219858043,
         "median_sim_stat": -0.7280667699755161,
-        "sigma": 1.2590839804270721,
+        "sigma": 1.2590839804270717,
         "p_value_one_tailed": 0.104,
         "p_value_two_tailed": 0.208,
         "primary_p_value": 0.104,
@@ -1398,7 +1422,8 @@
         "thresholds": [
           -0.7990756153637868,
           -0.6363649482333229
-        ]
+        ],
+        "reported_sigma": 1.2590839804270721
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-24-low-mean-power-deficit.png",
@@ -1441,7 +1466,7 @@
         "mean_sim_stat": 2.372564921847164,
         "std_sim_stat": 2.495814717801032,
         "median_sim_stat": 1.7712397490724032,
-        "sigma": 0.5563084669589183,
+        "sigma": 0.5563084669589186,
         "p_value_one_tailed": 0.289,
         "p_value_two_tailed": 0.578,
         "primary_p_value": 0.578,
@@ -1452,7 +1477,8 @@
         "thresholds": [
           0.36817929281696765,
           7.712942279846676
-        ]
+        ],
+        "reported_sigma": 0.5563084669589183
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-24-low-scale-dependent-hemispherical-asymmetry-ratio.png",
@@ -1495,7 +1521,7 @@
         "mean_sim_stat": 2.900791044998693,
         "std_sim_stat": 0.06336010884717842,
         "median_sim_stat": 2.9094739249490438,
-        "sigma": 0.2767136367367468,
+        "sigma": 0.2767136367367469,
         "p_value_one_tailed": 0.391,
         "p_value_two_tailed": 0.782,
         "primary_p_value": 0.782,
@@ -1506,7 +1532,8 @@
         "thresholds": [
           2.795132398825836,
           2.9747223012863406
-        ]
+        ],
+        "reported_sigma": 0.2767136367367468
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-24-quadrupole-power-gradient-amplitude.png",
@@ -1549,7 +1576,7 @@
         "mean_sim_stat": 0.5072987833752689,
         "std_sim_stat": 0.23212125255476695,
         "median_sim_stat": 0.5105178425290747,
-        "sigma": 0.28453554267162146,
+        "sigma": 0.2845355426716215,
         "p_value_one_tailed": 0.388,
         "p_value_two_tailed": 0.776,
         "primary_p_value": 0.388,
@@ -1560,7 +1587,8 @@
         "thresholds": [
           0.06378942025118498,
           0.922758649539714
-        ]
+        ],
+        "reported_sigma": 0.28453554267162146
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-25-low-multipole-phase-consistency-variance.png",
@@ -1603,7 +1631,7 @@
         "mean_sim_stat": 90377.49772218772,
         "std_sim_stat": 149257.3814456956,
         "median_sim_stat": 47124.718007266434,
-        "sigma": 2.120071689742151,
+        "sigma": 2.1200716897421503,
         "p_value_one_tailed": 0.017,
         "p_value_two_tailed": 0.034,
         "primary_p_value": 0.034,
@@ -1614,7 +1642,8 @@
         "thresholds": [
           6100.789368561888,
           467027.0183193382
-        ]
+        ],
+        "reported_sigma": 2.120071689742151
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-26-low-power-spectrum-variance.png",
@@ -1657,7 +1686,7 @@
         "mean_sim_stat": 1480.8021249814508,
         "std_sim_stat": 625.9591911366698,
         "median_sim_stat": 1370.5575572913801,
-        "sigma": 0.24558952342208087,
+        "sigma": 0.24558952342208085,
         "p_value_one_tailed": 0.403,
         "p_value_two_tailed": 0.806,
         "primary_p_value": 0.806,
@@ -1668,7 +1697,8 @@
         "thresholds": [
           572.7882499061539,
           3006.5227289451414
-        ]
+        ],
+        "reported_sigma": 0.24558952342208087
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-27-low-antipodal-temperature-difference-variance.png",
@@ -1711,7 +1741,7 @@
         "mean_sim_stat": 0.4379416927456648,
         "std_sim_stat": 0.03940806397408291,
         "median_sim_stat": 0.4367528756155949,
-        "sigma": 0.6650789461759234,
+        "sigma": -0.6650789461759232,
         "p_value_one_tailed": 0.747,
         "p_value_two_tailed": 0.506,
         "primary_p_value": 0.747,
@@ -1722,7 +1752,8 @@
         "thresholds": [
           0.36557030630335824,
           0.5208559140430061
-        ]
+        ],
+        "reported_sigma": 0.6650789461759234
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-28-low-map-roughness-heterogeneity.png",
@@ -1765,7 +1796,7 @@
         "mean_sim_stat": 1.0017123240373775,
         "std_sim_stat": 0.00033238751906359995,
         "median_sim_stat": 1.0017309295706132,
-        "sigma": 2.5121443279304616,
+        "sigma": 2.512144327930461,
         "p_value_one_tailed": 0.006,
         "p_value_two_tailed": 0.012,
         "primary_p_value": 0.012,
@@ -1776,7 +1807,8 @@
         "thresholds": [
           1.00100244823546,
           1.002311877728173
-        ]
+        ],
+        "reported_sigma": 2.5121443279304616
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-29-low-spatial-autocorrelation-coefficient.png",
@@ -1819,7 +1851,7 @@
         "mean_sim_stat": 0.0032780022080827606,
         "std_sim_stat": 0.07802801587341851,
         "median_sim_stat": 0.0036612399154890927,
-        "sigma": 0.5475513533264015,
+        "sigma": 0.5475513533264014,
         "p_value_one_tailed": 0.292,
         "p_value_two_tailed": 0.584,
         "primary_p_value": 0.584,
@@ -1830,7 +1862,8 @@
         "thresholds": [
           -0.1462612027244238,
           0.15414900030853107
-        ]
+        ],
+        "reported_sigma": 0.5475513533264015
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-30-low-temperature-gradient-magnitude-cross-correlation-coefficient.png",
@@ -1873,7 +1906,7 @@
         "mean_sim_stat": -0.4886215402585479,
         "std_sim_stat": 0.008235782717778155,
         "median_sim_stat": -0.48939562454783303,
-        "sigma": 1.607247891900218,
+        "sigma": 1.6072478919002178,
         "p_value_one_tailed": 0.054,
         "p_value_two_tailed": 0.108,
         "primary_p_value": 0.108,
@@ -1884,7 +1917,8 @@
         "thresholds": [
           -0.5018847548500109,
           -0.47105835749661545
-        ]
+        ],
+        "reported_sigma": 1.607247891900218
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-31-temperature-laplacian-cross-correlation-coefficient.png",
@@ -1938,7 +1972,8 @@
         "thresholds": [
           0.02417874308173951,
           0.057866606028133385
-        ]
+        ],
+        "reported_sigma": 3.090232306167813
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-32-low-band-limited-cross-correlation-coefficient.png",
@@ -1992,7 +2027,8 @@
         "thresholds": [
           0.10836064020792643,
           0.1591653823852539
-        ]
+        ],
+        "reported_sigma": 0.8596173642419115
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-33-low-convex-hull-area-asymmetry.png",
@@ -2035,7 +2071,7 @@
         "mean_sim_stat": -0.0015210631303473963,
         "std_sim_stat": 0.14442225871507644,
         "median_sim_stat": -0.0030680679294314197,
-        "sigma": 0.986271298702238,
+        "sigma": 0.9862712987022381,
         "p_value_one_tailed": 0.162,
         "p_value_two_tailed": 0.324,
         "primary_p_value": 0.324,
@@ -2046,7 +2082,8 @@
         "thresholds": [
           -0.2829447161890386,
           0.27321959101439725
-        ]
+        ],
+        "reported_sigma": 0.986271298702238
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-34-low-laplacian-skewness.png",
@@ -2089,7 +2126,7 @@
         "mean_sim_stat": 8.456,
         "std_sim_stat": 1.3168386385582707,
         "median_sim_stat": 8,
-        "sigma": 0.915365087842814,
+        "sigma": 0.9153650878428142,
         "p_value_one_tailed": 0.18,
         "p_value_two_tailed": 0.36,
         "primary_p_value": 0.36,
@@ -2100,7 +2137,8 @@
         "thresholds": [
           7.0,
           12.0
-        ]
+        ],
+        "reported_sigma": 0.915365087842814
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-35-low-two-point-correlation-coherence-length.png",
@@ -2143,7 +2181,7 @@
         "mean_sim_stat": -0.0010513998164814566,
         "std_sim_stat": 0.03164141158422059,
         "median_sim_stat": 0,
-        "sigma": 0.15096921549677725,
+        "sigma": 0.15096921549677736,
         "p_value_one_tailed": 0.44,
         "p_value_two_tailed": 0.88,
         "primary_p_value": 0.88,
@@ -2154,7 +2192,8 @@
         "thresholds": [
           -0.060945818979016596,
           0.0564848848990363
-        ]
+        ],
+        "reported_sigma": 0.15096921549677725
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-36-hot-cold-spot-count-asymmetry-ratio.png",
@@ -2197,7 +2236,7 @@
         "mean_sim_stat": 100.12361244365796,
         "std_sim_stat": 8.799816029431462,
         "median_sim_stat": 101.62592936028447,
-        "sigma": 0.12313524773483651,
+        "sigma": 0.12313524773483635,
         "p_value_one_tailed": 0.451,
         "p_value_two_tailed": 0.902,
         "primary_p_value": 0.902,
@@ -2208,7 +2247,8 @@
         "thresholds": [
           80.37077505440767,
           113.92697505836048
-        ]
+        ],
+        "reported_sigma": 0.12313524773483651
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-37-low-largest-hot-region-angular-size.png",
@@ -2251,7 +2291,7 @@
         "mean_sim_stat": 3.4815791443199426,
         "std_sim_stat": 0.3558551093669157,
         "median_sim_stat": 3.432591700505504,
-        "sigma": 0.2533471031357997,
+        "sigma": 0.2533471031357998,
         "p_value_one_tailed": 0.4,
         "p_value_two_tailed": 0.8,
         "primary_p_value": 0.8,
@@ -2262,7 +2302,8 @@
         "thresholds": [
           2.925903122789418,
           4.284707504677645
-        ]
+        ],
+        "reported_sigma": 0.2533471031357997
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-38-low-peak-to-rms-temperature-ratio.png",
@@ -2305,7 +2346,7 @@
         "mean_sim_stat": 0.40150601608592434,
         "std_sim_stat": 0.015225742069339533,
         "median_sim_stat": 0.40194479515037196,
-        "sigma": 1.2212272221055689,
+        "sigma": 1.221227222105569,
         "p_value_one_tailed": 0.111,
         "p_value_two_tailed": 0.222,
         "primary_p_value": 0.222,
@@ -2316,7 +2357,8 @@
         "thresholds": [
           0.37399075507076823,
           0.4332056948342086
-        ]
+        ],
+        "reported_sigma": 1.2212272221055689
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-39-low-extrema-ellipticity.png",
@@ -2359,7 +2401,7 @@
         "mean_sim_stat": 0.00954929658551372,
         "std_sim_stat": 0.7696815981814836,
         "median_sim_stat": 0,
-        "sigma": 0.7755749428188844,
+        "sigma": 0.7755749428188843,
         "p_value_one_tailed": 0.219,
         "p_value_two_tailed": 0.438,
         "primary_p_value": 0.438,
@@ -2370,7 +2412,8 @@
         "thresholds": [
           -1.432394487827058,
           1.5915494309189535
-        ]
+        ],
+        "reported_sigma": 0.7755749428188844
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-40-low-genus-density.png",
@@ -2424,7 +2467,8 @@
         "thresholds": [
           5.926979317372127,
           6.140802360855444
-        ]
+        ],
+        "reported_sigma": 1.1503493803760079
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-41-low-wavelet-entropy-coefficient.png",
@@ -2467,7 +2511,7 @@
         "mean_sim_stat": 2.2124292276226996,
         "std_sim_stat": 0.024419979592451468,
         "median_sim_stat": 2.21407624152331,
-        "sigma": 0.758753544504371,
+        "sigma": 0.7587535445043709,
         "p_value_one_tailed": 0.224,
         "p_value_two_tailed": 0.448,
         "primary_p_value": 0.448,
@@ -2478,7 +2522,8 @@
         "thresholds": [
           2.1599804062676915,
           2.2558594099151374
-        ]
+        ],
+        "reported_sigma": 0.758753544504371
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-42-low-angular-pseudoentropy.png",
@@ -2521,7 +2566,7 @@
         "mean_sim_stat": 0.2645686029840226,
         "std_sim_stat": 0.017606888780479557,
         "median_sim_stat": 0.2641666247986572,
-        "sigma": 1.1263911290388007,
+        "sigma": 1.1263911290388005,
         "p_value_one_tailed": 0.13,
         "p_value_two_tailed": 0.26,
         "primary_p_value": 0.26,
@@ -2532,7 +2577,8 @@
         "thresholds": [
           0.23176417613113098,
           0.30130555656616226
-        ]
+        ],
+        "reported_sigma": 1.1263911290388007
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-43-low-threshold-contour-perimeter-coefficient-of-variation.png",
@@ -2575,7 +2621,7 @@
         "mean_sim_stat": 5.744662005879638,
         "std_sim_stat": 0.02809403963445078,
         "median_sim_stat": 5.743273142965706,
-        "sigma": 1.7279343223884187,
+        "sigma": 1.7279343223884183,
         "p_value_one_tailed": 0.042,
         "p_value_two_tailed": 0.084,
         "primary_p_value": 0.084,
@@ -2586,7 +2632,8 @@
         "thresholds": [
           5.6907270038869635,
           5.803461174483411
-        ]
+        ],
+        "reported_sigma": 1.7279343223884187
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-44-low-local-texture-diversity-entropy.png",
@@ -2640,7 +2687,8 @@
         "thresholds": [
           1.1360433517792192,
           2.1364433945209296
-        ]
+        ],
+        "reported_sigma": 0.26890862445370967
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-44-low-sublevel-set-persistence-lifetime-skewness.png",
@@ -2683,7 +2731,7 @@
         "mean_sim_stat": 1.8888805982092007,
         "std_sim_stat": 0.2503376923099063,
         "median_sim_stat": 1.8339952515782971,
-        "sigma": 1.5981931399228175,
+        "sigma": 1.598193139922817,
         "p_value_one_tailed": 0.055,
         "p_value_two_tailed": 0.11,
         "primary_p_value": 0.11,
@@ -2694,7 +2742,8 @@
         "thresholds": [
           1.555388357193874,
           2.5474462718643935
-        ]
+        ],
+        "reported_sigma": 1.5981931399228175
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-45-low-t-asphericity-eigenvalue-ratio.png",
@@ -2748,7 +2797,8 @@
         "thresholds": [
           0.6031274769811108,
           0.7208157280363084
-        ]
+        ],
+        "reported_sigma": 1.2930319761442421
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-46-low-multifractal-scaling-width.png",
@@ -2791,7 +2841,7 @@
         "mean_sim_stat": 8231.447254331391,
         "std_sim_stat": 6708.490269021113,
         "median_sim_stat": 6150.758037396519,
-        "sigma": 0.3212776395459965,
+        "sigma": 0.32127763954599653,
         "p_value_one_tailed": 0.374,
         "p_value_two_tailed": 0.748,
         "primary_p_value": 0.748,
@@ -2802,7 +2852,8 @@
         "thresholds": [
           1121.230385326797,
           25613.50895460021
-        ]
+        ],
+        "reported_sigma": 0.3212776395459965
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-47-low-average-bispectrum-amplitude.png",
@@ -2856,7 +2907,8 @@
         "thresholds": [
           0.21763987761532244,
           0.2438511964315049
-        ]
+        ],
+        "reported_sigma": 1.0321539579593062
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-48-low-laplacian-spatial-correlation-amplitude.png",
@@ -2899,7 +2951,7 @@
         "mean_sim_stat": -98.02441971815287,
         "std_sim_stat": 74.18978758916884,
         "median_sim_stat": -79.51814204144884,
-        "sigma": 1.0938973526034372,
+        "sigma": 1.0938973526034375,
         "p_value_one_tailed": 0.137,
         "p_value_two_tailed": 0.274,
         "primary_p_value": 0.274,
@@ -2910,7 +2962,8 @@
         "thresholds": [
           -324.47810073890975,
           -50.62510261590504
-        ]
+        ],
+        "reported_sigma": 1.0938973526034372
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-49-low-gaussian-curvature-skewness.png",
@@ -2953,7 +3006,7 @@
         "mean_sim_stat": 0.6453082651249246,
         "std_sim_stat": 0.06336232310897795,
         "median_sim_stat": 0.6401026372804012,
-        "sigma": 0.8778962950512288,
+        "sigma": 0.8778962950512289,
         "p_value_one_tailed": 0.19,
         "p_value_two_tailed": 0.38,
         "primary_p_value": 0.38,
@@ -2964,7 +3017,8 @@
         "thresholds": [
           0.5294396501849842,
           0.7764865893848606
-        ]
+        ],
+        "reported_sigma": 0.8778962950512288
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-49-low-gradient-magnitude-skewness.png",
@@ -3007,7 +3061,7 @@
         "mean_sim_stat": 1341.73580212904,
         "std_sim_stat": 677.4491866070244,
         "median_sim_stat": 1207.829251257747,
-        "sigma": 0.892733324320856,
+        "sigma": 0.8927333243208561,
         "p_value_one_tailed": 0.186,
         "p_value_two_tailed": 0.372,
         "primary_p_value": 0.186,
@@ -3018,7 +3072,8 @@
         "thresholds": [
           354.85602051964406,
           3037.844091094933
-        ]
+        ],
+        "reported_sigma": 0.892733324320856
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-50-low-squared-temperature-dipole-amplitude.png",
@@ -3061,7 +3116,7 @@
         "mean_sim_stat": 0.9175151797064933,
         "std_sim_stat": 0.0008963033868128829,
         "median_sim_stat": 0.9183745964929534,
-        "sigma": 0.7290027178052185,
+        "sigma": -0.7290027178052184,
         "p_value_one_tailed": 0.767,
         "p_value_two_tailed": 0.466,
         "primary_p_value": 0.767,
@@ -3072,7 +3127,8 @@
         "thresholds": [
           0.9165804065353159,
           0.9183745969367271
-        ]
+        ],
+        "reported_sigma": 0.7290027178052185
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-51-low-gradient-maximum-ecliptic-latitude.png",
@@ -3115,7 +3171,7 @@
         "mean_sim_stat": 0.5147021117400197,
         "std_sim_stat": 44.462345949419394,
         "median_sim_stat": 15.094787099543193,
-        "sigma": 1.2646411356610803,
+        "sigma": 1.26464113566108,
         "p_value_one_tailed": 0.103,
         "p_value_two_tailed": 0.206,
         "primary_p_value": 0.103,
@@ -3126,7 +3182,8 @@
         "thresholds": [
           -72.0176251134728,
           73.68552174660233
-        ]
+        ],
+        "reported_sigma": 1.2646411356610803
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-52-low-hottest-spot-galactic-latitude.png",
@@ -3169,7 +3226,7 @@
         "mean_sim_stat": 0.24426838250273664,
         "std_sim_stat": 0.34070033969712554,
         "median_sim_stat": 0.19492017990755328,
-        "sigma": 1.1076800921478,
+        "sigma": 1.1076800921478003,
         "p_value_one_tailed": 0.134,
         "p_value_two_tailed": 0.268,
         "primary_p_value": 0.268,
@@ -3180,7 +3237,8 @@
         "thresholds": [
           -0.24240709249340692,
           1.0600098717047086
-        ]
+        ],
+        "reported_sigma": 1.1076800921478
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-53-low-gradient-kurtosis-ratio.png",
@@ -3223,7 +3281,7 @@
         "mean_sim_stat": 0.5695975124223959,
         "std_sim_stat": 0.004429171449380288,
         "median_sim_stat": 0.5694056548964479,
-        "sigma": 1.5717868165098599,
+        "sigma": 1.571786816509859,
         "p_value_one_tailed": 0.058,
         "p_value_two_tailed": 0.116,
         "primary_p_value": 0.116,
@@ -3234,7 +3292,8 @@
         "thresholds": [
           0.5614582988578454,
           0.5783606758740043
-        ]
+        ],
+        "reported_sigma": 1.5717868165098599
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-54-low-saddle-point-mean-eccentricity.png",
@@ -3277,7 +3336,7 @@
         "mean_sim_stat": 0.5973801328624145,
         "std_sim_stat": 0.1735518656158848,
         "median_sim_stat": 0.5758044844732151,
-        "sigma": 1.4610562691869065,
+        "sigma": 1.4610562691869067,
         "p_value_one_tailed": 0.072,
         "p_value_two_tailed": 0.144,
         "primary_p_value": 0.144,
@@ -3288,7 +3347,8 @@
         "thresholds": [
           0.3333018867924528,
           1.0188370441634595
-        ]
+        ],
+        "reported_sigma": 1.4610562691869065
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-55-low-hot-region-boundary-complexity-index.png",
@@ -3331,7 +3391,7 @@
         "mean_sim_stat": 0.06649830063552854,
         "std_sim_stat": 0.04434307673898039,
         "median_sim_stat": 0.0621609222789519,
-        "sigma": 1.5632236468662761,
+        "sigma": 1.5632236468662764,
         "p_value_one_tailed": 0.059,
         "p_value_two_tailed": 0.118,
         "primary_p_value": 0.118,
@@ -3342,7 +3402,8 @@
         "thresholds": [
           0.003643840346578741,
           0.1785604820209736
-        ]
+        ],
+        "reported_sigma": 1.5632236468662761
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-56-low-gradient-magnitude-dipole-amplitude.png",
@@ -3385,7 +3446,7 @@
         "mean_sim_stat": 0.4253249554679477,
         "std_sim_stat": 0.2719664747335378,
         "median_sim_stat": 0.40614400608371776,
-        "sigma": 0.20701262338518725,
+        "sigma": 0.20701262338518736,
         "p_value_one_tailed": 0.418,
         "p_value_two_tailed": 0.836,
         "primary_p_value": 0.836,
@@ -3396,7 +3457,8 @@
         "thresholds": [
           0.0006453559418703152,
           1.009838636595515
-        ]
+        ],
+        "reported_sigma": 0.20701262338518725
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-57-low-cold-spot-galactic-plane-fraction.png",
@@ -3439,7 +3501,7 @@
         "mean_sim_stat": 0.005077937192293464,
         "std_sim_stat": 0.2679358022189926,
         "median_sim_stat": -0.029378676936725245,
-        "sigma": 0.8029562883093937,
+        "sigma": 0.8029562883093936,
         "p_value_one_tailed": 0.211,
         "p_value_two_tailed": 0.422,
         "primary_p_value": 0.422,
@@ -3450,7 +3512,8 @@
         "thresholds": [
           -0.42002587216172077,
           0.6181719746784524
-        ]
+        ],
+        "reported_sigma": 0.8029562883093937
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-58-low-needlet-coefficient-kurtosis.png",
@@ -3493,7 +3556,7 @@
         "mean_sim_stat": 87.3339539117518,
         "std_sim_stat": 30.83651865878412,
         "median_sim_stat": 83.82699186751003,
-        "sigma": 0.8964733640019162,
+        "sigma": 0.8964733640019159,
         "p_value_one_tailed": 0.185,
         "p_value_two_tailed": 0.37,
         "primary_p_value": 0.37,
@@ -3504,7 +3567,8 @@
         "thresholds": [
           34.45124514873134,
           156.49704497903727
-        ]
+        ],
+        "reported_sigma": 0.8964733640019162
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-59-low-hot-cold-spot-angular-separation.png",
@@ -3547,7 +3611,7 @@
         "mean_sim_stat": 4.093004793230871,
         "std_sim_stat": 0.15456891713060233,
         "median_sim_stat": 4.0943445622221,
-        "sigma": 0.431644239383956,
+        "sigma": 0.43164423938395624,
         "p_value_one_tailed": 0.333,
         "p_value_two_tailed": 0.666,
         "primary_p_value": 0.666,
@@ -3558,7 +3622,8 @@
         "thresholds": [
           3.7376696182833684,
           4.356708826689592
-        ]
+        ],
+        "reported_sigma": 0.431644239383956
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-60-low-extreme-region-connectivity-index.png",
@@ -3601,7 +3666,7 @@
         "mean_sim_stat": 32.6808663076787,
         "std_sim_stat": 2.6398695232602507,
         "median_sim_stat": 32.380274457287825,
-        "sigma": 1.8250068211464032,
+        "sigma": 1.825006821146403,
         "p_value_one_tailed": 0.034,
         "p_value_two_tailed": 0.068,
         "primary_p_value": 0.068,
@@ -3612,7 +3677,8 @@
         "thresholds": [
           28.514515499690123,
           38.60521917732998
-        ]
+        ],
+        "reported_sigma": 1.8250068211464032
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-61-low-median-absolute-deviation.png",
@@ -3655,7 +3721,7 @@
         "mean_sim_stat": 0.20192708699137418,
         "std_sim_stat": 0.15594744418550535,
         "median_sim_stat": 0.1745210325463955,
-        "sigma": 1.2590839804270721,
+        "sigma": 1.2590839804270717,
         "p_value_one_tailed": 0.104,
         "p_value_two_tailed": 0.208,
         "primary_p_value": 0.104,
@@ -3666,7 +3732,8 @@
         "thresholds": [
           0.009307284384964367,
           0.5957349530183776
-        ]
+        ],
+        "reported_sigma": 1.2590839804270721
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-62-low-galactic-hemispherical-skewness-asymmetry.png",
@@ -3709,7 +3776,7 @@
         "mean_sim_stat": 5.323395541297162,
         "std_sim_stat": 3.418162823258272,
         "median_sim_stat": 4.385889286783327,
-        "sigma": 0.27931903444745415,
+        "sigma": -0.2793190344474541,
         "p_value_one_tailed": 0.61,
         "p_value_two_tailed": 0.78,
         "primary_p_value": 0.61,
@@ -3720,7 +3787,8 @@
         "thresholds": [
           2.7612856173462506,
           13.757283283243742
-        ]
+        ],
+        "reported_sigma": 0.27931903444745415
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-63-low-multipole-plane-concentration.png",
@@ -3763,7 +3831,7 @@
         "mean_sim_stat": 2.8730701419105693,
         "std_sim_stat": 0.45960294999954404,
         "median_sim_stat": 2.8069431048726794,
-        "sigma": 0.6158401887479719,
+        "sigma": -0.6158401887479719,
         "p_value_one_tailed": 0.731,
         "p_value_two_tailed": 0.538,
         "primary_p_value": 0.731,
@@ -3774,7 +3842,8 @@
         "thresholds": [
           2.196275157641716,
           4.025191039745995
-        ]
+        ],
+        "reported_sigma": 0.6158401887479719
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-64-low-parity-even-kurtosis.png",
@@ -3817,7 +3886,7 @@
         "mean_sim_stat": 0.3242829162815567,
         "std_sim_stat": 0.13623133059252043,
         "median_sim_stat": 0.3144586140622958,
-        "sigma": 0.032591936696663076,
+        "sigma": 0.03259193669666307,
         "p_value_one_tailed": 0.487,
         "p_value_two_tailed": 0.974,
         "primary_p_value": 0.487,
@@ -3828,7 +3897,8 @@
         "thresholds": [
           0.09352936659526538,
           0.6109339248095152
-        ]
+        ],
+        "reported_sigma": 0.032591936696663076
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-65-low-variance-direction-coherence.png",
@@ -3871,7 +3941,7 @@
         "mean_sim_stat": 0.5197834989639988,
         "std_sim_stat": 0.089026101707023,
         "median_sim_stat": 0.5218540017521974,
-        "sigma": 1.9599639845400545,
+        "sigma": 1.9599639845400534,
         "p_value_one_tailed": 0.025,
         "p_value_two_tailed": 0.05,
         "primary_p_value": 0.05,
@@ -3882,7 +3952,8 @@
         "thresholds": [
           0.35188215842093185,
           0.6900244798037274
-        ]
+        ],
+        "reported_sigma": 1.9599639845400545
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-66-low-spectral-gini-coefficient.png",
@@ -3925,7 +3996,7 @@
         "mean_sim_stat": 0.0032064150881648255,
         "std_sim_stat": 0.18178860206355402,
         "median_sim_stat": 0.00292456458582653,
-        "sigma": 0.34246630146539064,
+        "sigma": 0.34246630146539053,
         "p_value_one_tailed": 0.366,
         "p_value_two_tailed": 0.732,
         "primary_p_value": 0.732,
@@ -3936,7 +4007,8 @@
         "thresholds": [
           -0.3511759317138748,
           0.3516075974785067
-        ]
+        ],
+        "reported_sigma": 0.34246630146539064
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-66-low-temperature-ecliptic-latitude-cross-correlation-coefficient.png",
@@ -3979,7 +4051,7 @@
         "mean_sim_stat": 0.04844753816323788,
         "std_sim_stat": 0.01230592697188613,
         "median_sim_stat": 0.0468849776939751,
-        "sigma": 1.1552208466119516,
+        "sigma": 1.1552208466119513,
         "p_value_one_tailed": 0.124,
         "p_value_two_tailed": 0.248,
         "primary_p_value": 0.248,
@@ -3990,7 +4062,8 @@
         "thresholds": [
           0.02944713950733243,
           0.07545130714442702
-        ]
+        ],
+        "reported_sigma": 1.1552208466119516
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-67-low-galactic-plane-power-concentration-ratio.png",
@@ -4044,7 +4117,8 @@
         "thresholds": [
           -0.020364255599711542,
           0.023524927178091817
-        ]
+        ],
+        "reported_sigma": 0.994457883209753
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-68-low-parity-dependent-hemispherical-power-asymmetry-slope.png",
@@ -4087,7 +4161,7 @@
         "mean_sim_stat": 0.038863803974970634,
         "std_sim_stat": 0.0165602763306335,
         "median_sim_stat": 0.03721055431812098,
-        "sigma": 1.353174154548003,
+        "sigma": 1.3531741545480027,
         "p_value_one_tailed": 0.088,
         "p_value_two_tailed": 0.176,
         "primary_p_value": 0.088,
@@ -4098,7 +4172,8 @@
         "thresholds": [
           0.012196577955046868,
           0.07546405922635432
-        ]
+        ],
+        "reported_sigma": 1.353174154548003
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-69-low-kurtosis-dipole-amplitude.png",
@@ -4141,7 +4216,7 @@
         "mean_sim_stat": 333.78044978649683,
         "std_sim_stat": 5916.247109572866,
         "median_sim_stat": 38.74138122467332,
-        "sigma": 1.654627902351078,
+        "sigma": 1.654627902351077,
         "p_value_one_tailed": 0.049,
         "p_value_two_tailed": 0.098,
         "primary_p_value": 0.098,
@@ -4152,7 +4227,8 @@
         "thresholds": [
           7.624452880387683,
           609.7045158233379
-        ]
+        ],
+        "reported_sigma": 1.654627902351078
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-70-low-directional-power-variance-ratio.png",
@@ -4195,7 +4271,7 @@
         "mean_sim_stat": 0.9455603141259749,
         "std_sim_stat": 0.7023400287223935,
         "median_sim_stat": 0.7972170593934789,
-        "sigma": 1.1749867920660904,
+        "sigma": 1.17498679206609,
         "p_value_one_tailed": 0.12,
         "p_value_two_tailed": 0.24,
         "primary_p_value": 0.24,
@@ -4206,7 +4282,8 @@
         "thresholds": [
           0.032665325766525956,
           2.562180202378362
-        ]
+        ],
+        "reported_sigma": 1.1749867920660904
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-71-low-ecliptic-pole-temperature-asymmetry.png",
@@ -4249,7 +4326,7 @@
         "mean_sim_stat": 0.0006529951533790524,
         "std_sim_stat": 3.5012504118373737,
         "median_sim_stat": 0.27593758372278726,
-        "sigma": 1.838423669247777,
+        "sigma": 1.8384236692477762,
         "p_value_one_tailed": 0.033,
         "p_value_two_tailed": 0.066,
         "primary_p_value": 0.066,
@@ -4260,7 +4337,8 @@
         "thresholds": [
           -10.0,
           9.805946392930855
-        ]
+        ],
+        "reported_sigma": 1.838423669247777
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-72-low-ecliptic-hemispherical-excess-kurtosis-ratio.png",
@@ -4303,7 +4381,7 @@
         "mean_sim_stat": -0.0006463609564567689,
         "std_sim_stat": 0.10044147941853152,
         "median_sim_stat": 0.004967531690160677,
-        "sigma": 0.5475513533264015,
+        "sigma": 0.5475513533264014,
         "p_value_one_tailed": 0.292,
         "p_value_two_tailed": 0.584,
         "primary_p_value": 0.584,
@@ -4314,7 +4392,8 @@
         "thresholds": [
           -0.2097068747795622,
           0.1832146620926699
-        ]
+        ],
+        "reported_sigma": 0.5475513533264015
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-73-low-gradient-magnitude-laplacian-cross-correlation-coefficient.png",
@@ -4357,7 +4436,7 @@
         "mean_sim_stat": 0.479451649656697,
         "std_sim_stat": 0.07152760576229834,
         "median_sim_stat": 0.4825175803838934,
-        "sigma": 0.12313524773483651,
+        "sigma": 0.12313524773483635,
         "p_value_one_tailed": 0.451,
         "p_value_two_tailed": 0.902,
         "primary_p_value": 0.902,
@@ -4368,7 +4447,8 @@
         "thresholds": [
           0.32378924998196823,
           0.6125901892179602
-        ]
+        ],
+        "reported_sigma": 0.12313524773483651
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-74-low-t-t-cross-correlation-coefficient.png",
@@ -4411,7 +4491,7 @@
         "mean_sim_stat": 0.19766150454361345,
         "std_sim_stat": 0.034397868681627954,
         "median_sim_stat": 0.19576239323665445,
-        "sigma": 0.2559363317436934,
+        "sigma": -0.2559363317436933,
         "p_value_one_tailed": 0.601,
         "p_value_two_tailed": 0.798,
         "primary_p_value": 0.601,
@@ -4422,7 +4502,8 @@
         "thresholds": [
           0.13929321430503946,
           0.27042328503489343
-        ]
+        ],
+        "reported_sigma": 0.2559363317436934
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-75-low-extreme-region-power-concentration-ratio.png",
@@ -4465,7 +4546,7 @@
         "mean_sim_stat": 0.087134442240151,
         "std_sim_stat": 0.6124496512563011,
         "median_sim_stat": 0.16722888530734653,
-        "sigma": 1.0194276182343704,
+        "sigma": 1.0194276182343707,
         "p_value_one_tailed": 0.154,
         "p_value_two_tailed": 0.308,
         "primary_p_value": 0.154,
@@ -4476,7 +4557,8 @@
         "thresholds": [
           -0.9345011427612805,
           0.9667437187546718
-        ]
+        ],
+        "reported_sigma": 1.0194276182343704
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-76-quadrupole-axis-ecliptic-cosine.png",
@@ -4519,7 +4601,7 @@
         "mean_sim_stat": 0.55136946911521,
         "std_sim_stat": 0.2654704115064958,
         "median_sim_stat": 0.6072537896202188,
-        "sigma": 0.21470156800174456,
+        "sigma": 0.21470156800174434,
         "p_value_one_tailed": 0.415,
         "p_value_two_tailed": 0.83,
         "primary_p_value": 0.415,
@@ -4530,7 +4612,8 @@
         "thresholds": [
           0.0349882873204638,
           0.8669251665785553
-        ]
+        ],
+        "reported_sigma": 0.21470156800174456
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-77-low-pseudo-angular-momentum-ecliptic-alignment.png",
@@ -4573,7 +4656,7 @@
         "mean_sim_stat": 0.04166198424271068,
         "std_sim_stat": 0.025213866132163035,
         "median_sim_stat": 0.0374176790261959,
-        "sigma": 2.1700903775845606,
+        "sigma": -2.17009037758456,
         "p_value_one_tailed": 0.985,
         "p_value_two_tailed": 0.03,
         "primary_p_value": 0.985,
@@ -4584,7 +4667,8 @@
         "thresholds": [
           0.007381832164410039,
           0.10002956917180239
-        ]
+        ],
+        "reported_sigma": 2.1700903775845606
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-78-low-absolute-temperature-quadrupole-asymmetry.png",
@@ -4627,7 +4711,7 @@
         "mean_sim_stat": 1.4255242062163456,
         "std_sim_stat": 0.39639471003173377,
         "median_sim_stat": 1.5327475778773154,
-        "sigma": 0.7355575573851105,
+        "sigma": -0.7355575573851105,
         "p_value_one_tailed": 0.769,
         "p_value_two_tailed": 0.462,
         "primary_p_value": 0.769,
@@ -4638,7 +4722,8 @@
         "thresholds": [
           0.4147478166846382,
           1.9161931984769227
-        ]
+        ],
+        "reported_sigma": 0.7355575573851105
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-79-low-extreme-direction-dipole-magnitude.png",
@@ -4681,7 +4766,7 @@
         "mean_sim_stat": 4.794462436100986,
         "std_sim_stat": 0.48150451428817476,
         "median_sim_stat": 4.799241920018411,
-        "sigma": 1.4325027208258116,
+        "sigma": 1.4325027208258119,
         "p_value_one_tailed": 0.076,
         "p_value_two_tailed": 0.152,
         "primary_p_value": 0.152,
@@ -4692,7 +4777,8 @@
         "thresholds": [
           3.8663948256435807,
           5.696663602243409
-        ]
+        ],
+        "reported_sigma": 1.4325027208258116
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-80-low-power-spectrum-cumulative-deviation-index.png",
@@ -4735,7 +4821,7 @@
         "mean_sim_stat": 0.34063808962741066,
         "std_sim_stat": 0.039443113081442695,
         "median_sim_stat": 0.3347472485888182,
-        "sigma": 1.3851716082134353,
+        "sigma": -1.3851716082134358,
         "p_value_one_tailed": 0.917,
         "p_value_two_tailed": 0.166,
         "primary_p_value": 0.917,
@@ -4746,7 +4832,8 @@
         "thresholds": [
           0.28182664486815145,
           0.434402357511646
-        ]
+        ],
+        "reported_sigma": 1.3851716082134353
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-81-low-band-limited-correlation-coherence-length.png",
@@ -4789,7 +4876,7 @@
         "mean_sim_stat": 3.7587998081064606,
         "std_sim_stat": 0.27907543613540925,
         "median_sim_stat": 3.747693593191215,
-        "sigma": 2.120071689742151,
+        "sigma": -2.1200716897421503,
         "p_value_one_tailed": 0.983,
         "p_value_two_tailed": 0.034,
         "primary_p_value": 0.983,
@@ -4800,7 +4887,8 @@
         "thresholds": [
           3.260068188698173,
           4.36002920796486
-        ]
+        ],
+        "reported_sigma": 2.120071689742151
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-82-low-excursion-set-lacunarity.png",
@@ -4843,7 +4931,7 @@
         "mean_sim_stat": 14.2407741942082,
         "std_sim_stat": 10.946481148883544,
         "median_sim_stat": 11.825635964875051,
-        "sigma": 0.6280060144375695,
+        "sigma": -0.6280060144375696,
         "p_value_one_tailed": 0.735,
         "p_value_two_tailed": 0.53,
         "primary_p_value": 0.735,
@@ -4854,7 +4942,8 @@
         "thresholds": [
           0.47354329936068407,
           40.18425917818914
-        ]
+        ],
+        "reported_sigma": 0.6280060144375695
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-83-low-angular-momentum-of-gradient-field.png",
@@ -4897,7 +4986,7 @@
         "mean_sim_stat": -0.000132608771482149,
         "std_sim_stat": 0.01509274248660422,
         "median_sim_stat": -0.000154136899631136,
-        "sigma": 0.1130385406445651,
+        "sigma": 0.11303854064456494,
         "p_value_one_tailed": 0.455,
         "p_value_two_tailed": 0.91,
         "primary_p_value": 0.91,
@@ -4908,7 +4997,8 @@
         "thresholds": [
           -0.029644157467664443,
           0.029757909057556035
-        ]
+        ],
+        "reported_sigma": 0.1130385406445651
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-84-low-skewness-scale-dependence-slope.png",
@@ -4962,7 +5052,8 @@
         "thresholds": [
           3.826359367249475,
           4.142884262321586
-        ]
+        ],
+        "reported_sigma": 0.310737745487592
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-85-low-gradient-magnitude-shannon-entropy.png",
@@ -5005,7 +5096,7 @@
         "mean_sim_stat": 0.004822420806264412,
         "std_sim_stat": 0.36404350779153544,
         "median_sim_stat": 0.007739053520692454,
-        "sigma": 0.010026681100274765,
+        "sigma": 0.010026681100274763,
         "p_value_one_tailed": 0.496,
         "p_value_two_tailed": 0.992,
         "primary_p_value": 0.992,
@@ -5016,7 +5107,8 @@
         "thresholds": [
           -0.7254586910958291,
           0.7263292076925958
-        ]
+        ],
+        "reported_sigma": 0.010026681100274765
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-86-low-extreme-temperature-laplacian-asymmetry.png",
@@ -5059,7 +5151,7 @@
         "mean_sim_stat": 1.2253939443318935,
         "std_sim_stat": 0.0044037429563018975,
         "median_sim_stat": 1.2253202071586493,
-        "sigma": 1.195222781437427,
+        "sigma": 1.1952227814374272,
         "p_value_one_tailed": 0.116,
         "p_value_two_tailed": 0.232,
         "primary_p_value": 0.232,
@@ -5070,7 +5162,8 @@
         "thresholds": [
           1.2171187606803202,
           1.2342003329370872
-        ]
+        ],
+        "reported_sigma": 1.195222781437427
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-87-low-excursion-set-boundary-fractal-index.png",
@@ -5113,7 +5206,7 @@
         "mean_sim_stat": 0.9959692315568734,
         "std_sim_stat": 0.0007087192817580028,
         "median_sim_stat": 0.9960858290002026,
-        "sigma": 1.4985130678799752,
+        "sigma": 1.4985130678799756,
         "p_value_one_tailed": 0.067,
         "p_value_two_tailed": 0.134,
         "primary_p_value": 0.134,
@@ -5124,7 +5217,8 @@
         "thresholds": [
           0.9942981394275325,
           0.9970163761093698
-        ]
+        ],
+        "reported_sigma": 1.4985130678799752
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-88-low-excursion-set-isoperimetric-deficit.png",
@@ -5167,7 +5261,7 @@
         "mean_sim_stat": 135.47309049893752,
         "std_sim_stat": 12.311836602614918,
         "median_sim_stat": 135.51035005640387,
-        "sigma": 1.78661336549347,
+        "sigma": 1.7866133654934697,
         "p_value_one_tailed": 0.037,
         "p_value_two_tailed": 0.074,
         "primary_p_value": 0.074,
@@ -5178,7 +5272,8 @@
         "thresholds": [
           112.71620804946123,
           160.92017831647237
-        ]
+        ],
+        "reported_sigma": 1.78661336549347
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-89-low-gradient-magnitude-interquartile-range.png",
@@ -5232,7 +5327,8 @@
         "thresholds": [
           55.14795951971961,
           2263.8507293978887
-        ]
+        ],
+        "reported_sigma": 1.0537443021306667
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-90-low-mean-absolute-gaussian-curvature.png",
@@ -5286,7 +5382,8 @@
         "thresholds": [
           0.4788011371781641,
           0.5881703168105213
-        ]
+        ],
+        "reported_sigma": 0.3826220751625341
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-91-low-gradient-magnitude-coefficient-of-variation.png",
@@ -5329,7 +5426,7 @@
         "mean_sim_stat": 0.021553325633946956,
         "std_sim_stat": 0.15724643061008448,
         "median_sim_stat": 0.004003191942747675,
-        "sigma": 0.5129304106147283,
+        "sigma": 0.5129304106147282,
         "p_value_one_tailed": 0.304,
         "p_value_two_tailed": 0.608,
         "primary_p_value": 0.608,
@@ -5340,7 +5437,8 @@
         "thresholds": [
           -0.2324703732548278,
           0.3707842288805144
-        ]
+        ],
+        "reported_sigma": 0.5129304106147283
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-91-low-laplacian-kurtosis.png",
@@ -5383,7 +5481,7 @@
         "mean_sim_stat": 0.9359189,
         "std_sim_stat": 0.0036818864193256615,
         "median_sim_stat": 0.9357027777777778,
-        "sigma": 1.353174154548003,
+        "sigma": -1.3531741545480027,
         "p_value_one_tailed": 0.912,
         "p_value_two_tailed": 0.176,
         "primary_p_value": 0.912,
@@ -5394,7 +5492,8 @@
         "thresholds": [
           0.9293777777777779,
           0.9434229166666666
-        ]
+        ],
+        "reported_sigma": 1.353174154548003
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-92-low-great-circle-sign-coherence-ratio.png",
@@ -5437,7 +5536,7 @@
         "mean_sim_stat": 0.49206623580739495,
         "std_sim_stat": 0.0042494882467561355,
         "median_sim_stat": 0.4920222855981717,
-        "sigma": 0.23784669541774933,
+        "sigma": 0.2378466954177493,
         "p_value_one_tailed": 0.406,
         "p_value_two_tailed": 0.812,
         "primary_p_value": 0.812,
@@ -5448,7 +5547,8 @@
         "thresholds": [
           0.4835756806473888,
           0.5003251225071016
-        ]
+        ],
+        "reported_sigma": 0.23784669541774933
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-93-low-mean-hessian-anisotropy-index.png",
@@ -5491,7 +5591,7 @@
         "mean_sim_stat": 1.068285610594445,
         "std_sim_stat": 0.40585656732094216,
         "median_sim_stat": 0.9985114711344212,
-        "sigma": 1.0068642787985225,
+        "sigma": 1.0068642787985222,
         "p_value_one_tailed": 0.157,
         "p_value_two_tailed": 0.314,
         "primary_p_value": 0.314,
@@ -5502,7 +5602,8 @@
         "thresholds": [
           0.48548728645656264,
           2.093263071113423
-        ]
+        ],
+        "reported_sigma": 1.0068642787985225
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-94-low-extreme-temperature-gradient-asymmetry-ratio.png",
@@ -5545,7 +5646,7 @@
         "mean_sim_stat": -16.167021517182334,
         "std_sim_stat": 5.781286831273865,
         "median_sim_stat": -14.919816439022092,
-        "sigma": 0.2533471031357997,
+        "sigma": 0.2533471031357998,
         "p_value_one_tailed": 0.4,
         "p_value_two_tailed": 0.8,
         "primary_p_value": 0.8,
@@ -5556,7 +5657,8 @@
         "thresholds": [
           -31.227593995886206,
           -8.582052623493079
-        ]
+        ],
+        "reported_sigma": 0.2533471031357997
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-95-low-hessian-determinant-skewness.png",
@@ -5599,7 +5701,7 @@
         "mean_sim_stat": 0.6443133510735332,
         "std_sim_stat": 0.06973658650853909,
         "median_sim_stat": 0.6394625996704217,
-        "sigma": 0.17382881250166243,
+        "sigma": 0.17382881250166224,
         "p_value_one_tailed": 0.431,
         "p_value_two_tailed": 0.862,
         "primary_p_value": 0.862,
@@ -5610,7 +5712,8 @@
         "thresholds": [
           0.5166042882508968,
           0.7899942422190992
-        ]
+        ],
+        "reported_sigma": 0.17382881250166243
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-96-low-gradient-magnitude-skewness.png",
@@ -5653,7 +5756,7 @@
         "mean_sim_stat": 0.0003904661055146488,
         "std_sim_stat": 0.11630027452628508,
         "median_sim_stat": 0.000387313794683783,
-        "sigma": 0.8668941666364379,
+        "sigma": 0.8668941666364377,
         "p_value_one_tailed": 0.193,
         "p_value_two_tailed": 0.386,
         "primary_p_value": 0.386,
@@ -5664,7 +5767,8 @@
         "thresholds": [
           -0.21918841307187326,
           0.22312802661343295
-        ]
+        ],
+        "reported_sigma": 0.8668941666364379
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-97-low-hot-cold-excursion-set-boundary-asymmetry.png",
@@ -5707,7 +5811,7 @@
         "mean_sim_stat": 5669.822773399678,
         "std_sim_stat": 310.7036013131748,
         "median_sim_stat": 5654.589928057554,
-        "sigma": 0.020054370352950636,
+        "sigma": 0.020054370352950632,
         "p_value_one_tailed": 0.492,
         "p_value_two_tailed": 0.984,
         "primary_p_value": 0.984,
@@ -5718,7 +5822,8 @@
         "thresholds": [
           5102.500227272728,
           6289.701379032256
-        ]
+        ],
+        "reported_sigma": 0.020054370352950636
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-98-low-critical-point-saddle-to-extrema-ratio.png",
@@ -5761,7 +5866,7 @@
         "mean_sim_stat": -0.02548174649230763,
         "std_sim_stat": 0.37986607697188113,
         "median_sim_stat": -0.09550956438453584,
-        "sigma": 0.2326927491830449,
+        "sigma": 0.232692749183045,
         "p_value_one_tailed": 0.408,
         "p_value_two_tailed": 0.816,
         "primary_p_value": 0.408,
@@ -5772,7 +5877,8 @@
         "thresholds": [
           -0.5940154438273574,
           0.8600098337630153
-        ]
+        ],
+        "reported_sigma": 0.2326927491830449
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-99-low-temperature-distribution-excess-kurtosis.png",
@@ -5826,7 +5932,8 @@
         "thresholds": [
           0.5995962348390619,
           1.7242930152856617
-        ]
+        ],
+        "reported_sigma": 0.5330485109029091
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-100-low-gradient-magnitude-hot-cold-asymmetry.png",
@@ -5869,7 +5976,7 @@
         "mean_sim_stat": -0.016530548706903396,
         "std_sim_stat": 0.12309359657040891,
         "median_sim_stat": -0.010277153951936402,
-        "sigma": 1.8119106729525973,
+        "sigma": 1.811910672952597,
         "p_value_one_tailed": 0.035,
         "p_value_two_tailed": null,
         "primary_p_value": 0.035,
@@ -5880,7 +5987,8 @@
         "thresholds": [
           -0.2563143248311174,
           0.21408391585547124
-        ]
+        ],
+        "reported_sigma": 1.8119106729525973
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-01-masked-low-l-parity-log-ratio.png",
@@ -5923,7 +6031,7 @@
         "mean_sim_stat": 0.314810658385581,
         "std_sim_stat": 0.09438625540162779,
         "median_sim_stat": 0.3022499699774781,
-        "sigma": 0.986271298702238,
+        "sigma": 0.9862712987022381,
         "p_value_one_tailed": 0.162,
         "p_value_two_tailed": null,
         "primary_p_value": 0.162,
@@ -5934,7 +6042,8 @@
         "thresholds": [
           0.16532020579548276,
           0.5409713130284552
-        ]
+        ],
+        "reported_sigma": 0.986271298702238
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-02-low-l-hemispherical-variance-max-contrast.png",
@@ -5977,7 +6086,7 @@
         "mean_sim_stat": 0.5303178535572983,
         "std_sim_stat": 0.293607755777525,
         "median_sim_stat": 0.5401913739185609,
-        "sigma": -0.6557266787982536,
+        "sigma": -0.6557266787982534,
         "p_value_one_tailed": 0.744,
         "p_value_two_tailed": null,
         "primary_p_value": 0.744,
@@ -5988,7 +6097,8 @@
         "thresholds": [
           0.03178828567880819,
           0.9819428474705276
-        ]
+        ],
+        "reported_sigma": -0.6557266787982536
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-03-quadrupole-octopole-axis-alignment.png",
@@ -6031,7 +6141,7 @@
         "mean_sim_stat": -4.692189838821729,
         "std_sim_stat": 0.2606405863153685,
         "median_sim_stat": -4.661501970477792,
-        "sigma": 0.28453554267162146,
+        "sigma": -0.2845355426716215,
         "p_value_one_tailed": 0.612,
         "p_value_two_tailed": null,
         "primary_p_value": 0.612,
@@ -6042,7 +6152,8 @@
         "thresholds": [
           -5.361815697196813,
           -4.27333128500247
-        ]
+        ],
+        "reported_sigma": 0.28453554267162146
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-04-fixed-scale-smhw-cold-spot-extremum.png",
@@ -6085,7 +6196,7 @@
         "mean_sim_stat": 36187.97855457734,
         "std_sim_stat": 63251.548425488865,
         "median_sim_stat": 18175.99763178982,
-        "sigma": -2.5121443279304616,
+        "sigma": 2.512144327930461,
         "p_value_one_tailed": 0.006,
         "p_value_two_tailed": null,
         "primary_p_value": 0.006,
@@ -6096,7 +6207,8 @@
         "thresholds": [
           2141.353974118059,
           195486.13563784098
-        ]
+        ],
+        "reported_sigma": -2.5121443279304616
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-05-masked-large-angle-correlation-s1-2.png",
@@ -6139,7 +6251,7 @@
         "mean_sim_stat": 0.8096630571513862,
         "std_sim_stat": 0.1064337747082333,
         "median_sim_stat": 0.8206666371799101,
-        "sigma": 1.353174154548003,
+        "sigma": 1.3531741545480027,
         "p_value_one_tailed": 0.088,
         "p_value_two_tailed": null,
         "primary_p_value": 0.088,
@@ -6150,7 +6262,8 @@
         "thresholds": [
           0.589374596202073,
           0.9784136008649547
-        ]
+        ],
+        "reported_sigma": 1.353174154548003
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-06-masked-octopole-planarity-dispersion.png",
@@ -6204,7 +6317,8 @@
         "thresholds": [
           0.006316455583247556,
           0.04052566831972979
-        ]
+        ],
+        "reported_sigma": 3.090232306167813
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-07-fixed-scale-local-variance-dipole-amplitude.png",
@@ -6258,7 +6372,8 @@
         "thresholds": [
           0.6810836967308319,
           1.3395315843287134
-        ]
+        ],
+        "reported_sigma": -0.6158401887479719
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-08-low-l-mirror-parity-plane-log-imbalance.png",
@@ -6301,7 +6416,7 @@
         "mean_sim_stat": 0.21815786729817727,
         "std_sim_stat": 0.09608296407172873,
         "median_sim_stat": 0.2080439875685526,
-        "sigma": 1.2107271327915972,
+        "sigma": 1.2107271327915974,
         "p_value_one_tailed": 0.113,
         "p_value_two_tailed": null,
         "primary_p_value": 0.113,
@@ -6312,7 +6427,8 @@
         "thresholds": [
           0.0655952267655199,
           0.4403893538478196
-        ]
+        ],
+        "reported_sigma": 1.2107271327915972
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-09-low-l-bandpower-dipole-fraction.png",
@@ -6355,7 +6471,7 @@
         "mean_sim_stat": 0.5068880858016327,
         "std_sim_stat": 0.2867153380071475,
         "median_sim_stat": 0.5151721513029919,
-        "sigma": -2.457263390205437,
+        "sigma": -2.457263390205436,
         "p_value_one_tailed": 0.993,
         "p_value_two_tailed": null,
         "primary_p_value": 0.993,
@@ -6366,7 +6482,8 @@
         "thresholds": [
           0.030289453865146525,
           0.9717887245627528
-        ]
+        ],
+        "reported_sigma": -2.457263390205437
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-10-low-l-power-tensor-ecliptic-alignment.png",
@@ -6409,7 +6526,7 @@
         "mean_sim_stat": 0.003949970326033713,
         "std_sim_stat": 0.20913031105202023,
         "median_sim_stat": -0.003920703012457061,
-        "sigma": 2.1200716897421508,
+        "sigma": 2.1200716897421503,
         "p_value_one_tailed": 0.017,
         "p_value_two_tailed": null,
         "primary_p_value": 0.017,
@@ -6420,7 +6537,8 @@
         "thresholds": [
           -0.40150273053091123,
           0.42865348509899825
-        ]
+        ],
+        "reported_sigma": 2.1200716897421508
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-11-fixed-ecliptic-low-l-variance-log-contrast.png",
@@ -6474,7 +6592,8 @@
         "thresholds": [
           -0.5833972650620223,
           0.5946912885703262
-        ]
+        ],
+        "reported_sigma": 0.7960551172626629
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-12-low-l-ecliptic-hemispherical-skewness-contrast.png",
@@ -6517,7 +6636,7 @@
         "mean_sim_stat": 7.785536219910137,
         "std_sim_stat": 0.14563571671639106,
         "median_sim_stat": 7.780042587430692,
-        "sigma": -1.7279343223884187,
+        "sigma": 1.7279343223884183,
         "p_value_one_tailed": 0.042,
         "p_value_two_tailed": null,
         "primary_p_value": 0.042,
@@ -6528,7 +6647,8 @@
         "thresholds": [
           7.521412927425433,
           8.101704001113927
-        ]
+        ],
+        "reported_sigma": -1.7279343223884187
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-13-masked-low-l-power-deficit-log-amplitude.png",
@@ -6571,7 +6691,7 @@
         "mean_sim_stat": -0.15570819453912094,
         "std_sim_stat": 0.18077411175128588,
         "median_sim_stat": -0.14511478868317385,
-        "sigma": -0.7487631066149087,
+        "sigma": 0.7487631066149086,
         "p_value_one_tailed": 0.227,
         "p_value_two_tailed": null,
         "primary_p_value": 0.227,
@@ -6582,7 +6702,8 @@
         "thresholds": [
           -0.5149488057445667,
           0.16628998998409134
-        ]
+        ],
+        "reported_sigma": -0.7487631066149087
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-14-masked-low-l-spectral-tilt-log-ratio.png",
@@ -6625,7 +6746,7 @@
         "mean_sim_stat": 0.005782085454883003,
         "std_sim_stat": 0.20300288483861517,
         "median_sim_stat": -0.015650002488210468,
-        "sigma": 1.2318637087349833,
+        "sigma": 1.231863708734983,
         "p_value_one_tailed": null,
         "p_value_two_tailed": 0.218,
         "primary_p_value": 0.218,
@@ -6636,7 +6757,8 @@
         "thresholds": [
           -0.32916124821710585,
           0.45980547737359
-        ]
+        ],
+        "reported_sigma": 1.2318637087349833
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-15-masked-low-l-excess-kurtosis.png",
@@ -6690,7 +6812,8 @@
         "thresholds": [
           0.46013127074788635,
           0.8469133796045633
-        ]
+        ],
+        "reported_sigma": 0.26111995954851813
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-16-low-l-angular-momentum-axis-concentration.png",
@@ -6733,7 +6856,7 @@
         "mean_sim_stat": -0.0013127004967778625,
         "std_sim_stat": 0.08521442664159772,
         "median_sim_stat": -0.002831343713144696,
-        "sigma": -0.7995009431327368,
+        "sigma": -0.7995009431327367,
         "p_value_one_tailed": 0.788,
         "p_value_two_tailed": null,
         "primary_p_value": 0.788,
@@ -6744,7 +6867,8 @@
         "thresholds": [
           -0.17403259020244258,
           0.17150254674037296
-        ]
+        ],
+        "reported_sigma": -0.7995009431327368
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-17-low-l-parity-split-axis-concentration-contrast.png",
@@ -6798,7 +6922,8 @@
         "thresholds": [
           -0.39039095821955655,
           0.42516627228578757
-        ]
+        ],
+        "reported_sigma": 0.6310619790594988
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-18-low-l-ecliptic-belt-to-cap-variance-log-ratio.png",
@@ -6841,7 +6966,7 @@
         "mean_sim_stat": 0.985666798267509,
         "std_sim_stat": 0.0047308302916769214,
         "median_sim_stat": 0.9862580620136243,
-        "sigma": 0.19677962021846676,
+        "sigma": 0.19677962021846684,
         "p_value_one_tailed": null,
         "p_value_two_tailed": 0.844,
         "primary_p_value": 0.844,
@@ -6852,7 +6977,8 @@
         "thresholds": [
           0.9749283237908929,
           0.9926703303639972
-        ]
+        ],
+        "reported_sigma": 0.19677962021846676
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-19-whitened-low-l-bandpower-entropy.png",
@@ -6895,7 +7021,7 @@
         "mean_sim_stat": 0.0665299206797127,
         "std_sim_stat": 0.03381350871267333,
         "median_sim_stat": 0.06361284943000058,
-        "sigma": 1.8807936081512509,
+        "sigma": 1.8807936081512504,
         "p_value_one_tailed": 0.03,
         "p_value_two_tailed": null,
         "primary_p_value": 0.03,
@@ -6906,7 +7032,8 @@
         "thresholds": [
           0.01223485509132815,
           0.1439773578033825
-        ]
+        ],
+        "reported_sigma": 1.8807936081512509
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-20-masked-low-l-adjacent-phase-coherence.png",
@@ -6949,7 +7076,7 @@
         "mean_sim_stat": 0.09933285842362488,
         "std_sim_stat": 0.05284795258641455,
         "median_sim_stat": 0.08928007177182187,
-        "sigma": 0.4070108762644654,
+        "sigma": 0.40701087626446547,
         "p_value_one_tailed": 0.342,
         "p_value_two_tailed": null,
         "primary_p_value": 0.342,
@@ -6960,7 +7087,8 @@
         "thresholds": [
           0.026794603279542015,
           0.23146292949706188
-        ]
+        ],
+        "reported_sigma": 0.4070108762644654
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-21-low-l-ecliptic-zonal-power-fraction.png",
@@ -7003,7 +7131,7 @@
         "mean_sim_stat": 0.25601302108167545,
         "std_sim_stat": 0.04924645720150996,
         "median_sim_stat": 0.25178964210090193,
-        "sigma": -0.4593261108356631,
+        "sigma": -0.45932611083566305,
         "p_value_one_tailed": 0.677,
         "p_value_two_tailed": null,
         "primary_p_value": 0.677,
@@ -7014,7 +7142,8 @@
         "thresholds": [
           0.16859716872646208,
           0.35856085631467377
-        ]
+        ],
+        "reported_sigma": -0.4593261108356631
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-22-large-scale-hemispheric-mean-imbalance.png",
@@ -7057,7 +7186,7 @@
         "mean_sim_stat": 0.00042865021791730864,
         "std_sim_stat": 0.05128005260285977,
         "median_sim_stat": 0.0011922394342618104,
-        "sigma": 1.066937632192765,
+        "sigma": 1.0669376321927655,
         "p_value_one_tailed": null,
         "p_value_two_tailed": 0.286,
         "primary_p_value": 0.286,
@@ -7068,7 +7197,8 @@
         "thresholds": [
           -0.09614113460858748,
           0.11060065099320371
-        ]
+        ],
+        "reported_sigma": 1.066937632192765
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-23-masked-low-l-tail-asymmetry-log-ratio.png",
@@ -7111,7 +7241,7 @@
         "mean_sim_stat": 0.004950968296428313,
         "std_sim_stat": 0.12865179060321072,
         "median_sim_stat": 0.010146164426956834,
-        "sigma": 0.8274183207043821,
+        "sigma": 0.8274183207043824,
         "p_value_one_tailed": null,
         "p_value_two_tailed": 0.408,
         "primary_p_value": 0.408,
@@ -7122,7 +7252,8 @@
         "thresholds": [
           -0.2479613085689127,
           0.24370490918290083
-        ]
+        ],
+        "reported_sigma": 0.8274183207043821
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-24-masked-low-l-galactic-half-turn-correlation.png",
@@ -7176,7 +7307,8 @@
         "thresholds": [
           0.22236379502135167,
           0.7913080081903405
-        ]
+        ],
+        "reported_sigma": -2.17009037758456
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-25-quadrupole-octopole-ecliptic-area-normal-alignment.png",
@@ -7219,7 +7351,7 @@
         "mean_sim_stat": 0.00340938682560084,
         "std_sim_stat": 0.0014592768809020796,
         "median_sim_stat": 0.003245954347066502,
-        "sigma": 0.986271298702238,
+        "sigma": 0.9862712987022381,
         "p_value_one_tailed": 0.162,
         "p_value_two_tailed": null,
         "primary_p_value": 0.162,
@@ -7230,7 +7362,8 @@
         "thresholds": [
           0.001017071136553655,
           0.006511077409618395
-        ]
+        ],
+        "reported_sigma": 0.986271298702238
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-26-masked-low-l-bipolar-dipole-modulation-amplitude.png",
@@ -7273,7 +7406,7 @@
         "mean_sim_stat": 0.10728920630934323,
         "std_sim_stat": 0.1349967488563407,
         "median_sim_stat": 0.10457657449833974,
-        "sigma": 1.7624102978623897,
+        "sigma": 1.7624102978623888,
         "p_value_one_tailed": null,
         "p_value_two_tailed": 0.078,
         "primary_p_value": 0.078,
@@ -7284,7 +7417,8 @@
         "thresholds": [
           -0.14971130193758095,
           0.3911008164631088
-        ]
+        ],
+        "reported_sigma": 1.7624102978623897
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-27-masked-low-l-antipodal-correlation.png",
@@ -7338,7 +7472,8 @@
         "thresholds": [
           8.393476590011115e-05,
           0.2449151061981877
-        ]
+        ],
+        "reported_sigma": -0.6310619790594988
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-28-masked-low-l-ecliptic-quadrupole-template-correlation.png",
@@ -7392,7 +7527,8 @@
         "thresholds": [
           -0.07608880947519753,
           0.07726334441018365
-        ]
+        ],
+        "reported_sigma": 0.5977601260424784
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-29-masked-low-high-power-coupling-correlation.png",
@@ -7435,7 +7571,7 @@
         "mean_sim_stat": 0.6885925822831984,
         "std_sim_stat": 0.21016169129205908,
         "median_sim_stat": 0.6520831427793116,
-        "sigma": 0.7030894603309285,
+        "sigma": 0.7030894603309286,
         "p_value_one_tailed": 0.241,
         "p_value_two_tailed": null,
         "primary_p_value": 0.241,
@@ -7446,7 +7582,8 @@
         "thresholds": [
           0.36954151620813674,
           1.1452882814491638
-        ]
+        ],
+        "reported_sigma": 0.7030894603309285
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-30-low-l-hemispherical-spectral-tilt-max-contrast.png",

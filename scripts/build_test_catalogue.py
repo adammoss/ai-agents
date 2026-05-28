@@ -12,6 +12,7 @@ import shutil
 import argparse
 from datetime import datetime, timezone
 from pathlib import Path
+from statistics import NormalDist
 from typing import Any
 
 
@@ -28,6 +29,7 @@ CMB_ASSETS = {
     "planck_masked": "planckcmbwithmask256.png",
     "planck_unmasked": "planckcmbnomask256.png",
 }
+NORMAL = NormalDist()
 
 
 def clean_text(value: Any, default: str = "") -> str:
@@ -60,6 +62,37 @@ def first_number(*values: Any) -> float | int | None:
         if converted is not None:
             return converted
     return None
+
+
+def sigma_from_primary_p(primary_p: Any, tail: str) -> float | None:
+    """Return a sigma equivalent that is consistent with the primary p-value.
+
+    For one-tailed tests, positive values support the pre-specified tail and
+    negative values indicate the statistic went the opposite way. For two-tailed
+    tests, the value is the usual non-negative equivalent significance.
+    """
+    p = number(primary_p)
+    if p is None:
+        return None
+
+    # Avoid infinite normal quantiles for exact 0/1 empirical p-values.
+    p = min(max(float(p), 1e-12), 1.0 - 1e-12)
+    tail_text = clean_text(tail).lower()
+
+    if "two" in tail_text:
+        return NORMAL.inv_cdf(1.0 - p / 2.0)
+
+    return NORMAL.inv_cdf(1.0 - p)
+
+
+def standardize_sigma(metrics: dict[str, Any], tail: str) -> None:
+    """Preserve raw agent sigma and expose a tail-consistent p-equivalent sigma."""
+    reported_sigma = number(metrics.get("sigma"))
+    if reported_sigma is not None:
+        metrics["reported_sigma"] = reported_sigma
+    derived_sigma = sigma_from_primary_p(metrics.get("primary_p_value"), tail)
+    if derived_sigma is not None:
+        metrics["sigma"] = derived_sigma
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -330,6 +363,7 @@ def normalized_metrics(record: dict[str, Any]) -> dict[str, Any]:
         "p_value_one_tailed": number(metrics.get("p_value_one_tailed")),
         "p_value_two_tailed": number(metrics.get("p_value_two_tailed")),
         "primary_p_value": number(metrics.get("primary_p_value")),
+        "reported_sigma": number(metrics.get("reported_sigma")),
         "n_sims": number(metrics.get("n_sims")),
         "n_valid_simulations": number(metrics.get("n_valid_simulations")),
         "sim_min": number(metrics.get("sim_min")),
@@ -434,6 +468,7 @@ def build_test_entry(
             "sim_max": number(custom.get("sim_max")),
             "thresholds": custom.get("thresholds") if isinstance(custom.get("thresholds"), list) else None,
         }
+    standardize_sigma(metrics, tail)
 
     verdict_raw = clean_text(summary.get("Verdict") or updated.get("verdict_raw") or updated.get("verdict"), "Unknown")
     novelty_raw = clean_text(summary.get("Test novelty") or updated.get("novelty_raw") or updated.get("novelty"), "Unknown")
@@ -717,6 +752,7 @@ def write_registry(tests: list[dict[str, Any]], metadata: dict[str, Any]) -> Non
                 "p_value_one_tailed": metrics.get("p_value_one_tailed"),
                 "p_value_two_tailed": metrics.get("p_value_two_tailed"),
                 "sigma": metrics.get("sigma"),
+                "reported_sigma": metrics.get("reported_sigma"),
                 "planck_stat": metrics.get("planck_stat"),
                 "mean_sim_stat": metrics.get("mean_sim_stat"),
                 "std_sim_stat": metrics.get("std_sim_stat"),
@@ -1508,7 +1544,7 @@ function renderTests() {
         <div><span class="cell-label">Verdict</span><span class="label ${labelClass(test.verdict)}">${test.verdict}</span></div>
         <div><span class="cell-label">Model</span>${test.model || "Unknown"}</div>
         <div><span class="cell-label">p-value</span><span class="number">${fmt(m.primary_p_value)}</span></div>
-        <div><span class="cell-label">Sigma</span><span class="number">${fmt(m.sigma)}</span></div>
+        <div><span class="cell-label">p-sigma</span><span class="number">${fmt(m.sigma)}</span></div>
         <div><span class="cell-label">Novelty</span>${test.novelty || "Unknown"}</div>
         <div><span class="cell-label">Family</span>${test.family || "other"}</div>
       </article>`;
@@ -1581,7 +1617,7 @@ def metric_rows(test: dict[str, Any]) -> str:
         ("Primary p-value", fmt_metric(metrics.get("primary_p_value"))),
         ("One-tailed p-value", fmt_metric(metrics.get("p_value_one_tailed"))),
         ("Two-tailed p-value", fmt_metric(metrics.get("p_value_two_tailed"))),
-        ("Sigma", fmt_metric(metrics.get("sigma"))),
+        ("Sigma from primary p", fmt_metric(metrics.get("sigma"))),
         ("Planck statistic", fmt_metric(metrics.get("planck_stat"))),
         ("Simulation mean", fmt_metric(metrics.get("mean_sim_stat"))),
         ("Simulation std.", fmt_metric(metrics.get("std_sim_stat"))),
@@ -1593,8 +1629,14 @@ def metric_rows(test: dict[str, Any]) -> str:
         ("Novelty", test["novelty"]),
         ("Meets hypothesis", test["meets_hypothesis"] or "Not recorded"),
     ]
+    reported_sigma = metrics.get("reported_sigma")
+    sigma = metrics.get("sigma")
+    if reported_sigma is not None and (
+        sigma is None or abs(float(reported_sigma) - float(sigma)) > 1e-9
+    ):
+        rows.insert(6, ("Reported sigma in source file", fmt_metric(reported_sigma)))
     return "\n".join(
-        f"<tr><th>{html.escape(label)}</th><td>{html.escape(str(value or 'n/a'))}</td></tr>"
+        f"<tr><th>{html.escape(label)}</th><td>{html.escape(str(value if value not in (None, '') else 'n/a'))}</td></tr>"
         for label, value in rows
     )
 
@@ -1792,12 +1834,17 @@ python3 scripts/build_test_catalogue.py \\
 
 The builder copies each test's figures and raw artifacts into `docs/`, and writes:
 
-- `docs/index.html`: browsable static catalogue.
-- `docs/tests/<test-id>/`: permanent detail page for each test.
+- `docs/index.html`: paper-style landing page.
+- `docs/catalogue.html`: browsable static catalogue.
+- `docs/tests/<model-id>/<test-id>/`: permanent detail page for each test.
 - `docs/data/tests.json`: machine-readable registry.
 - `docs/data/tests.csv`: compact table for audit and downstream analysis.
 - `docs/data/raw/`: sanitized per-test JSON records preserving generated fields.
 - `docs/data/statistics/`: Planck and simulation statistic arrays.
+
+The displayed `sigma` value is derived consistently from each test's primary
+p-value and tail. Raw agent-reported sigma values are preserved as
+`reported_sigma` where they differ.
 
 ## Publishing
 
@@ -1821,7 +1868,8 @@ online resource in the frozen Test Catalogue {metadata["version"]}.
 
 This directory is the publishable website for Test Catalogue {metadata["version"]}.
 
-- `index.html` is the catalogue entry point.
+- `index.html` is the site entry point.
+- `catalogue.html` is the browsable catalogue.
 - `data/tests.json` is the machine-readable registry.
 - `tests/` contains stable per-test pages.
 

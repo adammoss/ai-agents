@@ -45,12 +45,17 @@ python3 scripts/build_test_catalogue.py \
 
 The builder copies each test's figures and raw artifacts into `docs/`, and writes:
 
-- `docs/index.html`: browsable static catalogue.
-- `docs/tests/<test-id>/`: permanent detail page for each test.
+- `docs/index.html`: paper-style landing page.
+- `docs/catalogue.html`: browsable static catalogue.
+- `docs/tests/<model-id>/<test-id>/`: permanent detail page for each test.
 - `docs/data/tests.json`: machine-readable registry.
 - `docs/data/tests.csv`: compact table for audit and downstream analysis.
 - `docs/data/raw/`: sanitized per-test JSON records preserving generated fields.
 - `docs/data/statistics/`: Planck and simulation statistic arrays.
+
+The displayed `sigma` value is derived consistently from each test's primary
+p-value and tail. Raw agent-reported sigma values are preserved as
+`reported_sigma` where they differ.
 
 ## Publishing
 

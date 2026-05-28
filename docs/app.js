@@ -111,7 +111,7 @@ function renderTests() {
         <div><span class="cell-label">Verdict</span><span class="label ${labelClass(test.verdict)}">${test.verdict}</span></div>
         <div><span class="cell-label">Model</span>${test.model || "Unknown"}</div>
         <div><span class="cell-label">p-value</span><span class="number">${fmt(m.primary_p_value)}</span></div>
-        <div><span class="cell-label">Sigma</span><span class="number">${fmt(m.sigma)}</span></div>
+        <div><span class="cell-label">p-sigma</span><span class="number">${fmt(m.sigma)}</span></div>
         <div><span class="cell-label">Novelty</span>${test.novelty || "Unknown"}</div>
         <div><span class="cell-label">Family</span>${test.family || "other"}</div>
       </article>`;

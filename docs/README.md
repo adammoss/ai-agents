@@ -2,8 +2,9 @@
 
 This directory is the publishable website for Test Catalogue v1.0.
 
-- `index.html` is the catalogue entry point.
+- `index.html` is the site entry point.
+- `catalogue.html` is the browsable catalogue.
 - `data/tests.json` is the machine-readable registry.
 - `tests/` contains stable per-test pages.
 
-Generated at `2026-05-27T20:55:38+00:00` from 2 model(s).
+Generated at `2026-05-28T19:53:15+00:00` from 2 model(s).
