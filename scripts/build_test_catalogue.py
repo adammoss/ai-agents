@@ -1792,8 +1792,9 @@ python3 scripts/build_test_catalogue.py \\
 
 The builder copies each test's figures and raw artifacts into `docs/`, and writes:
 
-- `docs/index.html`: browsable static catalogue.
-- `docs/tests/<test-id>/`: permanent detail page for each test.
+- `docs/index.html`: paper-style landing page.
+- `docs/catalogue.html`: browsable static catalogue.
+- `docs/tests/<model-id>/<test-id>/`: permanent detail page for each test.
 - `docs/data/tests.json`: machine-readable registry.
 - `docs/data/tests.csv`: compact table for audit and downstream analysis.
 - `docs/data/raw/`: sanitized per-test JSON records preserving generated fields.
@@ -1821,7 +1822,8 @@ online resource in the frozen Test Catalogue {metadata["version"]}.
 
 This directory is the publishable website for Test Catalogue {metadata["version"]}.
 
-- `index.html` is the catalogue entry point.
+- `index.html` is the site entry point.
+- `catalogue.html` is the browsable catalogue.
 - `data/tests.json` is the machine-readable registry.
 - `tests/` contains stable per-test pages.
 

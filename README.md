@@ -10,7 +10,6 @@ checked before manuscript use.
 ## Models
 
 - `Mimo V2.5 Pro` (run_directory): `runs/cmb_test_run_mimo`
-- `GPT5.5` (run_directory): `runs/anomaly_agent_gpt_run`
 
 ## Local preview
 
@@ -45,8 +44,9 @@ python3 scripts/build_test_catalogue.py \
 
 The builder copies each test's figures and raw artifacts into `docs/`, and writes:
 
-- `docs/index.html`: browsable static catalogue.
-- `docs/tests/<test-id>/`: permanent detail page for each test.
+- `docs/index.html`: paper-style landing page.
+- `docs/catalogue.html`: browsable static catalogue.
+- `docs/tests/<model-id>/<test-id>/`: permanent detail page for each test.
 - `docs/data/tests.json`: machine-readable registry.
 - `docs/data/tests.csv`: compact table for audit and downstream analysis.
 - `docs/data/raw/`: sanitized per-test JSON records preserving generated fields.

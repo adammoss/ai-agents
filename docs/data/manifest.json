@@ -8,51 +8,42 @@
       "model": "Mimo V2.5 Pro",
       "kind": "run_directory",
       "path": "runs/cmb_test_run_mimo"
-    },
-    {
-      "id": "gpt5-5",
-      "label": "GPT5.5",
-      "model": "GPT5.5",
-      "kind": "run_directory",
-      "path": "runs/anomaly_agent_gpt_run"
     }
   ],
   "source_counts": {
-    "GPT5.5": 30,
     "Mimo V2.5 Pro": 107
   },
   "model_counts": {
-    "GPT5.5": 30,
     "Mimo V2.5 Pro": 107
   },
   "visual_assets": {
     "planck_masked": "assets/cmb/planckcmbwithmask256.png",
     "planck_unmasked": "assets/cmb/planckcmbnomask256.png"
   },
-  "generated_at_utc": "2026-05-27T20:55:38+00:00",
+  "generated_at_utc": "2026-05-28T15:40:33+00:00",
   "curation_note": "This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.",
-  "n_tests": 137,
+  "n_tests": 107,
   "verdict_counts": {
-    "Anomaly": 6,
-    "Borderline": 16,
-    "Consistent": 115
+    "Anomaly": 2,
+    "Borderline": 11,
+    "Consistent": 94
   },
   "novelty_counts": {
-    "Novel": 58,
-    "Repeat": 5,
-    "Variation": 74
+    "Novel": 52,
+    "Repeat": 3,
+    "Variation": 52
   },
   "family_counts": {
-    "alignment": 10,
-    "cross correlation": 9,
-    "direction": 11,
-    "hemispherical": 11,
-    "other": 64,
-    "parity": 11,
-    "power": 11,
-    "variance": 10
+    "alignment": 7,
+    "cross correlation": 7,
+    "direction": 7,
+    "hemispherical": 7,
+    "other": 58,
+    "parity": 7,
+    "power": 7,
+    "variance": 7
   },
-  "minimum_primary_p_value": 0.001,
+  "minimum_primary_p_value": 0.002,
   "registry_files": {
     "json": "data/tests.json",
     "csv": "data/tests.csv"
