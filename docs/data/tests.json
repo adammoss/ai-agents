@@ -30,7 +30,7 @@
       "planck_masked": "assets/cmb/planckcmbwithmask256.png",
       "planck_unmasked": "assets/cmb/planckcmbnomask256.png"
     },
-    "generated_at_utc": "2026-05-28T19:53:15+00:00",
+    "generated_at_utc": "2026-05-28T22:47:05+00:00",
     "curation_note": "This catalogue preserves agent-generated hypotheses, code, results, and summaries from each run. Literature comparison text is included as provenance and should be checked before manuscript use.",
     "n_tests": 137,
     "verdict_counts": {
@@ -103,7 +103,8 @@
           0.08193789516033297,
           0.5108983999315984
         ],
-        "reported_sigma": 0.9741138770593092
+        "reported_sigma": 0.9741138770593092,
+        "anomaly_sigma": 0.974113877059309
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-01-disc-local-power-dipole-amplitude.png",
@@ -158,7 +159,8 @@
           0.23062384961062918,
           1.4742809401639527
         ],
-        "reported_sigma": 1.4325027208258116
+        "reported_sigma": 1.4325027208258116,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-02-low-parity-power-asymmetry-ratio.png",
@@ -213,7 +215,8 @@
           0.03693703708681432,
           0.9793463079981132
         ],
-        "reported_sigma": 1.838423669247777
+        "reported_sigma": 1.838423669247777,
+        "anomaly_sigma": 1.8384236692477762
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-03-quadrupole-octopole-alignment-cosine.png",
@@ -268,7 +271,8 @@
           0.2340954236590344,
           0.7606319217961749
         ],
-        "reported_sigma": 0.7688202934580621
+        "reported_sigma": 0.7688202934580621,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-04-low-ecliptic-plane-power-fraction.png",
@@ -323,7 +327,8 @@
           0.9406645882634574,
           1.0670808391543805
         ],
-        "reported_sigma": 0.06521853970954372
+        "reported_sigma": 0.06521853970954372,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-05-ecliptic-hemispherical-variance-ratio.png",
@@ -378,7 +383,8 @@
           1.1535061005227185,
           3.5082561118235636
         ],
-        "reported_sigma": 0.986271298702238
+        "reported_sigma": 0.986271298702238,
+        "anomaly_sigma": 0.9862712987022381
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-06-octopole-planarity-ratio.png",
@@ -433,7 +439,8 @@
           0.41616159228647154,
           2.4469019057486636
         ],
-        "reported_sigma": 2.0335201492530506
+        "reported_sigma": 2.0335201492530506,
+        "anomaly_sigma": 2.0335201492530506
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-07-galactic-hemispherical-power-ratio.png",
@@ -488,7 +495,8 @@
           -0.3131642753662624,
           0.3355394660663596
         ],
-        "reported_sigma": 1.2646411356610803
+        "reported_sigma": 1.2646411356610803,
+        "anomaly_sigma": 1.26464113566108
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-08-low-masked-sky-skewness.png",
@@ -543,7 +551,8 @@
           0.0310001102845034,
           0.9645222440447895
         ],
-        "reported_sigma": 1.4118300775008088
+        "reported_sigma": 1.4118300775008088,
+        "anomaly_sigma": 1.4118300775008086
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-09-quadrupole-kinematic-dipole-alignment-cosine.png",
@@ -598,7 +607,8 @@
           2.5873546853253777,
           12.302656523758468
         ],
-        "reported_sigma": 1.0581216176847767
+        "reported_sigma": 1.0581216176847767,
+        "anomaly_sigma": 1.058121617684777
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-10-low-spectral-tilt-ratio.png",
@@ -653,7 +663,8 @@
           -0.7949798277939566,
           0.8194110474452676
         ],
-        "reported_sigma": 0.6310619790594988
+        "reported_sigma": 0.6310619790594988,
+        "anomaly_sigma": 0.6310619790594988
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-11-low-masked-sky-kurtosis.png",
@@ -708,7 +719,8 @@
           -0.21231223408727096,
           0.551489606609263
         ],
-        "reported_sigma": 1.5062617232782445
+        "reported_sigma": 1.5062617232782445,
+        "anomaly_sigma": 1.5062617232782438
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-12-low-antipodal-correlation-ratio.png",
@@ -763,7 +775,8 @@
           0.02503896830534968,
           0.9676965017756425
         ],
-        "reported_sigma": 0.8596173642419115
+        "reported_sigma": 0.8596173642419115,
+        "anomaly_sigma": 0.8596173642419115
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-13-low-dipole-modulation-ecliptic-alignment.png",
@@ -818,7 +831,8 @@
           0.7164477740824879,
           2.1462199638657053
         ],
-        "reported_sigma": 0.12313524773483651
+        "reported_sigma": 0.12313524773483651,
+        "anomaly_sigma": 0.12313524773483635
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-14-low-cross-parity-correlation-asymmetry.png",
@@ -873,7 +887,8 @@
           0.4981505757547768,
           4.647657896046411
         ],
-        "reported_sigma": 0.0802983128920549
+        "reported_sigma": 0.0802983128920549,
+        "anomaly_sigma": 0.08029831289205504
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-15-low-parity-difference-dipole-amplitude.png",
@@ -928,7 +943,8 @@
           2.605972712242297,
           4.175406838562747
         ],
-        "reported_sigma": 0.9660882971323732
+        "reported_sigma": 0.9660882971323732,
+        "anomaly_sigma": 0.9660882971323732
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-16-low-cold-spot-depth.png",
@@ -983,7 +999,8 @@
           1.3488686630758002,
           2.6607204807201668
         ],
-        "reported_sigma": 1.739197665285252
+        "reported_sigma": 1.739197665285252,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-17-low-l-anisotropy-elongation-ratio.png",
@@ -1038,7 +1055,8 @@
           -0.9650126063720041,
           0.9558014636803226
         ],
-        "reported_sigma": 0.6371916745044746
+        "reported_sigma": 0.6371916745044746,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-18-low-dipole-modulation-galactic-alignment.png",
@@ -1093,7 +1111,8 @@
           0.030087430768012062,
           0.9874574908776464
         ],
-        "reported_sigma": 0.6219115955806241
+        "reported_sigma": 0.6219115955806241,
+        "anomaly_sigma": 0.6219115955806243
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-19-hexadecupole-ecliptic-plane-alignment-cosine.png",
@@ -1148,7 +1167,8 @@
           0.020151058546265605,
           0.9931203588039131
         ],
-        "reported_sigma": 1.353174154548003
+        "reported_sigma": 1.353174154548003,
+        "anomaly_sigma": 1.3531741545480027
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-19-octopole-hexadecupole-tensor-alignment.png",
@@ -1203,7 +1223,8 @@
           0.9350083512158799,
           1.071182419317992
         ],
-        "reported_sigma": 0.13324452361112385
+        "reported_sigma": 0.13324452361112385,
+        "anomaly_sigma": 0.1332445236111237
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-20-hot-cold-temperature-variance-ratio.png",
@@ -1258,7 +1279,8 @@
           0.19929114398970846,
           1.399543074155872
         ],
-        "reported_sigma": 0.39614237389269835
+        "reported_sigma": 0.39614237389269835,
+        "anomaly_sigma": 0.3961423738926982
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-21-low-skewness-dipole-amplitude.png",
@@ -1313,7 +1335,8 @@
           -71.74402892466526,
           77.36550975009376
         ],
-        "reported_sigma": 0.9077695298680556
+        "reported_sigma": 0.9077695298680556,
+        "anomaly_sigma": 0.9077695298680556
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-22-low-cold-spot-ecliptic-latitude.png",
@@ -1368,7 +1391,8 @@
           -0.04426363390473292,
           0.04453568022628341
         ],
-        "reported_sigma": 0.35311797197368927
+        "reported_sigma": 0.35311797197368927,
+        "anomaly_sigma": 0.35311797197368927
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-23-low-galactic-north-skewness.png",
@@ -1423,7 +1447,8 @@
           -0.7990756153637868,
           -0.6363649482333229
         ],
-        "reported_sigma": 1.2590839804270721
+        "reported_sigma": 1.2590839804270721,
+        "anomaly_sigma": 1.2590839804270717
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-24-low-mean-power-deficit.png",
@@ -1478,7 +1503,8 @@
           0.36817929281696765,
           7.712942279846676
         ],
-        "reported_sigma": 0.5563084669589183
+        "reported_sigma": 0.5563084669589183,
+        "anomaly_sigma": 0.5563084669589186
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-24-low-scale-dependent-hemispherical-asymmetry-ratio.png",
@@ -1533,7 +1559,8 @@
           2.795132398825836,
           2.9747223012863406
         ],
-        "reported_sigma": 0.2767136367367468
+        "reported_sigma": 0.2767136367367468,
+        "anomaly_sigma": 0.2767136367367469
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-24-quadrupole-power-gradient-amplitude.png",
@@ -1588,7 +1615,8 @@
           0.06378942025118498,
           0.922758649539714
         ],
-        "reported_sigma": 0.28453554267162146
+        "reported_sigma": 0.28453554267162146,
+        "anomaly_sigma": 0.2845355426716215
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-25-low-multipole-phase-consistency-variance.png",
@@ -1643,7 +1671,8 @@
           6100.789368561888,
           467027.0183193382
         ],
-        "reported_sigma": 2.120071689742151
+        "reported_sigma": 2.120071689742151,
+        "anomaly_sigma": 2.1200716897421503
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-26-low-power-spectrum-variance.png",
@@ -1698,7 +1727,8 @@
           572.7882499061539,
           3006.5227289451414
         ],
-        "reported_sigma": 0.24558952342208087
+        "reported_sigma": 0.24558952342208087,
+        "anomaly_sigma": 0.24558952342208085
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-27-low-antipodal-temperature-difference-variance.png",
@@ -1753,7 +1783,8 @@
           0.36557030630335824,
           0.5208559140430061
         ],
-        "reported_sigma": 0.6650789461759234
+        "reported_sigma": 0.6650789461759234,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-28-low-map-roughness-heterogeneity.png",
@@ -1808,7 +1839,8 @@
           1.00100244823546,
           1.002311877728173
         ],
-        "reported_sigma": 2.5121443279304616
+        "reported_sigma": 2.5121443279304616,
+        "anomaly_sigma": 2.512144327930461
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-29-low-spatial-autocorrelation-coefficient.png",
@@ -1863,7 +1895,8 @@
           -0.1462612027244238,
           0.15414900030853107
         ],
-        "reported_sigma": 0.5475513533264015
+        "reported_sigma": 0.5475513533264015,
+        "anomaly_sigma": 0.5475513533264014
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-30-low-temperature-gradient-magnitude-cross-correlation-coefficient.png",
@@ -1918,7 +1951,8 @@
           -0.5018847548500109,
           -0.47105835749661545
         ],
-        "reported_sigma": 1.607247891900218
+        "reported_sigma": 1.607247891900218,
+        "anomaly_sigma": 1.6072478919002178
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-31-temperature-laplacian-cross-correlation-coefficient.png",
@@ -1973,7 +2007,8 @@
           0.02417874308173951,
           0.057866606028133385
         ],
-        "reported_sigma": 3.090232306167813
+        "reported_sigma": 3.090232306167813,
+        "anomaly_sigma": 3.090232306167813
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-32-low-band-limited-cross-correlation-coefficient.png",
@@ -2028,7 +2063,8 @@
           0.10836064020792643,
           0.1591653823852539
         ],
-        "reported_sigma": 0.8596173642419115
+        "reported_sigma": 0.8596173642419115,
+        "anomaly_sigma": 0.8596173642419115
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-33-low-convex-hull-area-asymmetry.png",
@@ -2083,7 +2119,8 @@
           -0.2829447161890386,
           0.27321959101439725
         ],
-        "reported_sigma": 0.986271298702238
+        "reported_sigma": 0.986271298702238,
+        "anomaly_sigma": 0.9862712987022381
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-34-low-laplacian-skewness.png",
@@ -2138,7 +2175,8 @@
           7.0,
           12.0
         ],
-        "reported_sigma": 0.915365087842814
+        "reported_sigma": 0.915365087842814,
+        "anomaly_sigma": 0.9153650878428142
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-35-low-two-point-correlation-coherence-length.png",
@@ -2193,7 +2231,8 @@
           -0.060945818979016596,
           0.0564848848990363
         ],
-        "reported_sigma": 0.15096921549677725
+        "reported_sigma": 0.15096921549677725,
+        "anomaly_sigma": 0.15096921549677736
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-36-hot-cold-spot-count-asymmetry-ratio.png",
@@ -2248,7 +2287,8 @@
           80.37077505440767,
           113.92697505836048
         ],
-        "reported_sigma": 0.12313524773483651
+        "reported_sigma": 0.12313524773483651,
+        "anomaly_sigma": 0.12313524773483635
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-37-low-largest-hot-region-angular-size.png",
@@ -2303,7 +2343,8 @@
           2.925903122789418,
           4.284707504677645
         ],
-        "reported_sigma": 0.2533471031357997
+        "reported_sigma": 0.2533471031357997,
+        "anomaly_sigma": 0.2533471031357998
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-38-low-peak-to-rms-temperature-ratio.png",
@@ -2358,7 +2399,8 @@
           0.37399075507076823,
           0.4332056948342086
         ],
-        "reported_sigma": 1.2212272221055689
+        "reported_sigma": 1.2212272221055689,
+        "anomaly_sigma": 1.221227222105569
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-39-low-extrema-ellipticity.png",
@@ -2413,7 +2455,8 @@
           -1.432394487827058,
           1.5915494309189535
         ],
-        "reported_sigma": 0.7755749428188844
+        "reported_sigma": 0.7755749428188844,
+        "anomaly_sigma": 0.7755749428188843
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-40-low-genus-density.png",
@@ -2468,7 +2511,8 @@
           5.926979317372127,
           6.140802360855444
         ],
-        "reported_sigma": 1.1503493803760079
+        "reported_sigma": 1.1503493803760079,
+        "anomaly_sigma": 1.1503493803760079
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-41-low-wavelet-entropy-coefficient.png",
@@ -2523,7 +2567,8 @@
           2.1599804062676915,
           2.2558594099151374
         ],
-        "reported_sigma": 0.758753544504371
+        "reported_sigma": 0.758753544504371,
+        "anomaly_sigma": 0.7587535445043709
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-42-low-angular-pseudoentropy.png",
@@ -2578,7 +2623,8 @@
           0.23176417613113098,
           0.30130555656616226
         ],
-        "reported_sigma": 1.1263911290388007
+        "reported_sigma": 1.1263911290388007,
+        "anomaly_sigma": 1.1263911290388005
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-43-low-threshold-contour-perimeter-coefficient-of-variation.png",
@@ -2633,7 +2679,8 @@
           5.6907270038869635,
           5.803461174483411
         ],
-        "reported_sigma": 1.7279343223884187
+        "reported_sigma": 1.7279343223884187,
+        "anomaly_sigma": 1.7279343223884183
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-44-low-local-texture-diversity-entropy.png",
@@ -2688,7 +2735,8 @@
           1.1360433517792192,
           2.1364433945209296
         ],
-        "reported_sigma": 0.26890862445370967
+        "reported_sigma": 0.26890862445370967,
+        "anomaly_sigma": 0.26890862445370967
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-44-low-sublevel-set-persistence-lifetime-skewness.png",
@@ -2743,7 +2791,8 @@
           1.555388357193874,
           2.5474462718643935
         ],
-        "reported_sigma": 1.5981931399228175
+        "reported_sigma": 1.5981931399228175,
+        "anomaly_sigma": 1.598193139922817
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-45-low-t-asphericity-eigenvalue-ratio.png",
@@ -2798,7 +2847,8 @@
           0.6031274769811108,
           0.7208157280363084
         ],
-        "reported_sigma": 1.2930319761442421
+        "reported_sigma": 1.2930319761442421,
+        "anomaly_sigma": 1.2930319761442421
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-46-low-multifractal-scaling-width.png",
@@ -2853,7 +2903,8 @@
           1121.230385326797,
           25613.50895460021
         ],
-        "reported_sigma": 0.3212776395459965
+        "reported_sigma": 0.3212776395459965,
+        "anomaly_sigma": 0.32127763954599653
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-47-low-average-bispectrum-amplitude.png",
@@ -2908,7 +2959,8 @@
           0.21763987761532244,
           0.2438511964315049
         ],
-        "reported_sigma": 1.0321539579593062
+        "reported_sigma": 1.0321539579593062,
+        "anomaly_sigma": 1.0321539579593062
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-48-low-laplacian-spatial-correlation-amplitude.png",
@@ -2963,7 +3015,8 @@
           -324.47810073890975,
           -50.62510261590504
         ],
-        "reported_sigma": 1.0938973526034372
+        "reported_sigma": 1.0938973526034372,
+        "anomaly_sigma": 1.0938973526034375
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-49-low-gaussian-curvature-skewness.png",
@@ -3018,7 +3071,8 @@
           0.5294396501849842,
           0.7764865893848606
         ],
-        "reported_sigma": 0.8778962950512288
+        "reported_sigma": 0.8778962950512288,
+        "anomaly_sigma": 0.8778962950512289
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-49-low-gradient-magnitude-skewness.png",
@@ -3073,7 +3127,8 @@
           354.85602051964406,
           3037.844091094933
         ],
-        "reported_sigma": 0.892733324320856
+        "reported_sigma": 0.892733324320856,
+        "anomaly_sigma": 0.8927333243208561
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-50-low-squared-temperature-dipole-amplitude.png",
@@ -3128,7 +3183,8 @@
           0.9165804065353159,
           0.9183745969367271
         ],
-        "reported_sigma": 0.7290027178052185
+        "reported_sigma": 0.7290027178052185,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-51-low-gradient-maximum-ecliptic-latitude.png",
@@ -3183,7 +3239,8 @@
           -72.0176251134728,
           73.68552174660233
         ],
-        "reported_sigma": 1.2646411356610803
+        "reported_sigma": 1.2646411356610803,
+        "anomaly_sigma": 1.26464113566108
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-52-low-hottest-spot-galactic-latitude.png",
@@ -3238,7 +3295,8 @@
           -0.24240709249340692,
           1.0600098717047086
         ],
-        "reported_sigma": 1.1076800921478
+        "reported_sigma": 1.1076800921478,
+        "anomaly_sigma": 1.1076800921478003
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-53-low-gradient-kurtosis-ratio.png",
@@ -3293,7 +3351,8 @@
           0.5614582988578454,
           0.5783606758740043
         ],
-        "reported_sigma": 1.5717868165098599
+        "reported_sigma": 1.5717868165098599,
+        "anomaly_sigma": 1.571786816509859
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-54-low-saddle-point-mean-eccentricity.png",
@@ -3348,7 +3407,8 @@
           0.3333018867924528,
           1.0188370441634595
         ],
-        "reported_sigma": 1.4610562691869065
+        "reported_sigma": 1.4610562691869065,
+        "anomaly_sigma": 1.4610562691869067
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-55-low-hot-region-boundary-complexity-index.png",
@@ -3403,7 +3463,8 @@
           0.003643840346578741,
           0.1785604820209736
         ],
-        "reported_sigma": 1.5632236468662761
+        "reported_sigma": 1.5632236468662761,
+        "anomaly_sigma": 1.5632236468662764
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-56-low-gradient-magnitude-dipole-amplitude.png",
@@ -3458,7 +3519,8 @@
           0.0006453559418703152,
           1.009838636595515
         ],
-        "reported_sigma": 0.20701262338518725
+        "reported_sigma": 0.20701262338518725,
+        "anomaly_sigma": 0.20701262338518736
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-57-low-cold-spot-galactic-plane-fraction.png",
@@ -3513,7 +3575,8 @@
           -0.42002587216172077,
           0.6181719746784524
         ],
-        "reported_sigma": 0.8029562883093937
+        "reported_sigma": 0.8029562883093937,
+        "anomaly_sigma": 0.8029562883093936
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-58-low-needlet-coefficient-kurtosis.png",
@@ -3568,7 +3631,8 @@
           34.45124514873134,
           156.49704497903727
         ],
-        "reported_sigma": 0.8964733640019162
+        "reported_sigma": 0.8964733640019162,
+        "anomaly_sigma": 0.8964733640019159
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-59-low-hot-cold-spot-angular-separation.png",
@@ -3623,7 +3687,8 @@
           3.7376696182833684,
           4.356708826689592
         ],
-        "reported_sigma": 0.431644239383956
+        "reported_sigma": 0.431644239383956,
+        "anomaly_sigma": 0.43164423938395624
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-60-low-extreme-region-connectivity-index.png",
@@ -3678,7 +3743,8 @@
           28.514515499690123,
           38.60521917732998
         ],
-        "reported_sigma": 1.8250068211464032
+        "reported_sigma": 1.8250068211464032,
+        "anomaly_sigma": 1.825006821146403
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-61-low-median-absolute-deviation.png",
@@ -3733,7 +3799,8 @@
           0.009307284384964367,
           0.5957349530183776
         ],
-        "reported_sigma": 1.2590839804270721
+        "reported_sigma": 1.2590839804270721,
+        "anomaly_sigma": 1.2590839804270717
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-62-low-galactic-hemispherical-skewness-asymmetry.png",
@@ -3788,7 +3855,8 @@
           2.7612856173462506,
           13.757283283243742
         ],
-        "reported_sigma": 0.27931903444745415
+        "reported_sigma": 0.27931903444745415,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-63-low-multipole-plane-concentration.png",
@@ -3843,7 +3911,8 @@
           2.196275157641716,
           4.025191039745995
         ],
-        "reported_sigma": 0.6158401887479719
+        "reported_sigma": 0.6158401887479719,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-64-low-parity-even-kurtosis.png",
@@ -3898,7 +3967,8 @@
           0.09352936659526538,
           0.6109339248095152
         ],
-        "reported_sigma": 0.032591936696663076
+        "reported_sigma": 0.032591936696663076,
+        "anomaly_sigma": 0.03259193669666307
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-65-low-variance-direction-coherence.png",
@@ -3953,7 +4023,8 @@
           0.35188215842093185,
           0.6900244798037274
         ],
-        "reported_sigma": 1.9599639845400545
+        "reported_sigma": 1.9599639845400545,
+        "anomaly_sigma": 1.9599639845400534
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-66-low-spectral-gini-coefficient.png",
@@ -4008,7 +4079,8 @@
           -0.3511759317138748,
           0.3516075974785067
         ],
-        "reported_sigma": 0.34246630146539064
+        "reported_sigma": 0.34246630146539064,
+        "anomaly_sigma": 0.34246630146539053
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-66-low-temperature-ecliptic-latitude-cross-correlation-coefficient.png",
@@ -4063,7 +4135,8 @@
           0.02944713950733243,
           0.07545130714442702
         ],
-        "reported_sigma": 1.1552208466119516
+        "reported_sigma": 1.1552208466119516,
+        "anomaly_sigma": 1.1552208466119513
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-67-low-galactic-plane-power-concentration-ratio.png",
@@ -4118,7 +4191,8 @@
           -0.020364255599711542,
           0.023524927178091817
         ],
-        "reported_sigma": 0.994457883209753
+        "reported_sigma": 0.994457883209753,
+        "anomaly_sigma": 0.994457883209753
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-68-low-parity-dependent-hemispherical-power-asymmetry-slope.png",
@@ -4173,7 +4247,8 @@
           0.012196577955046868,
           0.07546405922635432
         ],
-        "reported_sigma": 1.353174154548003
+        "reported_sigma": 1.353174154548003,
+        "anomaly_sigma": 1.3531741545480027
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-69-low-kurtosis-dipole-amplitude.png",
@@ -4228,7 +4303,8 @@
           7.624452880387683,
           609.7045158233379
         ],
-        "reported_sigma": 1.654627902351078
+        "reported_sigma": 1.654627902351078,
+        "anomaly_sigma": 1.654627902351077
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-70-low-directional-power-variance-ratio.png",
@@ -4283,7 +4359,8 @@
           0.032665325766525956,
           2.562180202378362
         ],
-        "reported_sigma": 1.1749867920660904
+        "reported_sigma": 1.1749867920660904,
+        "anomaly_sigma": 1.17498679206609
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-71-low-ecliptic-pole-temperature-asymmetry.png",
@@ -4338,7 +4415,8 @@
           -10.0,
           9.805946392930855
         ],
-        "reported_sigma": 1.838423669247777
+        "reported_sigma": 1.838423669247777,
+        "anomaly_sigma": 1.8384236692477762
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-72-low-ecliptic-hemispherical-excess-kurtosis-ratio.png",
@@ -4393,7 +4471,8 @@
           -0.2097068747795622,
           0.1832146620926699
         ],
-        "reported_sigma": 0.5475513533264015
+        "reported_sigma": 0.5475513533264015,
+        "anomaly_sigma": 0.5475513533264014
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-73-low-gradient-magnitude-laplacian-cross-correlation-coefficient.png",
@@ -4448,7 +4527,8 @@
           0.32378924998196823,
           0.6125901892179602
         ],
-        "reported_sigma": 0.12313524773483651
+        "reported_sigma": 0.12313524773483651,
+        "anomaly_sigma": 0.12313524773483635
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-74-low-t-t-cross-correlation-coefficient.png",
@@ -4503,7 +4583,8 @@
           0.13929321430503946,
           0.27042328503489343
         ],
-        "reported_sigma": 0.2559363317436934
+        "reported_sigma": 0.2559363317436934,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-75-low-extreme-region-power-concentration-ratio.png",
@@ -4558,7 +4639,8 @@
           -0.9345011427612805,
           0.9667437187546718
         ],
-        "reported_sigma": 1.0194276182343704
+        "reported_sigma": 1.0194276182343704,
+        "anomaly_sigma": 1.0194276182343707
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-76-quadrupole-axis-ecliptic-cosine.png",
@@ -4613,7 +4695,8 @@
           0.0349882873204638,
           0.8669251665785553
         ],
-        "reported_sigma": 0.21470156800174456
+        "reported_sigma": 0.21470156800174456,
+        "anomaly_sigma": 0.21470156800174434
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-77-low-pseudo-angular-momentum-ecliptic-alignment.png",
@@ -4668,7 +4751,8 @@
           0.007381832164410039,
           0.10002956917180239
         ],
-        "reported_sigma": 2.1700903775845606
+        "reported_sigma": 2.1700903775845606,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-78-low-absolute-temperature-quadrupole-asymmetry.png",
@@ -4723,7 +4807,8 @@
           0.4147478166846382,
           1.9161931984769227
         ],
-        "reported_sigma": 0.7355575573851105
+        "reported_sigma": 0.7355575573851105,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-79-low-extreme-direction-dipole-magnitude.png",
@@ -4778,7 +4863,8 @@
           3.8663948256435807,
           5.696663602243409
         ],
-        "reported_sigma": 1.4325027208258116
+        "reported_sigma": 1.4325027208258116,
+        "anomaly_sigma": 1.4325027208258119
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-80-low-power-spectrum-cumulative-deviation-index.png",
@@ -4833,7 +4919,8 @@
           0.28182664486815145,
           0.434402357511646
         ],
-        "reported_sigma": 1.3851716082134353
+        "reported_sigma": 1.3851716082134353,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-81-low-band-limited-correlation-coherence-length.png",
@@ -4888,7 +4975,8 @@
           3.260068188698173,
           4.36002920796486
         ],
-        "reported_sigma": 2.120071689742151
+        "reported_sigma": 2.120071689742151,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-82-low-excursion-set-lacunarity.png",
@@ -4943,7 +5031,8 @@
           0.47354329936068407,
           40.18425917818914
         ],
-        "reported_sigma": 0.6280060144375695
+        "reported_sigma": 0.6280060144375695,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-83-low-angular-momentum-of-gradient-field.png",
@@ -4998,7 +5087,8 @@
           -0.029644157467664443,
           0.029757909057556035
         ],
-        "reported_sigma": 0.1130385406445651
+        "reported_sigma": 0.1130385406445651,
+        "anomaly_sigma": 0.11303854064456494
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-84-low-skewness-scale-dependence-slope.png",
@@ -5053,7 +5143,8 @@
           3.826359367249475,
           4.142884262321586
         ],
-        "reported_sigma": 0.310737745487592
+        "reported_sigma": 0.310737745487592,
+        "anomaly_sigma": 0.310737745487592
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-85-low-gradient-magnitude-shannon-entropy.png",
@@ -5108,7 +5199,8 @@
           -0.7254586910958291,
           0.7263292076925958
         ],
-        "reported_sigma": 0.010026681100274765
+        "reported_sigma": 0.010026681100274765,
+        "anomaly_sigma": 0.010026681100274763
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-86-low-extreme-temperature-laplacian-asymmetry.png",
@@ -5163,7 +5255,8 @@
           1.2171187606803202,
           1.2342003329370872
         ],
-        "reported_sigma": 1.195222781437427
+        "reported_sigma": 1.195222781437427,
+        "anomaly_sigma": 1.1952227814374272
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-87-low-excursion-set-boundary-fractal-index.png",
@@ -5218,7 +5311,8 @@
           0.9942981394275325,
           0.9970163761093698
         ],
-        "reported_sigma": 1.4985130678799752
+        "reported_sigma": 1.4985130678799752,
+        "anomaly_sigma": 1.4985130678799756
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-88-low-excursion-set-isoperimetric-deficit.png",
@@ -5273,7 +5367,8 @@
           112.71620804946123,
           160.92017831647237
         ],
-        "reported_sigma": 1.78661336549347
+        "reported_sigma": 1.78661336549347,
+        "anomaly_sigma": 1.7866133654934697
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-89-low-gradient-magnitude-interquartile-range.png",
@@ -5328,7 +5423,8 @@
           55.14795951971961,
           2263.8507293978887
         ],
-        "reported_sigma": 1.0537443021306667
+        "reported_sigma": 1.0537443021306667,
+        "anomaly_sigma": 1.0537443021306667
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-90-low-mean-absolute-gaussian-curvature.png",
@@ -5383,7 +5479,8 @@
           0.4788011371781641,
           0.5881703168105213
         ],
-        "reported_sigma": 0.3826220751625341
+        "reported_sigma": 0.3826220751625341,
+        "anomaly_sigma": 0.3826220751625341
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-91-low-gradient-magnitude-coefficient-of-variation.png",
@@ -5438,7 +5535,8 @@
           -0.2324703732548278,
           0.3707842288805144
         ],
-        "reported_sigma": 0.5129304106147283
+        "reported_sigma": 0.5129304106147283,
+        "anomaly_sigma": 0.5129304106147282
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-91-low-laplacian-kurtosis.png",
@@ -5493,7 +5591,8 @@
           0.9293777777777779,
           0.9434229166666666
         ],
-        "reported_sigma": 1.353174154548003
+        "reported_sigma": 1.353174154548003,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-92-low-great-circle-sign-coherence-ratio.png",
@@ -5548,7 +5647,8 @@
           0.4835756806473888,
           0.5003251225071016
         ],
-        "reported_sigma": 0.23784669541774933
+        "reported_sigma": 0.23784669541774933,
+        "anomaly_sigma": 0.2378466954177493
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-93-low-mean-hessian-anisotropy-index.png",
@@ -5603,7 +5703,8 @@
           0.48548728645656264,
           2.093263071113423
         ],
-        "reported_sigma": 1.0068642787985225
+        "reported_sigma": 1.0068642787985225,
+        "anomaly_sigma": 1.0068642787985222
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-94-low-extreme-temperature-gradient-asymmetry-ratio.png",
@@ -5658,7 +5759,8 @@
           -31.227593995886206,
           -8.582052623493079
         ],
-        "reported_sigma": 0.2533471031357997
+        "reported_sigma": 0.2533471031357997,
+        "anomaly_sigma": 0.2533471031357998
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-95-low-hessian-determinant-skewness.png",
@@ -5713,7 +5815,8 @@
           0.5166042882508968,
           0.7899942422190992
         ],
-        "reported_sigma": 0.17382881250166243
+        "reported_sigma": 0.17382881250166243,
+        "anomaly_sigma": 0.17382881250166224
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-96-low-gradient-magnitude-skewness.png",
@@ -5768,7 +5871,8 @@
           -0.21918841307187326,
           0.22312802661343295
         ],
-        "reported_sigma": 0.8668941666364379
+        "reported_sigma": 0.8668941666364379,
+        "anomaly_sigma": 0.8668941666364377
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-97-low-hot-cold-excursion-set-boundary-asymmetry.png",
@@ -5823,7 +5927,8 @@
           5102.500227272728,
           6289.701379032256
         ],
-        "reported_sigma": 0.020054370352950636
+        "reported_sigma": 0.020054370352950636,
+        "anomaly_sigma": 0.020054370352950632
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-98-low-critical-point-saddle-to-extrema-ratio.png",
@@ -5878,7 +5983,8 @@
           -0.5940154438273574,
           0.8600098337630153
         ],
-        "reported_sigma": 0.2326927491830449
+        "reported_sigma": 0.2326927491830449,
+        "anomaly_sigma": 0.232692749183045
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-99-low-temperature-distribution-excess-kurtosis.png",
@@ -5933,7 +6039,8 @@
           0.5995962348390619,
           1.7242930152856617
         ],
-        "reported_sigma": 0.5330485109029091
+        "reported_sigma": 0.5330485109029091,
+        "anomaly_sigma": 0.5330485109029091
       },
       "assets": {
         "figure_png": "assets/figures/mimo-v2-5-pro/test-100-low-gradient-magnitude-hot-cold-asymmetry.png",
@@ -5988,7 +6095,8 @@
           -0.2563143248311174,
           0.21408391585547124
         ],
-        "reported_sigma": 1.8119106729525973
+        "reported_sigma": 1.8119106729525973,
+        "anomaly_sigma": 1.811910672952597
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-01-masked-low-l-parity-log-ratio.png",
@@ -6043,7 +6151,8 @@
           0.16532020579548276,
           0.5409713130284552
         ],
-        "reported_sigma": 0.986271298702238
+        "reported_sigma": 0.986271298702238,
+        "anomaly_sigma": 0.9862712987022381
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-02-low-l-hemispherical-variance-max-contrast.png",
@@ -6098,7 +6207,8 @@
           0.03178828567880819,
           0.9819428474705276
         ],
-        "reported_sigma": -0.6557266787982536
+        "reported_sigma": -0.6557266787982536,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-03-quadrupole-octopole-axis-alignment.png",
@@ -6153,7 +6263,8 @@
           -5.361815697196813,
           -4.27333128500247
         ],
-        "reported_sigma": 0.28453554267162146
+        "reported_sigma": 0.28453554267162146,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-04-fixed-scale-smhw-cold-spot-extremum.png",
@@ -6208,7 +6319,8 @@
           2141.353974118059,
           195486.13563784098
         ],
-        "reported_sigma": -2.5121443279304616
+        "reported_sigma": -2.5121443279304616,
+        "anomaly_sigma": 2.512144327930461
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-05-masked-large-angle-correlation-s1-2.png",
@@ -6263,7 +6375,8 @@
           0.589374596202073,
           0.9784136008649547
         ],
-        "reported_sigma": 1.353174154548003
+        "reported_sigma": 1.353174154548003,
+        "anomaly_sigma": 1.3531741545480027
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-06-masked-octopole-planarity-dispersion.png",
@@ -6318,7 +6431,8 @@
           0.006316455583247556,
           0.04052566831972979
         ],
-        "reported_sigma": 3.090232306167813
+        "reported_sigma": 3.090232306167813,
+        "anomaly_sigma": 3.090232306167813
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-07-fixed-scale-local-variance-dipole-amplitude.png",
@@ -6373,7 +6487,8 @@
           0.6810836967308319,
           1.3395315843287134
         ],
-        "reported_sigma": -0.6158401887479719
+        "reported_sigma": -0.6158401887479719,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-08-low-l-mirror-parity-plane-log-imbalance.png",
@@ -6428,7 +6543,8 @@
           0.0655952267655199,
           0.4403893538478196
         ],
-        "reported_sigma": 1.2107271327915972
+        "reported_sigma": 1.2107271327915972,
+        "anomaly_sigma": 1.2107271327915974
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-09-low-l-bandpower-dipole-fraction.png",
@@ -6483,7 +6599,8 @@
           0.030289453865146525,
           0.9717887245627528
         ],
-        "reported_sigma": -2.457263390205437
+        "reported_sigma": -2.457263390205437,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-10-low-l-power-tensor-ecliptic-alignment.png",
@@ -6538,7 +6655,8 @@
           -0.40150273053091123,
           0.42865348509899825
         ],
-        "reported_sigma": 2.1200716897421508
+        "reported_sigma": 2.1200716897421508,
+        "anomaly_sigma": 2.1200716897421503
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-11-fixed-ecliptic-low-l-variance-log-contrast.png",
@@ -6593,7 +6711,8 @@
           -0.5833972650620223,
           0.5946912885703262
         ],
-        "reported_sigma": 0.7960551172626629
+        "reported_sigma": 0.7960551172626629,
+        "anomaly_sigma": 0.7960551172626629
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-12-low-l-ecliptic-hemispherical-skewness-contrast.png",
@@ -6648,7 +6767,8 @@
           7.521412927425433,
           8.101704001113927
         ],
-        "reported_sigma": -1.7279343223884187
+        "reported_sigma": -1.7279343223884187,
+        "anomaly_sigma": 1.7279343223884183
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-13-masked-low-l-power-deficit-log-amplitude.png",
@@ -6703,7 +6823,8 @@
           -0.5149488057445667,
           0.16628998998409134
         ],
-        "reported_sigma": -0.7487631066149087
+        "reported_sigma": -0.7487631066149087,
+        "anomaly_sigma": 0.7487631066149086
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-14-masked-low-l-spectral-tilt-log-ratio.png",
@@ -6758,7 +6879,8 @@
           -0.32916124821710585,
           0.45980547737359
         ],
-        "reported_sigma": 1.2318637087349833
+        "reported_sigma": 1.2318637087349833,
+        "anomaly_sigma": 1.231863708734983
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-15-masked-low-l-excess-kurtosis.png",
@@ -6813,7 +6935,8 @@
           0.46013127074788635,
           0.8469133796045633
         ],
-        "reported_sigma": 0.26111995954851813
+        "reported_sigma": 0.26111995954851813,
+        "anomaly_sigma": 0.26111995954851813
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-16-low-l-angular-momentum-axis-concentration.png",
@@ -6868,7 +6991,8 @@
           -0.17403259020244258,
           0.17150254674037296
         ],
-        "reported_sigma": -0.7995009431327368
+        "reported_sigma": -0.7995009431327368,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-17-low-l-parity-split-axis-concentration-contrast.png",
@@ -6923,7 +7047,8 @@
           -0.39039095821955655,
           0.42516627228578757
         ],
-        "reported_sigma": 0.6310619790594988
+        "reported_sigma": 0.6310619790594988,
+        "anomaly_sigma": 0.6310619790594988
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-18-low-l-ecliptic-belt-to-cap-variance-log-ratio.png",
@@ -6978,7 +7103,8 @@
           0.9749283237908929,
           0.9926703303639972
         ],
-        "reported_sigma": 0.19677962021846676
+        "reported_sigma": 0.19677962021846676,
+        "anomaly_sigma": 0.19677962021846684
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-19-whitened-low-l-bandpower-entropy.png",
@@ -7033,7 +7159,8 @@
           0.01223485509132815,
           0.1439773578033825
         ],
-        "reported_sigma": 1.8807936081512509
+        "reported_sigma": 1.8807936081512509,
+        "anomaly_sigma": 1.8807936081512504
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-20-masked-low-l-adjacent-phase-coherence.png",
@@ -7088,7 +7215,8 @@
           0.026794603279542015,
           0.23146292949706188
         ],
-        "reported_sigma": 0.4070108762644654
+        "reported_sigma": 0.4070108762644654,
+        "anomaly_sigma": 0.40701087626446547
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-21-low-l-ecliptic-zonal-power-fraction.png",
@@ -7143,7 +7271,8 @@
           0.16859716872646208,
           0.35856085631467377
         ],
-        "reported_sigma": -0.4593261108356631
+        "reported_sigma": -0.4593261108356631,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-22-large-scale-hemispheric-mean-imbalance.png",
@@ -7198,7 +7327,8 @@
           -0.09614113460858748,
           0.11060065099320371
         ],
-        "reported_sigma": 1.066937632192765
+        "reported_sigma": 1.066937632192765,
+        "anomaly_sigma": 1.0669376321927655
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-23-masked-low-l-tail-asymmetry-log-ratio.png",
@@ -7253,7 +7383,8 @@
           -0.2479613085689127,
           0.24370490918290083
         ],
-        "reported_sigma": 0.8274183207043821
+        "reported_sigma": 0.8274183207043821,
+        "anomaly_sigma": 0.8274183207043824
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-24-masked-low-l-galactic-half-turn-correlation.png",
@@ -7308,7 +7439,8 @@
           0.22236379502135167,
           0.7913080081903405
         ],
-        "reported_sigma": -2.17009037758456
+        "reported_sigma": -2.17009037758456,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-25-quadrupole-octopole-ecliptic-area-normal-alignment.png",
@@ -7363,7 +7495,8 @@
           0.001017071136553655,
           0.006511077409618395
         ],
-        "reported_sigma": 0.986271298702238
+        "reported_sigma": 0.986271298702238,
+        "anomaly_sigma": 0.9862712987022381
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-26-masked-low-l-bipolar-dipole-modulation-amplitude.png",
@@ -7418,7 +7551,8 @@
           -0.14971130193758095,
           0.3911008164631088
         ],
-        "reported_sigma": 1.7624102978623897
+        "reported_sigma": 1.7624102978623897,
+        "anomaly_sigma": 1.7624102978623888
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-27-masked-low-l-antipodal-correlation.png",
@@ -7473,7 +7607,8 @@
           8.393476590011115e-05,
           0.2449151061981877
         ],
-        "reported_sigma": -0.6310619790594988
+        "reported_sigma": -0.6310619790594988,
+        "anomaly_sigma": 0.0
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-28-masked-low-l-ecliptic-quadrupole-template-correlation.png",
@@ -7528,7 +7663,8 @@
           -0.07608880947519753,
           0.07726334441018365
         ],
-        "reported_sigma": 0.5977601260424784
+        "reported_sigma": 0.5977601260424784,
+        "anomaly_sigma": 0.5977601260424784
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-29-masked-low-high-power-coupling-correlation.png",
@@ -7583,7 +7719,8 @@
           0.36954151620813674,
           1.1452882814491638
         ],
-        "reported_sigma": 0.7030894603309285
+        "reported_sigma": 0.7030894603309285,
+        "anomaly_sigma": 0.7030894603309286
       },
       "assets": {
         "figure_png": "assets/figures/gpt5-5/test-30-low-l-hemispherical-spectral-tilt-max-contrast.png",

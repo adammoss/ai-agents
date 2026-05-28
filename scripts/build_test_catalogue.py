@@ -85,6 +85,15 @@ def sigma_from_primary_p(primary_p: Any, tail: str) -> float | None:
     return NORMAL.inv_cdf(1.0 - p)
 
 
+def anomaly_sigma_from_primary_p(primary_p: Any, tail: str) -> float | None:
+    sigma = sigma_from_primary_p(primary_p, tail)
+    if sigma is None:
+        return None
+    if "two" in clean_text(tail).lower():
+        return sigma
+    return max(0.0, sigma)
+
+
 def standardize_sigma(metrics: dict[str, Any], tail: str) -> None:
     """Preserve raw agent sigma and expose a tail-consistent p-equivalent sigma."""
     reported_sigma = number(metrics.get("sigma"))
@@ -93,6 +102,9 @@ def standardize_sigma(metrics: dict[str, Any], tail: str) -> None:
     derived_sigma = sigma_from_primary_p(metrics.get("primary_p_value"), tail)
     if derived_sigma is not None:
         metrics["sigma"] = derived_sigma
+    anomaly_sigma = anomaly_sigma_from_primary_p(metrics.get("primary_p_value"), tail)
+    if anomaly_sigma is not None:
+        metrics["anomaly_sigma"] = anomaly_sigma
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -360,6 +372,7 @@ def normalized_metrics(record: dict[str, Any]) -> dict[str, Any]:
         "std_sim_stat": number(metrics.get("std_sim_stat")),
         "median_sim_stat": number(metrics.get("median_sim_stat")),
         "sigma": number(metrics.get("sigma")),
+        "anomaly_sigma": number(metrics.get("anomaly_sigma")),
         "p_value_one_tailed": number(metrics.get("p_value_one_tailed")),
         "p_value_two_tailed": number(metrics.get("p_value_two_tailed")),
         "primary_p_value": number(metrics.get("primary_p_value")),
@@ -752,6 +765,7 @@ def write_registry(tests: list[dict[str, Any]], metadata: dict[str, Any]) -> Non
                 "p_value_one_tailed": metrics.get("p_value_one_tailed"),
                 "p_value_two_tailed": metrics.get("p_value_two_tailed"),
                 "sigma": metrics.get("sigma"),
+                "anomaly_sigma": metrics.get("anomaly_sigma"),
                 "reported_sigma": metrics.get("reported_sigma"),
                 "planck_stat": metrics.get("planck_stat"),
                 "mean_sim_stat": metrics.get("mean_sim_stat"),
@@ -835,7 +849,7 @@ def write_index(metadata: dict[str, Any]) -> None:
         <select id="sort-order">
           <option value="pvalue">Smallest p-value</option>
           <option value="number">Test number</option>
-          <option value="sigma">Largest sigma</option>
+          <option value="sigma">Largest significance</option>
           <option value="title">Title</option>
         </select>
       </label>
@@ -1457,6 +1471,25 @@ function labelClass(verdict) {
   return String(verdict || "unknown").toLowerCase().replace(/[^a-z]+/g, "-");
 }
 
+function tailLabel(tail) {
+  const text = String(tail || "").toLowerCase();
+  if (text.includes("lower")) return "lower-tail";
+  if (text.includes("upper")) return "upper-tail";
+  if (text.includes("two")) return "two-sided";
+  return tail || "";
+}
+
+function significanceText(test) {
+  const m = test.metrics || {};
+  if (m.anomaly_sigma === null || m.anomaly_sigma === undefined) return "n/a";
+  const tail = tailLabel(test.tail);
+  const suffix = tail ? ` ${tail}` : "";
+  if ((m.sigma || 0) < 0 && m.anomaly_sigma === 0) {
+    return `0σ${tail ? ` (${tail} not supported)` : ""}`;
+  }
+  return `${fmt(m.anomaly_sigma)}σ${suffix}`;
+}
+
 function uniq(values) {
   return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
@@ -1516,7 +1549,7 @@ function filteredTests() {
 
   tests.sort((a, b) => {
     if (state.filters.sort === "number") return a.model.localeCompare(b.model) || a.test_number - b.test_number || a.title.localeCompare(b.title);
-    if (state.filters.sort === "sigma") return (Math.abs(b.metrics.sigma || 0) - Math.abs(a.metrics.sigma || 0)) || a.title.localeCompare(b.title);
+    if (state.filters.sort === "sigma") return ((b.metrics.anomaly_sigma || 0) - (a.metrics.anomaly_sigma || 0)) || a.title.localeCompare(b.title);
     if (state.filters.sort === "title") return a.title.localeCompare(b.title);
     const ap = a.metrics.primary_p_value ?? 999;
     const bp = b.metrics.primary_p_value ?? 999;
@@ -1544,7 +1577,7 @@ function renderTests() {
         <div><span class="cell-label">Verdict</span><span class="label ${labelClass(test.verdict)}">${test.verdict}</span></div>
         <div><span class="cell-label">Model</span>${test.model || "Unknown"}</div>
         <div><span class="cell-label">p-value</span><span class="number">${fmt(m.primary_p_value)}</span></div>
-        <div><span class="cell-label">p-sigma</span><span class="number">${fmt(m.sigma)}</span></div>
+        <div><span class="cell-label">Significance</span><span class="number">${significanceText(test)}</span></div>
         <div><span class="cell-label">Novelty</span>${test.novelty || "Unknown"}</div>
         <div><span class="cell-label">Family</span>${test.family || "other"}</div>
       </article>`;
@@ -1609,32 +1642,47 @@ def status_label(verdict: str) -> str:
     return f'<span class="label {klass}">{html.escape(verdict)}</span>'
 
 
+def tail_label(tail: str) -> str:
+    text = clean_text(tail).lower()
+    if "lower" in text:
+        return "lower-tail"
+    if "upper" in text:
+        return "upper-tail"
+    if "two" in text:
+        return "two-sided"
+    return clean_text(tail, "unspecified")
+
+
+def significance_text(test: dict[str, Any]) -> str:
+    metrics = test["metrics"]
+    anomaly_sigma = metrics.get("anomaly_sigma")
+    if anomaly_sigma is None:
+        return "n/a"
+    label = tail_label(test["tail"])
+    signed_sigma = number(metrics.get("sigma"))
+    if signed_sigma is not None and signed_sigma < 0 and float(anomaly_sigma) == 0.0:
+        return f"0σ ({label} not supported)"
+    return f"{fmt_metric(anomaly_sigma)}σ {label}"
+
+
 def metric_rows(test: dict[str, Any]) -> str:
     metrics = test["metrics"]
     rows = [
         ("Model", test["model"]),
         ("Run path", test["source_path"]),
+        ("Hypothesis tail", tail_label(test["tail"])),
         ("Primary p-value", fmt_metric(metrics.get("primary_p_value"))),
-        ("One-tailed p-value", fmt_metric(metrics.get("p_value_one_tailed"))),
-        ("Two-tailed p-value", fmt_metric(metrics.get("p_value_two_tailed"))),
-        ("Sigma from primary p", fmt_metric(metrics.get("sigma"))),
+        ("Anomaly significance", significance_text(test)),
         ("Planck statistic", fmt_metric(metrics.get("planck_stat"))),
         ("Simulation mean", fmt_metric(metrics.get("mean_sim_stat"))),
         ("Simulation std.", fmt_metric(metrics.get("std_sim_stat"))),
         ("Simulation median", fmt_metric(metrics.get("median_sim_stat"))),
         ("Simulations", fmt_metric(metrics.get("n_sims"))),
         ("Valid simulations", fmt_metric(metrics.get("n_valid_simulations"))),
-        ("Tail", test["tail"]),
         ("Family", test["family"]),
         ("Novelty", test["novelty"]),
         ("Meets hypothesis", test["meets_hypothesis"] or "Not recorded"),
     ]
-    reported_sigma = metrics.get("reported_sigma")
-    sigma = metrics.get("sigma")
-    if reported_sigma is not None and (
-        sigma is None or abs(float(reported_sigma) - float(sigma)) > 1e-9
-    ):
-        rows.insert(6, ("Reported sigma in source file", fmt_metric(reported_sigma)))
     return "\n".join(
         f"<tr><th>{html.escape(label)}</th><td>{html.escape(str(value if value not in (None, '') else 'n/a'))}</td></tr>"
         for label, value in rows
@@ -1842,9 +1890,11 @@ The builder copies each test's figures and raw artifacts into `docs/`, and write
 - `docs/data/raw/`: sanitized per-test JSON records preserving generated fields.
 - `docs/data/statistics/`: Planck and simulation statistic arrays.
 
-The displayed `sigma` value is derived consistently from each test's primary
-p-value and tail. Raw agent-reported sigma values are preserved as
-`reported_sigma` where they differ.
+The main pages show the primary p-value for the pre-specified hypothesis tail
+and an anomaly-significance strength derived from it. Audit fields, including
+one-/two-tailed p-values, hypothesis-tail sigma, anomaly sigma, and raw
+agent-reported sigma, are preserved in `docs/data/tests.json` and
+`docs/data/tests.csv`.
 
 ## Publishing
 

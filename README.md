@@ -53,9 +53,11 @@ The builder copies each test's figures and raw artifacts into `docs/`, and write
 - `docs/data/raw/`: sanitized per-test JSON records preserving generated fields.
 - `docs/data/statistics/`: Planck and simulation statistic arrays.
 
-The displayed `sigma` value is derived consistently from each test's primary
-p-value and tail. Raw agent-reported sigma values are preserved as
-`reported_sigma` where they differ.
+The main pages show the primary p-value for the pre-specified hypothesis tail
+and an anomaly-significance strength derived from it. Audit fields, including
+one-/two-tailed p-values, hypothesis-tail sigma, anomaly sigma, and raw
+agent-reported sigma, are preserved in `docs/data/tests.json` and
+`docs/data/tests.csv`.
 
 ## Publishing
 

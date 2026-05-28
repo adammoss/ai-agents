@@ -24,6 +24,25 @@ function labelClass(verdict) {
   return String(verdict || "unknown").toLowerCase().replace(/[^a-z]+/g, "-");
 }
 
+function tailLabel(tail) {
+  const text = String(tail || "").toLowerCase();
+  if (text.includes("lower")) return "lower-tail";
+  if (text.includes("upper")) return "upper-tail";
+  if (text.includes("two")) return "two-sided";
+  return tail || "";
+}
+
+function significanceText(test) {
+  const m = test.metrics || {};
+  if (m.anomaly_sigma === null || m.anomaly_sigma === undefined) return "n/a";
+  const tail = tailLabel(test.tail);
+  const suffix = tail ? ` ${tail}` : "";
+  if ((m.sigma || 0) < 0 && m.anomaly_sigma === 0) {
+    return `0σ${tail ? ` (${tail} not supported)` : ""}`;
+  }
+  return `${fmt(m.anomaly_sigma)}σ${suffix}`;
+}
+
 function uniq(values) {
   return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b));
 }
@@ -83,7 +102,7 @@ function filteredTests() {
 
   tests.sort((a, b) => {
     if (state.filters.sort === "number") return a.model.localeCompare(b.model) || a.test_number - b.test_number || a.title.localeCompare(b.title);
-    if (state.filters.sort === "sigma") return (Math.abs(b.metrics.sigma || 0) - Math.abs(a.metrics.sigma || 0)) || a.title.localeCompare(b.title);
+    if (state.filters.sort === "sigma") return ((b.metrics.anomaly_sigma || 0) - (a.metrics.anomaly_sigma || 0)) || a.title.localeCompare(b.title);
     if (state.filters.sort === "title") return a.title.localeCompare(b.title);
     const ap = a.metrics.primary_p_value ?? 999;
     const bp = b.metrics.primary_p_value ?? 999;
@@ -111,7 +130,7 @@ function renderTests() {
         <div><span class="cell-label">Verdict</span><span class="label ${labelClass(test.verdict)}">${test.verdict}</span></div>
         <div><span class="cell-label">Model</span>${test.model || "Unknown"}</div>
         <div><span class="cell-label">p-value</span><span class="number">${fmt(m.primary_p_value)}</span></div>
-        <div><span class="cell-label">p-sigma</span><span class="number">${fmt(m.sigma)}</span></div>
+        <div><span class="cell-label">Significance</span><span class="number">${significanceText(test)}</span></div>
         <div><span class="cell-label">Novelty</span>${test.novelty || "Unknown"}</div>
         <div><span class="cell-label">Family</span>${test.family || "other"}</div>
       </article>`;

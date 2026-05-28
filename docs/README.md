@@ -7,4 +7,4 @@ This directory is the publishable website for Test Catalogue v1.0.
 - `data/tests.json` is the machine-readable registry.
 - `tests/` contains stable per-test pages.
 
-Generated at `2026-05-28T19:53:15+00:00` from 2 model(s).
+Generated at `2026-05-28T22:47:05+00:00` from 2 model(s).
